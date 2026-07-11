@@ -21,6 +21,14 @@
         
         <div id="live-ticker">Pripravujem skenovanie...</div>
 
+      <div class="filter-control-row">
+          <label class="switch-container">
+            <input type="checkbox" id="filter-toggle" checked />
+            <span class="slider"></span>
+          </label>
+          <span class="filter-label-text">Skryť drobné súbory a zložky (Rýchly režim)</span>
+      </div>
+
         <div id="chart-layout">
           <div id="chart-container">
             <svg id="sunburst-chart"></svg>
@@ -40,7 +48,7 @@
       </div>
 
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="/d3.min.js"></script>
     <script src="/main.js"></script>
   </body>
 </html>

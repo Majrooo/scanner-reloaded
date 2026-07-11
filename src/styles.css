@@ -99,6 +99,9 @@ h1, h2 {
   text-align: center;
   pointer-events: auto;
   z-index: 10;
+  pointer-events: auto; /* ZMENENÉ z none na auto */
+  cursor: pointer;      /* PRIDANÉ pre efekt ruky pri hoveri */
+  z-index: 10;
 }
 
 #center-icon { font-size: clamp(20px, 4vh, 28px); }
@@ -140,3 +143,69 @@ h1, h2 {
 #hover-size { color: #f9e2af; font-weight: bold; margin-top: 5px; }
 
 path { stroke: #11111b; stroke-width: 1.5px; }
+
+/* Kontajner pre riadok s filtrom */
+.filter-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  background: #1e1e2e;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #313244;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.filter-label-text {
+  font-size: 14px;
+  color: #cdd6f4;
+  user-select: none;
+}
+
+/* Samotný posuvný prepínač (Switch) */
+.switch-container {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch-container input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #45475a;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #11111b;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+/* Keď je filter zapnutý, zafarbíme ho na Windows žlto/zelenú */
+input:checked + .slider {
+  background-color: #a6e3a1;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
