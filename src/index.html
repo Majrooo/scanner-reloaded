@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="sk">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Disk Scanner</title>
+  </head>
+  <body>
+    <div class="container">
+      
+      <div id="disk-screen">
+        <h1>Vyberte disk na analýzu</h1>
+        <div id="disk-list"></div>
+      </div>
+
+      <div id="scan-screen" class="hidden">
+        <div class="header-row">
+          <button id="back-to-disks-btn">⬅ Späť na disky</button>
+          <h2 id="current-folder-title">Skenujem...</h2>
+        </div>
+        
+        <div id="live-ticker">Pripravujem skenovanie...</div>
+
+        <div id="chart-layout">
+          <div id="chart-container">
+            <svg id="sunburst-chart"></svg>
+            <div id="center-info">
+              <div id="center-icon">📁</div>
+              <div id="center-name">..</div>
+              <div id="center-size">0 MB</div>
+            </div>
+          </div>
+          
+          <div id="hover-panel">
+            <div id="hover-path">Ukaž myšou na priečinok...</div>
+            <div id="hover-size"></div>
+            <div id="hover-stats"></div> 
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="/main.js"></script>
+  </body>
+</html>
