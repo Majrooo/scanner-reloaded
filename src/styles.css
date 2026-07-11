@@ -1,9 +1,17 @@
-body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+html, body {
+  margin: 0;
+  padding: 0;
   background-color: #11111b;
   color: #cdd6f4;
-  margin: 0;
-  padding: 30px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+  /* KĽÚČOVÉ: Prehliadač ignoruje akékoľvek "loading" stavy z Tauri */
+  cursor: default !important;
+}
+
+/* Prvky, ktoré reálne reagujú na klik/myš, si interaktivitu zapnú samé */
+#disk-list, .disk-card, button, input, .breadcrumb-item, path, #center-info {
+  cursor: pointer;
 }
 
 .container {

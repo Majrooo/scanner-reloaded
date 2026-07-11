@@ -29,9 +29,9 @@ let rootNode = null;
 let gPartition = null;
 let currentFocus = null;
 
-const radius = 300;   
+const radius = 320;   
 const innerHoleRadius = 80;
-const maxDepth = 5;
+const maxDepth = 24;
 
 // Globálna konfigurácia aplikácie
 const APP_CONFIG = {
@@ -199,13 +199,11 @@ function drawSunburst(data) {
   zoomTo(rootNode);
 }
 
-// Spoločná funkcia pre vykreslenie a zoomovanie (Vytiahnutá von z drawSunburst)
 function zoomTo(p) {
   currentFocus = p;
   const svg = d3.select("#sunburst-group");
   if (svg.empty()) return;
 
-  // Aktualizácia stredového kliku a textov
   centerInfo.onclick = () => {
     if (currentFocus.parent) zoomTo(currentFocus.parent);
   };
@@ -214,25 +212,14 @@ function zoomTo(p) {
   updateCenterHUD(p.parent ? "⬆ Hore" : "📁", p.data.name, formatBytes(p.value));
   updateBreadcrumbs(p);
 
-  // Živý prepočet rozloženia pred aplikáciou filtra
   if (gPartition && rootNode) {
     gPartition(rootNode);
   }
 
-  function getScaleY(depth) {
-    if (depth < 0) return 0;
-    const availableRadius = radius - innerHoleRadius;
-    const step = availableRadius / maxDepth;
-    return innerHoleRadius + (depth * step);
-  }
-
-  const arc = d3.arc()
-    .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
-    .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
-    .innerRadius(d => getScaleY(d.depth - p.depth - 1)) 
-    .outerRadius(d => getScaleY(d.depth - p.depth) - 1);
-
+  // 1. Najprv zoberieme úplne všetkých teoretických potomkov
   const descendants = p.descendants();
+
+  // 2. Aplikujeme kompletný filter (geometrický + výkonnostný) HNEĎ NA ZAČIATKU
   const visibleDescendants = descendants.filter(d => {
     const basicCheck = d.depth > p.depth && 
                        d.depth <= p.depth + maxDepth && 
@@ -251,16 +238,68 @@ function zoomTo(p) {
     return true;
   });
 
+  // 3. 📁 OPRAVA: Skutočnú maximálnu hĺbku vypočítame VÝHRADNE z tých uzlov, ktoré naozaj IDEME VYKRESLIŤ
+  let realMaxDepth = 0;
+  visibleDescendants.forEach(d => {
+    const currentRelativeDepth = d.depth - p.depth;
+    if (currentRelativeDepth > realMaxDepth) {
+      realMaxDepth = currentRelativeDepth;
+    }
+  });
+
+  if (realMaxDepth === 0) realMaxDepth = 1;
+
+  // 4. Dynamická mierka, ktorá teraz dostane 100% presné očistené číslo
+  function getScaleY(depth) {
+    if (depth <= 0) return innerHoleRadius;
+    const availableRadius = radius - innerHoleRadius;
+    
+    const factor = realMaxDepth > 5 ? 0.90 : 0.95; 
+    
+    let totalUnits = 0;
+    for (let i = 0; i < realMaxDepth; i++) {
+      totalUnits += Math.pow(factor, i);
+    }
+    
+    const baseStep = availableRadius / totalUnits;
+    
+    let currentRadius = innerHoleRadius;
+    for (let i = 0; i < depth; i++) {
+      if (i >= realMaxDepth) return radius;
+      currentRadius += baseStep * Math.pow(factor, i);
+    }
+    
+    if (depth >= realMaxDepth) return radius;
+    return currentRadius;
+  }
+
+  // 5. Oblúky s novou upravenou mierkou
+  const arc = d3.arc()
+    .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
+    .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
+    .innerRadius(d => getScaleY(d.depth - p.depth - 1)) 
+    .outerRadius(d => getScaleY(d.depth - p.depth) - 1);
+
+  // 6. Vyčistíme a vykreslíme
   svg.selectAll("path").remove();
 
   const paths = svg.append("g")
     .selectAll("path")
     .data(visibleDescendants, d => d.data.path)
     .join("path")
-    .attr("fill", d => d.data.is_dir ? yellowScale(d.depth - p.depth - 1) : "#89b4fa") 
+    .attr("fill", d => {
+      if (d.data.is_dir) {
+        const localYellowScale = d3.scaleLinear()
+          .domain([0, realMaxDepth])
+          .range(["#ffcc00", "#423500"]);
+        return localYellowScale(d.depth - p.depth - 1);
+      }
+      return "#89b4fa";
+    }) 
     .attr("d", arc)
     .style("cursor", "pointer");
 
+  // Zvyšok (hover a click) zostáva rovnaký...
   paths.on("mouseover", (event, d) => {
       hoverPath.textContent = d.data.path;
       hoverSize.textContent = formatBytes(d.value);

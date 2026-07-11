@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::thread;
+use std::time::Instant;
 use serde::Serialize;
 use sysinfo::Disks;
 use tauri::{AppHandle, Emitter};
@@ -14,7 +15,6 @@ struct DiskInfo {
     available_space: u64,
 }
 
-// Štruktúra stromu, ktorú kompletne vybudujeme v Ruste
 #[derive(Serialize, Clone)]
 struct FileNode {
     name: String,
@@ -34,8 +34,6 @@ fn get_disks() -> Vec<DiskInfo> {
         let name = disk.name().to_string_lossy().into_owned();
         let mount_point = disk.mount_point().to_string_lossy().into_owned();
         
-        // Filtrácia systémového šumu Windows Sandboxu
-        // ✅ NOVÉ (plne kompatibilné s novým sysinfo):
         if matches!(disk.kind(), sysinfo::DiskKind::Unknown(_)) && mount_point.contains("BaseImages") {
             continue;
         }
@@ -53,8 +51,8 @@ fn get_disks() -> Vec<DiskInfo> {
     result
 }
 
-// Rekurzívna funkcia, ktorá stavia strom priamo v RAM pamäti Rustu (beží plnou rýchlosťou)
-fn scan_directory(path: &Path, app_handle: &AppHandle) -> Option<FileNode> {
+// Rekurzívna funkcia s pridaným throtlovaním pre live ticker
+fn scan_directory(path: &Path, app_handle: &AppHandle, last_emit: &mut Instant) -> Option<FileNode> {
     let metadata = match path.symlink_metadata() {
         Ok(m) => m,
         Err(_) => return None,
@@ -70,17 +68,20 @@ fn scan_directory(path: &Path, app_handle: &AppHandle) -> Option<FileNode> {
             return None;
         }
 
-        // Posielame na frontend IBA textový update pre live ticker (približne raz za čas, žiadny spam dátami)
-        let _ = app_handle.emit("scan-live-folder", path_str.clone());
+        // OPTIMALIZÁCIA (Bod B): Správu na frontend pustíme maximálne raz za 50 ms
+        if last_emit.elapsed().as_millis() >= 50 {
+            let _ = app_handle.emit("scan-live-folder", path_str.clone());
+            *last_emit = Instant::now(); // Resetujeme časovač
+        }
 
         let mut children = Vec::new();
         let mut total_size = 0;
-        let mut dir_count = 1; // započítame seba
+        let mut dir_count = 1;
         let mut file_count = 0;
 
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
-                if let Some(child_node) = scan_directory(&entry.path(), app_handle) {
+                if let Some(child_node) = scan_directory(&entry.path(), app_handle, last_emit) {
                     total_size += child_node.size;
                     dir_count += child_node.dir_count;
                     file_count += child_node.file_count;
@@ -117,9 +118,10 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
     thread::spawn(move || {
         let target_path = Path::new(&path);
         if target_path.exists() {
-            // Spustíme sken, ktorý vybuduje strom v pamäti
-            if let Some(full_tree) = scan_directory(target_path, &app_handle) {
-                // Na samom konci pošleme CELÝ hotový strom naraz na jedenkrát!
+            // Inicializujeme časovač pre prvé odoslanie
+            let mut last_emit = Instant::now();
+            
+            if let Some(full_tree) = scan_directory(target_path, &app_handle, &mut last_emit) {
                 let _ = app_handle.emit("scan-finished-with-data", full_tree);
             } else {
                 let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
