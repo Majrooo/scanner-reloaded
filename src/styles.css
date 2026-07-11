@@ -209,3 +209,46 @@ input:checked + .slider {
 input:checked + .slider:before {
   transform: translateX(20px);
 }
+
+/* Kontajner pre breadcrumbs */
+.breadcrumbs-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #cdd6f4;
+  margin-left: 15px;
+}
+
+/* Samotné klikateľné priečinky */
+.breadcrumb-item {
+  color: #cba6f7; /* Pekná fialová pre cestu */
+  cursor: pointer;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.breadcrumb-item:hover {
+  color: #a6e3a1; /* Zelená pri hoveri */
+  text-decoration: underline;
+}
+
+/* Štýl pre statický posledný (aktuálny) adresár */
+.breadcrumb-item.active {
+  color: #cdd6f4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.breadcrumb-item.active:hover {
+  text-decoration: none;
+}
+
+/* Separátor medzi priečinkami (šípka) */
+.breadcrumb-separator {
+  color: #6c7086;
+  font-size: 18px;
+  user-select: none;
+}

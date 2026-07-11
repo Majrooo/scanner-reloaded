@@ -1,29 +1,13 @@
-// Globálna konfigurácia aplikácie
-const APP_CONFIG = {
-  // Ak je true, malé súbory a zložky pod limitom sa v grafe skryjú (zrýchli vykresľovanie)
-  usePerformanceFilter: true, 
-  
-  // Minimálna veľkosť v bajtoch, ktorú musí element mať, aby sa zobrazil (napr. 1 MB = 1024 * 1024)
-  minSizeToRender: 1 * 1024 * 1024, 
-  
-  // Minimálny uhol v radiánoch, ktorý musí segment mať (cca 0.005 je pol stupňa). 
-  // Čokoľvek menšie oko na 4K aj tak neuvidí ako samostatný rez.
-  minAngleToRender: 0.005 
-};
-
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
-let root;
-let partition;
-
-let filterToggle = document.getElementById("filter-toggle"); // 📁 PRIDANÉ
 let diskScreen = document.getElementById("disk-screen");
 let scanScreen = document.getElementById("scan-screen");
 let diskList = document.getElementById("disk-list");
 let currentFolderTitle = document.getElementById("current-folder-title");
 let backBtn = document.getElementById("back-to-disks-btn");
 let liveTicker = document.getElementById("live-ticker");
+let filterToggle = document.getElementById("filter-toggle");
 
 let hoverPath = document.getElementById("hover-path");
 let hoverSize = document.getElementById("hover-size");
@@ -34,10 +18,32 @@ let centerName = document.getElementById("center-name");
 let centerSize = document.getElementById("center-size");
 let centerInfo = document.getElementById("center-info");
 
+// Globálne premenné pre správnu synchronizáciu
 let memoryTree = {};
 let rootPath = "";
 let unlistenProgress;
 let unlistenFinished;
+
+// Globálne referencie pre D3 uzly (Dôležité pre živý filter)
+let rootNode = null;
+let gPartition = null;
+let currentFocus = null;
+
+const radius = 300;   
+const innerHoleRadius = 80;
+const maxDepth = 5;
+
+// Globálna konfigurácia aplikácie
+const APP_CONFIG = {
+  usePerformanceFilter: true, 
+  minSizeToRender: 1 * 1024 * 1024, 
+  minAngleToRender: 0.01 
+};
+
+// Škála žltej farby pre zložky
+const yellowScale = d3.scaleLinear()
+  .domain([0, maxDepth])
+  .range(["#ffcc00", "#5c4a00"]);
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -71,14 +77,24 @@ async function loadDisks() {
 async function startDiskScan(path) {
   diskScreen.classList.add("hidden");
   scanScreen.classList.remove("hidden");
-  currentFolderTitle.textContent = `Analýza disku: ${path}`;
   liveTicker.textContent = "Spúšťam asynchrónne vlákno...";
   
+  // ZABRÁNENIE ZOBRAZENIU PREDDOŠLÉHO DISKU:
+  // Pred spustením nového skenovania musíme odstrániť starý graf.
+  // Získame SVG element pre graf
+  const svg = d3.select("#sunburst-chart");
+  // Vyčistíme všetok obsah vnútri SVG
+  svg.selectAll("*").remove();
+
   memoryTree = {};
   rootPath = path.replace(/\\/g, "/");
 
   memoryTree[rootPath] = { name: path, path: rootPath, size: 0, is_dir: true, children: [], dir_count: 0, file_count: 0 };
   updateCenterHUD("📁", memoryTree[rootPath].name, "Počítam...");
+
+  // Inicializujeme základný vizuálny breadcrumb, nech tam nesvieti prázdno
+  const dummyRoot = d3.hierarchy(memoryTree[rootPath]);
+  updateBreadcrumbs(dummyRoot);
 
   unlistenProgress = await listen("scan-progress", (event) => {
     const payload = event.payload;
@@ -147,6 +163,9 @@ function showDiskScreen() {
   if(unlistenFinished) unlistenFinished();
   scanScreen.classList.add("hidden");
   diskScreen.classList.remove("hidden");
+  rootNode = null;
+  gPartition = null;
+  currentFocus = null;
   loadDisks();
 }
 
@@ -156,46 +175,52 @@ function updateCenterHUD(icon, name, size) {
   centerSize.textContent = size;
 }
 
+function updateBreadcrumbs(p) {
+  const container = document.getElementById("current-folder-title");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const ancestors = p.ancestors().reverse();
+
+  ancestors.forEach((node, index) => {
+    const isLast = index === ancestors.length - 1;
+    const item = document.createElement("span");
+    item.className = `breadcrumb-item ${isLast ? "active" : ""}`;
+    item.textContent = node.data.name;
+
+    if (!isLast) {
+      item.onclick = () => zoomTo(node);
+    }
+
+    container.appendChild(item);
+
+    if (!isLast) {
+      const separator = document.createElement("span");
+      separator.className = "breadcrumb-separator";
+      separator.textContent = " ❯ ";
+      container.appendChild(separator);
+    }
+  });
+}
+
 function drawSunburst(data) {
   if (!data || !data.children || data.children.length === 0) return;
   
   const baseSize = 640; 
-  const radius = 300;   
-  const innerHoleRadius = 80;
-  const maxDepth = 5;
 
-  // Root definujeme globálne (bez const), aby naň videl aj filterToggle listener
-  root = d3.hierarchy(data)
+  // Priradíme dáta priamo do globálnych premenných, ŽIADNE "const" ani "let" tu nesmie byť!
+  rootNode = d3.hierarchy(data)
     .sum(d => d.is_dir ? 0 : (d.size || 0))
     .sort((a, b) => b.value - a.value);
 
-  // Partition definujeme tiež globálne pre potreby živého prepočtu
-  partition = d3.partition().size([2 * Math.PI, radius]);
-  root.each(d => { d.data.size = d.value; });
-  partition(root);
+  gPartition = d3.partition().size([2 * Math.PI, radius]);
+  rootNode.each(d => { d.data.size = d.value; });
+  gPartition(rootNode);
 
-  let focus = root;
+  currentFocus = rootNode;
 
-  function getScaleY(depth) {
-    if (depth < 0) return 0;
-    const availableRadius = radius - innerHoleRadius;
-    const step = availableRadius / maxDepth;
-    return innerHoleRadius + (depth * step);
-  }
-
-  // Lokálny generátor oblúkov (Opravená referencia o -1 pre vyplnenie stredu)
-  const arc = d3.arc()
-    .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - focus.x0) / (focus.x1 - focus.x0))) * 2 * Math.PI)
-    .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - focus.x0) / (focus.x1 - focus.x0))) * 2 * Math.PI)
-    .innerRadius(d => getScaleY(d.depth - focus.depth - 1)) // 📁 OPRAVA: -1 zaplní dieru hneď pri stredovom kruhu
-    .outerRadius(d => getScaleY(d.depth - focus.depth) - 1);
-
-  // Škála žltej upravená tak, aby brala relatívnu hĺbku od aktuálneho focusu
-  const yellowScale = d3.scaleLinear()
-    .domain([0, maxDepth])
-    .range(["#ffcc00", "#5c4a00"]); // Plynulá žltá, ktorá nikdy nestmavne do čiernej
-
-  d3.select("#sunburst-chart").selectAll("*").remove();
+  // Vyčistíme starý graf pred vykreslením nového
+  d3.select("#sunburst-chart").selectAll("*").remove(); 
   const svg = d3.select("#sunburst-chart")
     .attr("viewBox", `0 0 ${baseSize} ${baseSize}`)
     .attr("width", "100%")
@@ -209,88 +234,100 @@ function drawSunburst(data) {
     .attr("r", innerHoleRadius)
     .attr("fill", "#1e1e2e");
 
-  // Spustíme prvotné vykreslenie cez funkciu zoomTo, čím zjednotíme logiku filtra
-  zoomTo(root);
-
-  function zoomTo(p) {
-    focus = p;
-
-    // Aktualizácia kliku na HTML stredovom paneli
-    centerInfo.onclick = () => {
-      if (focus.parent) zoomTo(focus.parent);
-    };
-    centerInfo.style.cursor = p.parent ? "pointer" : "default";
-
-    updateCenterHUD(p.parent ? "⬆ Hore" : "📁", p.data.name, formatBytes(p.value));
-
-    // Aplikácia filtra a výber viditeľných segmentov
-    const descendants = p.descendants();
-    const visibleDescendants = descendants.filter(d => {
-      const basicCheck = d.depth > p.depth && 
-                         d.depth <= p.depth + maxDepth && 
-                         d.value > 0 &&
-                         d.x1 > p.x0 && d.x0 < p.x1;
-                         
-      if (!basicCheck) return false;
-
-      if (APP_CONFIG.usePerformanceFilter) {
-        const sizeCheck = d.value >= APP_CONFIG.minSizeToRender;
-        const relativeAngle = ((d.x1 - d.x0) / (p.x1 - p.x0)) * 2 * Math.PI;
-        const angleCheck = relativeAngle >= APP_CONFIG.minAngleToRender;
-        return sizeCheck && angleCheck;
-      }
-
-      return true;
-    });
-
-    svg.selectAll("path").remove();
-
-    // Vykreslenie s opraveným priradením farieb (Relatívna hĺbka d.depth - p.depth)
-    const paths = svg.append("g")
-      .selectAll("path")
-      .data(visibleDescendants, d => d.data.path)
-      .join("path")
-      .attr("fill", d => d.data.is_dir ? yellowScale(d.depth - p.depth - 1) : "#89b4fa") // 📁 OPRAVA: Konzistentná svetlomodrá pre súbory, stabilná žltá pre zložky
-      .attr("d", arc)
-      .style("cursor", "pointer");
-
-    // Hover a klik udalosti
-    paths.on("mouseover", (event, d) => {
-        hoverPath.textContent = d.data.path;
-        hoverSize.textContent = formatBytes(d.value);
-        hoverStats.textContent = d.data.is_dir ? `Obsahuje: ${d.data.dir_count || 0} priečinkov, ${d.data.file_count || 0} súborov` : `Typ: Súbor`;
-      })
-      .on("mouseout", () => {
-        hoverPath.textContent = "Ukaž myšou na priečinok...";
-        hoverSize.textContent = "";
-        hoverStats.textContent = "";
-      })
-      .on("click", (event, d) => {
-        if (d.children && d.children.length > 0) {
-          zoomTo(d);
-        }
-      });
-  }
+  // Vykreslíme úvodný stav
+  zoomTo(rootNode);
 }
 
+// Spoločná funkcia pre vykreslenie a zoomovanie (Vytiahnutá von z drawSunburst)
+function zoomTo(p) {
+  currentFocus = p;
+  const svg = d3.select("#sunburst-group");
+  if (svg.empty()) return;
 
-backBtn.onclick = showDiskScreen;
+  // Aktualizácia stredového kliku a textov
+  centerInfo.onclick = () => {
+    if (currentFocus.parent) zoomTo(currentFocus.parent);
+  };
+  centerInfo.style.cursor = p.parent ? "pointer" : "default";
+
+  updateCenterHUD(p.parent ? "⬆ Hore" : "📁", p.data.name, formatBytes(p.value));
+  updateBreadcrumbs(p);
+
+  // Živý prepočet rozloženia pred aplikáciou filtra
+  if (gPartition && rootNode) {
+    gPartition(rootNode);
+  }
+
+  function getScaleY(depth) {
+    if (depth < 0) return 0;
+    const availableRadius = radius - innerHoleRadius;
+    const step = availableRadius / maxDepth;
+    return innerHoleRadius + (depth * step);
+  }
+
+  const arc = d3.arc()
+    .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
+    .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
+    .innerRadius(d => getScaleY(d.depth - p.depth - 1)) 
+    .outerRadius(d => getScaleY(d.depth - p.depth) - 1);
+
+  const descendants = p.descendants();
+  const visibleDescendants = descendants.filter(d => {
+    const basicCheck = d.depth > p.depth && 
+                       d.depth <= p.depth + maxDepth && 
+                       d.value > 0 &&
+                       d.x1 > p.x0 && d.x0 < p.x1;
+                       
+    if (!basicCheck) return false;
+
+    if (APP_CONFIG.usePerformanceFilter) {
+      const sizeCheck = d.value >= APP_CONFIG.minSizeToRender;
+      const relativeAngle = ((d.x1 - d.x0) / (p.x1 - p.x0)) * 2 * Math.PI;
+      const angleCheck = relativeAngle >= APP_CONFIG.minAngleToRender;
+      return sizeCheck && angleCheck;
+    }
+
+    return true;
+  });
+
+  svg.selectAll("path").remove();
+
+  const paths = svg.append("g")
+    .selectAll("path")
+    .data(visibleDescendants, d => d.data.path)
+    .join("path")
+    .attr("fill", d => d.data.is_dir ? yellowScale(d.depth - p.depth - 1) : "#89b4fa") 
+    .attr("d", arc)
+    .style("cursor", "pointer");
+
+  paths.on("mouseover", (event, d) => {
+      hoverPath.textContent = d.data.path;
+      hoverSize.textContent = formatBytes(d.value);
+      hoverStats.textContent = d.data.is_dir ? `Obsahuje: ${d.data.dir_count || 0} priečinkov, ${d.data.file_count || 0} súborov` : `Typ: Súbor`;
+    })
+    .on("mouseout", () => {
+      hoverPath.textContent = "Ukaž myšou na priečinok...";
+      hoverSize.textContent = "";
+      hoverStats.textContent = "";
+    })
+    .on("click", (event, d) => {
+      if (d.children && d.children.length > 0) {
+        zoomTo(d);
+      }
+    });
+}
+
+// Event Listenery po načítaní DOM
 window.addEventListener("DOMContentLoaded", () => {
-  // ... tvoje doterajšie naviazania (loadDisks atď.) ...
-
-  // 📁 PRIDANÉ: Sledovanie zmeny prepínača naživo
   if (filterToggle) {
     filterToggle.addEventListener("change", (event) => {
-      // Aktualizujeme konfiguráciu podľa stavu prepínača
       APP_CONFIG.usePerformanceFilter = event.target.checked;
-
-      // Ak už máme načítaný nejaký graf (máme focus), naživo ho prekreslíme
-      if (focus) {
-        partition(root);
-        zoomTo(focus);
+      if (currentFocus) {
+        zoomTo(currentFocus);
       }
     });
   }
-
+  
+  backBtn.onclick = showDiskScreen;
   loadDisks();
 });
