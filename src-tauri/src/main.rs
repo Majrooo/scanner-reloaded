@@ -14,16 +14,16 @@ struct DiskInfo {
     available_space: u64,
 }
 
-// Rozšírená štruktúra o počet súborov a zložiek
+// Štruktúra stromu, ktorú kompletne vybudujeme v Ruste
 #[derive(Serialize, Clone)]
-struct ProgressPayload {
+struct FileNode {
     name: String,
     path: String,
     size: u64,
     is_dir: bool,
     dir_count: usize,
     file_count: usize,
-    parent_path: Option<String>,
+    children: Vec<FileNode>,
 }
 
 #[tauri::command]
@@ -33,6 +33,16 @@ fn get_disks() -> Vec<DiskInfo> {
     for disk in &disks {
         let name = disk.name().to_string_lossy().into_owned();
         let mount_point = disk.mount_point().to_string_lossy().into_owned();
+        
+        // Filtrácia systémového šumu Windows Sandboxu
+        // ✅ NOVÉ (plne kompatibilné s novým sysinfo):
+        if matches!(disk.kind(), sysinfo::DiskKind::Unknown(_)) && mount_point.contains("BaseImages") {
+            continue;
+        }
+        if disk.total_space() == 0 {
+            continue;
+        }
+
         result.push(DiskInfo {
             name: if name.is_empty() { mount_point.clone() } else { name },
             mount_point,
@@ -43,15 +53,11 @@ fn get_disks() -> Vec<DiskInfo> {
     result
 }
 
-// Funkcia bežiaca na pozadí, posiela udalosti cez app_handle
-fn scan_and_emit(path: &Path, app_handle: &AppHandle, parent_path: Option<String>) -> (u64, usize, usize) {
-    let mut total_size = 0;
-    let mut dir_count = 0;
-    let mut file_count = 0;
-
+// Rekurzívna funkcia, ktorá stavia strom priamo v RAM pamäti Rustu (beží plnou rýchlosťou)
+fn scan_directory(path: &Path, app_handle: &AppHandle) -> Option<FileNode> {
     let metadata = match path.symlink_metadata() {
         Ok(m) => m,
-        Err(_) => return (0, 0, 0),
+        Err(_) => return None,
     };
 
     let name = path.file_name()
@@ -60,74 +66,71 @@ fn scan_and_emit(path: &Path, app_handle: &AppHandle, parent_path: Option<String
     let path_str = path.to_string_lossy().into_owned();
 
     if metadata.is_dir() {
-        // OPRAVA: Explicitne skontrolujeme, či aktuálna cesta nie je symbolický odkaz.
-        // Ak je, nebudeme rekurzívne skenovať jej obsah, aby sme predišli slučkám a duplicitnému počítaniu.
         if metadata.file_type().is_symlink() {
-            return (0, 0, 0); // Vrátime nulu, pretože veľkosť odkazov nezapočítavame.
+            return None;
         }
 
-        dir_count = 1; // Samotný aktuálny priečinok je jeden priečinok
+        // Posielame na frontend IBA textový update pre live ticker (približne raz za čas, žiadny spam dátami)
+        let _ = app_handle.emit("scan-live-folder", path_str.clone());
+
+        let mut children = Vec::new();
+        let mut total_size = 0;
+        let mut dir_count = 1; // započítame seba
+        let mut file_count = 0;
+
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
-                let child_path = entry.path();
-                let child_meta = match child_path.symlink_metadata() {
-                    Ok(m) => m,
-                    Err(_) => continue, // Preskočíme súbory/priečinky, ku ktorým nemáme prístup
-                };
-
-                if child_meta.is_dir() {
-                    let (c_size, c_dirs, c_files) = scan_and_emit(&child_path, app_handle, Some(path_str.clone()));
-                    total_size += c_size;
-                    dir_count += c_dirs;
-                    file_count += c_files;
-                } else {
-                    file_count += 1;
-                    let c_size = child_meta.len();
-                    total_size += c_size;
-
-                    // POSIELAME INFO AJ O JEDNOTLIVÝCH SÚBOROCH
-                    let _ = app_handle.emit("scan-progress", ProgressPayload {
-                        name: child_path.file_name().unwrap_or_default().to_string_lossy().into_owned(),
-                        path: child_path.to_string_lossy().into_owned(),
-                        size: c_size,
-                        is_dir: false,
-                        dir_count: 0,
-                        file_count: 1,
-                        parent_path: Some(path_str.clone()),
-                    });
+                if let Some(child_node) = scan_directory(&entry.path(), app_handle) {
+                    total_size += child_node.size;
+                    dir_count += child_node.dir_count;
+                    file_count += child_node.file_count;
+                    children.push(child_node);
                 }
             }
         }
 
-        let _ = app_handle.emit("scan-progress", ProgressPayload {
+        Some(FileNode {
             name,
             path: path_str,
             size: total_size,
             is_dir: true,
             dir_count,
             file_count,
-            parent_path,
-        });
+            children,
+        })
+    } else {
+        let size = metadata.len();
+        Some(FileNode {
+            name,
+            path: path_str,
+            size,
+            is_dir: false,
+            dir_count: 0,
+            file_count: 1,
+            children: Vec::new(),
+        })
     }
-
-    (total_size, dir_count, file_count)
 }
 
-// Asynchrónny príkaz, ktorý len naštartuje vlákno a hneď vráti riadenie frontend-u
 #[tauri::command]
 fn start_async_scan(path: String, app_handle: AppHandle) {
     thread::spawn(move || {
         let target_path = Path::new(&path);
         if target_path.exists() {
-            scan_and_emit(target_path, &app_handle, None);
+            // Spustíme sken, ktorý vybuduje strom v pamäti
+            if let Some(full_tree) = scan_directory(target_path, &app_handle) {
+                // Na samom konci pošleme CELÝ hotový strom naraz na jedenkrát!
+                let _ = app_handle.emit("scan-finished-with-data", full_tree);
+            } else {
+                let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
+            }
         }
-        // Na konci oznámime frontendu, že sme hotoví
-        let _ = app_handle.emit("scan-finished", ());
     });
 }
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .invoke_handler(tauri::generate_handler![get_disks, start_async_scan])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

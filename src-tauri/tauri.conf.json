@@ -11,8 +11,12 @@
     "windows": [
       {
         "title": "disk-scanner",
-        "width": 800,
-        "height": 600
+        "width": 1400,
+        "height": 850,
+        "resizable": true,
+        "fullscreen": false,
+        "minWidth": 800,
+        "minHeight": 600
       }
     ],
     "security": {

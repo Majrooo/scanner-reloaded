@@ -77,82 +77,43 @@ async function loadDisks() {
 async function startDiskScan(path) {
   diskScreen.classList.add("hidden");
   scanScreen.classList.remove("hidden");
-  liveTicker.textContent = "Spúšťam asynchrónne vlákno...";
+  liveTicker.textContent = "Inicializujem skenovanie disku...";
   
-  // ZABRÁNENIE ZOBRAZENIU PREDDOŠLÉHO DISKU:
-  // Pred spustením nového skenovania musíme odstrániť starý graf.
-  // Získame SVG element pre graf
-  const svg = d3.select("#sunburst-chart");
-  // Vyčistíme všetok obsah vnútri SVG
-  svg.selectAll("*").remove();
+  // Vyčistíme starý graf z obrazovky
+  d3.select("#sunburst-chart").selectAll("*").remove();
 
-  memoryTree = {};
   rootPath = path.replace(/\\/g, "/");
+  updateCenterHUD("📁", path, "Počítam...");
 
-  memoryTree[rootPath] = { name: path, path: rootPath, size: 0, is_dir: true, children: [], dir_count: 0, file_count: 0 };
-  updateCenterHUD("📁", memoryTree[rootPath].name, "Počítam...");
-
-  // Inicializujeme základný vizuálny breadcrumb, nech tam nesvieti prázdno
-  const dummyRoot = d3.hierarchy(memoryTree[rootPath]);
-  updateBreadcrumbs(dummyRoot);
-
-  unlistenProgress = await listen("scan-progress", (event) => {
-    const payload = event.payload;
-    const pPath = payload.path.replace(/\\/g, "/");
-    liveTicker.textContent = `Aktuálne: ${pPath}`;
-
-    if (!memoryTree[pPath]) {
-      memoryTree[pPath] = { children: [] };
-    }
-    
-    Object.assign(memoryTree[pPath], {
-      name: payload.name,
-      path: pPath,
-      size: payload.size,
-      is_dir: payload.is_dir,
-      dir_count: payload.dir_count,
-      file_count: payload.file_count
-    });
-
-    if (payload.parent_path) {
-      const parentP = payload.parent_path.replace(/\\/g, "/");
-      if (!memoryTree[parentP]) {
-        memoryTree[parentP] = { children: [] };
-      }
-      if (!memoryTree[parentP].children.some(c => c.path === pPath)) {
-        memoryTree[parentP].children.push(memoryTree[pPath]);
-      }
-    }
-
-    if (memoryTree[rootPath]) {
-      let totalLiveSize = 0;
-      for (let key in memoryTree) {
-        if (memoryTree[key].is_dir === false) {
-          totalLiveSize += memoryTree[key].size || 0;
-        }
-      }
-      updateCenterHUD("📁", memoryTree[rootPath].name, formatBytes(totalLiveSize));
-    }
+  // Načúvame iba bleskovému textovému tickeru z Rustu (žiadna záťaž na procesor)
+  unlistenProgress = await listen("scan-live-folder", (event) => {
+    liveTicker.textContent = `Aktuálne: ${event.payload}`;
   });
 
-  unlistenFinished = await listen("scan-finished", () => {
+  // Načúvame finálnym dátam
+  unlistenFinished = await listen("scan-finished-with-data", (event) => {
     liveTicker.textContent = "✅ Skenovanie dokončené úspešne.";
-    if (memoryTree[rootPath]) {
-      let totalFinalSize = 0;
-      for (let key in memoryTree) {
-        if (memoryTree[key].is_dir === false) {
-          totalFinalSize += memoryTree[key].size || 0;
-        }
-      }
-      memoryTree[rootPath].size = totalFinalSize;
-      updateCenterHUD("📁", memoryTree[rootPath].name, formatBytes(totalFinalSize));
-      drawSunburst(memoryTree[rootPath]);
-    } else {
-      liveTicker.textContent = "❌ Nepodarilo sa načítať štruktúru disku.";
-    }
+    
+    const fullTree = event.payload;
+    
+    // Normalizujeme lomky v doručenom strome pre D3 kompatibilitu
+    const normalizePaths = (node) => {
+      node.path = node.path.replace(/\\/g, "/");
+      if (node.children) node.children.forEach(normalizePaths);
+    };
+    normalizePaths(fullTree);
+
+    // Vykreslíme hotový graf
+    drawSunburst(fullTree);
 
     if(unlistenProgress) unlistenProgress();
     if(unlistenFinished) unlistenFinished();
+  });
+
+  // Sledovanie zlyhania
+  await listen("scan-failed", (event) => {
+    liveTicker.textContent = `❌ Chyba: ${event.payload}`;
+    if(unlistenProgress) unlistenProgress();
   });
 
   invoke("start_async_scan", { path });
