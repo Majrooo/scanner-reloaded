@@ -50,8 +50,7 @@ Ensure you have the following installed on your system:
    ```bash
    git clone [https://github.com/majrooo/scanner-reloaded.git](https://github.com/majrooo/scanner-reloaded.git)
    cd scanner-reloaded
-  ```
-
+   ```
 2. Install frontend dependencies:
    ```bash
    npm install
