@@ -7,7 +7,8 @@
       "about": {
         "title": "O aplikácii",
         "version": "Verzia",
-        "developer": "Vývojár"
+        "developer": "Vývojár",
+        "githubLink": "🐈 GitHub Repozitár"
       },
       "common": {
         "languageLabel": "Jazyk"
@@ -43,7 +44,8 @@
       "about": {
         "title": "About",
         "version": "Version",
-        "developer": "Developer"
+        "developer": "Developer",
+         "githubLink": "🐈 GitHub Repository"
       },
       "common": {
         "languageLabel": "Language"
