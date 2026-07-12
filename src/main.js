@@ -166,11 +166,14 @@ async function loadDisks() {
       <div>${getText("diskScreen.used", { used: formatBytes(used), total: formatBytes(disk.total_space) })}</div>
     `;
     const usedSpace = disk.total_space - disk.available_space;
-    card.onclick = () => startDiskScan(disk.mount_point, usedSpace); diskList.appendChild(card);
+    card.onclick = () => startDiskScan(disk.mount_point, usedSpace);
+    diskList.appendChild(card);
   });
 }
 
 async function startDiskScan(path, totalSpace) {
+  if (unlistenProgress) unlistenProgress();
+  if (unlistenFinished) unlistenFinished();
   diskScreen.classList.add("hidden");
   scanScreen.classList.remove("hidden");
   document.getElementById("live-ticker-container").classList.remove("hidden");
