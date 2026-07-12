@@ -7,10 +7,24 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node.js - závislosti
 node_modules
 dist
 dist-ssr
+.tauri
 *.local
+.env
+
+# Rust / Cargo - skompilované súbory a medzipamäť
+src-tauri/target/
+
+# Tauri špecifické dočasné súbory
+src-tauri/gen/
+src-tauri/.tauri/
+
+# Systémové súbory
+.DS_Store
+Thumbs.db
 
 # Editor directories and files
 .vscode/*
