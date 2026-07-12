@@ -1,6 +1,11 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
+let aboutBtn = document.getElementById("about-btn");
+let aboutModal = document.getElementById("about-modal");
+let closeAboutBtn = document.getElementById("close-about-btn");
+let githubLink = document.getElementById("github-link");
+
 let diskScreen = document.getElementById("disk-screen");
 let scanScreen = document.getElementById("scan-screen");
 let diskList = document.getElementById("disk-list");
@@ -422,3 +427,44 @@ window.addEventListener("DOMContentLoaded", async () => {
   await loadTranslations();
   loadDisks();
 });
+
+// Otvorenie modálneho okna
+aboutBtn.onclick = async () => {
+  applyTranslations(); // <-- PRIDANÉ: Znovu aplikujeme preklady
+  aboutModal.classList.remove("hidden");
+  
+  // Voliteľne môžete dynamicky načítať verziu z Tauri, ak nechcete hardcodovať:
+  // const { getVersion } = window.__TAURI__.app;
+  // document.getElementById("app-version").textContent = await getVersion();
+};
+
+// Zatvorenie modálneho okna
+closeAboutBtn.onclick = () => {
+  aboutModal.classList.add("hidden");
+};
+
+// Zatvorenie kliknutím mimo okna
+window.onclick = (event) => {
+  if (event.target === aboutModal) {
+    aboutModal.classList.add("hidden");
+  }
+};
+
+// Bezpečné otvorenie GitHubu v externom prehliadači cez Tauri rozhranie
+if (githubLink) {
+  githubLink.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+      if (window.__TAURI__?.opener?.openUrl) {
+        await window.__TAURI__.opener.openUrl("https://github.com/majrooo/scanner-reloaded");
+      } else {
+        window.open("https://github.com/majrooo/scanner-reloaded", "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      console.error("Nepodarilo sa otvoriť GitHub odkaz", error);
+      window.open("https://github.com/majrooo/scanner-reloaded", "_blank", "noopener,noreferrer");
+    }
+  });
+}

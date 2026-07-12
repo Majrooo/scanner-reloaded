@@ -4,6 +4,11 @@
     "sk": {
       "name": "Slovenčina",
       "appTitle": "Scanner Reloaded",
+      "about": {
+        "title": "O aplikácii",
+        "version": "Verzia",
+        "developer": "Vývojár"
+      },
       "common": {
         "languageLabel": "Jazyk"
       },
@@ -35,6 +40,11 @@
     "en": {
       "name": "English",
       "appTitle": "Scanner Reloaded",
+      "about": {
+        "title": "About",
+        "version": "Version",
+        "developer": "Developer"
+      },
       "common": {
         "languageLabel": "Language"
       },

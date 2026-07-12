@@ -1,5 +1,5 @@
 [package]
-name = "disk-scanner"
+name = "scanner-reloaded"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
@@ -23,7 +23,7 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 walkdir = "2.5"
-sysinfo = "0.33" # Pridané pre informácie o diskoch
+sysinfo = "0.33"
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
-
+opener = "0.7.1"

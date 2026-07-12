@@ -133,6 +133,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_opener::init()) // <-- PRIDANÉ
         .invoke_handler(tauri::generate_handler![get_disks, start_async_scan])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
