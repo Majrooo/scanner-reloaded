@@ -23,6 +23,11 @@ let centerName = document.getElementById("center-name");
 let centerSize = document.getElementById("center-size");
 let centerInfo = document.getElementById("center-info");
 
+// Globálna premenná, kde si uložíme celkovú kapacitu vybraného disku
+let selectedDiskTotalSpace = 0;
+let totalScannedBytes = 0;
+let lastUpdateTime = 0;
+
 // Globálne premenné pre správnu synchronizáciu
 let memoryTree = {};
 let rootPath = "";
@@ -34,7 +39,7 @@ let rootNode = null;
 let gPartition = null;
 let currentFocus = null;
 
-const radius = 320;   
+const radius = 320;
 const innerHoleRadius = 80;
 const maxDepth = 24;
 
@@ -126,9 +131,9 @@ async function loadTranslations() {
 
 // Globálna konfigurácia aplikácie
 const APP_CONFIG = {
-  usePerformanceFilter: true, 
-  minSizeToRender: 1 * 1024 * 1024, 
-  minAngleToRender: 0.01 
+  usePerformanceFilter: true,
+  minSizeToRender: 1 * 1024 * 1024,
+  minAngleToRender: 0.01
 };
 
 // Škála žltej farby pre zložky
@@ -148,11 +153,11 @@ async function loadDisks() {
   diskList.innerHTML = "";
   let disks = await invoke("get_disks");
   disks.sort((a, b) => a.mount_point.localeCompare(b.mount_point));
-  
+
   disks.forEach(disk => {
     const used = disk.total_space - disk.available_space;
     const pct = (used / disk.total_space) * 100;
-    
+
     const card = document.createElement("div");
     card.className = "disk-card";
     card.innerHTML = `
@@ -160,59 +165,92 @@ async function loadDisks() {
       <div class="disk-bar-bg"><div class="disk-bar-fill" style="width: ${pct}%"></div></div>
       <div>${getText("diskScreen.used", { used: formatBytes(used), total: formatBytes(disk.total_space) })}</div>
     `;
-    card.onclick = () => startDiskScan(disk.mount_point);
-    diskList.appendChild(card);
+    const usedSpace = disk.total_space - disk.available_space;
+    card.onclick = () => startDiskScan(disk.mount_point, usedSpace); diskList.appendChild(card);
   });
 }
 
-async function startDiskScan(path) {
+async function startDiskScan(path, totalSpace) {
   diskScreen.classList.add("hidden");
   scanScreen.classList.remove("hidden");
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
-  
-  // Vyčistíme starý graf z obrazovky
+  document.getElementById("live-ticker-bar").style.width = "0%"; // Reset progress baru
+
   d3.select("#sunburst-chart").selectAll("*").remove();
 
   rootPath = path.replace(/\\/g, "/");
-  updateCenterHUD("📁", path, getText("scanScreen.statuses.counting"));
+  selectedDiskTotalSpace = totalSpace;
+  totalScannedBytes = 0;
+  lastUpdateTime = 0;
 
-  // Načúvame iba bleskovému textovému tickeru z Rustu (žiadna záťaž na procesor)
+  updateCenterHUD("📁", path, "0 Bytes");
+
+  // Predpokladáme, že event z Rustu "scan-live-folder" posiela payload ako objekt alebo upravené dáta:
+  // Ak vám posiela iba text (cestu), pre meranie presnej veľkosti uprvte Rust payload na: (String, u64) -> (cesta, veľkosť súboru)
   unlistenProgress = await listen("scan-live-folder", (event) => {
-    liveTicker.textContent = getText("scanScreen.statuses.current", { path: event.payload });
+    let currentPath = "";
+    let currentSize = 0;
+
+    // Prispôsobenie podľa toho, či payload posiela len cestu, alebo aj veľkosť
+    if (typeof event.payload === "object" && event.payload !== null) {
+      currentPath = event.payload.path || "";
+      currentSize = event.payload.size || 0;
+    } else {
+      currentPath = event.payload; // Ak zatiaľ posiela iba čistý String cesty
+    }
+
+    totalScannedBytes += currentSize;
+
+    const now = performance.now();
+    // 100ms Časový zámok (Throttling) - VÝRAZNE ŠETRÍ PROCESOR A PAMÄŤ
+    if (now - lastUpdateTime >= 100) {
+      lastUpdateTime = now;
+
+      // 1. Aktualizácia textu v progress bare
+      liveTicker.textContent = getText("scanScreen.statuses.current", { path: currentPath });
+
+      // 2. Výpočet percent a posun červeného pruhu
+      if (selectedDiskTotalSpace > 0) {
+        // Počítame progress voči celkovej veľkosti DISKU (alebo použite použité miesto, ak ho prenesiete)
+        const progressPct = Math.min(100, (totalScannedBytes / selectedDiskTotalSpace) * 100);
+        document.getElementById("live-ticker-bar").style.width = `${progressPct}%`;
+      }
+
+      // 3. Aktualizácia veľkosti načítaných dát v STREDE grafu
+      updateCenterHUD("⏳", rootPath, formatBytes(totalScannedBytes));
+    }
   });
 
-  // Načúvame finálnym dátam
   unlistenFinished = await listen("scan-finished-with-data", (event) => {
     liveTicker.textContent = getText("scanScreen.statuses.finished");
-    
+    document.getElementById("live-ticker-bar").style.width = "100%"; // Nastavíme plný progress bar
+
     const fullTree = event.payload;
-    
-    // Normalizujeme lomky v doručenom strome pre D3 kompatibilitu
+
     const normalizePaths = (node) => {
       node.path = node.path.replace(/\\/g, "/");
       if (node.children) node.children.forEach(normalizePaths);
     };
     normalizePaths(fullTree);
 
-    // Vykreslíme hotový graf
     drawSunburst(fullTree);
 
-    if(unlistenProgress) unlistenProgress();
-    if(unlistenFinished) unlistenFinished();
+    if (unlistenProgress) unlistenProgress();
+    if (unlistenFinished) unlistenFinished();
   });
 
-  // Sledovanie zlyhania
   await listen("scan-failed", (event) => {
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
-    if(unlistenProgress) unlistenProgress();
+    document.getElementById("live-ticker-bar").style.width = "0%";
+    if (unlistenProgress) unlistenProgress();
   });
 
   invoke("start_async_scan", { path });
 }
 
 function showDiskScreen() {
-  if(unlistenProgress) unlistenProgress();
-  if(unlistenFinished) unlistenFinished();
+  if (unlistenProgress) unlistenProgress();
+  if (unlistenFinished) unlistenFinished();
   scanScreen.classList.add("hidden");
   diskScreen.classList.remove("hidden");
   rootNode = null;
@@ -257,8 +295,8 @@ function updateBreadcrumbs(p) {
 
 function drawSunburst(data) {
   if (!data || !data.children || data.children.length === 0) return;
-  
-  const baseSize = 640; 
+
+  const baseSize = 640;
 
   // Priradíme dáta priamo do globálnych premenných, ŽIADNE "const" ani "let" tu nesmie byť!
   rootNode = d3.hierarchy(data)
@@ -272,7 +310,7 @@ function drawSunburst(data) {
   currentFocus = rootNode;
 
   // Vyčistíme starý graf pred vykreslením nového
-  d3.select("#sunburst-chart").selectAll("*").remove(); 
+  d3.select("#sunburst-chart").selectAll("*").remove();
   const svg = d3.select("#sunburst-chart")
     .attr("viewBox", `0 0 ${baseSize} ${baseSize}`)
     .attr("width", "100%")
@@ -282,9 +320,17 @@ function drawSunburst(data) {
     .attr("transform", `translate(${baseSize / 2},${baseSize / 2})`);
 
   // Pozadie stredového kruhu
+// Pozadie stredového kruhu s presnou detekciou kliknutia
   svg.append("circle")
     .attr("r", innerHoleRadius)
-    .attr("fill", "#1e1e2e");
+    .attr("fill", "#1e1e2e")
+    .attr("id", "d3-center-click-zone")
+    .style("cursor", "default") // Základný kurzor, ak sme na najvyššej úrovni
+    .on("click", () => {
+      if (currentFocus && currentFocus.parent) {
+        zoomTo(currentFocus.parent);
+      }
+    });
 
   // Vykreslíme úvodný stav
   zoomTo(rootNode);
@@ -295,10 +341,11 @@ function zoomTo(p) {
   const svg = d3.select("#sunburst-group");
   if (svg.empty()) return;
 
-  centerInfo.onclick = () => {
-    if (currentFocus.parent) zoomTo(currentFocus.parent);
-  };
-  centerInfo.style.cursor = p.parent ? "pointer" : "default";
+// Meníme štýl kurzora na presnom SVG kruhu namiesto HTML elementu
+  const d3Center = d3.select("#d3-center-click-zone");
+  if (!d3Center.empty()) {
+    d3Center.style("cursor", p.parent ? "pointer" : "default");
+  }
 
   updateCenterHUD(p.parent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
   updateBreadcrumbs(p);
@@ -312,11 +359,11 @@ function zoomTo(p) {
 
   // 2. Aplikujeme kompletný filter (geometrický + výkonnostný) HNEĎ NA ZAČIATKU
   const visibleDescendants = descendants.filter(d => {
-    const basicCheck = d.depth > p.depth && 
-                       d.depth <= p.depth + maxDepth && 
-                       d.value > 0 &&
-                       d.x1 > p.x0 && d.x0 < p.x1;
-                       
+    const basicCheck = d.depth > p.depth &&
+      d.depth <= p.depth + maxDepth &&
+      d.value > 0 &&
+      d.x1 > p.x0 && d.x0 < p.x1;
+
     if (!basicCheck) return false;
 
     if (APP_CONFIG.usePerformanceFilter) {
@@ -344,22 +391,22 @@ function zoomTo(p) {
   function getScaleY(depth) {
     if (depth <= 0) return innerHoleRadius;
     const availableRadius = radius - innerHoleRadius;
-    
-    const factor = realMaxDepth > 5 ? 0.90 : 0.95; 
-    
+
+    const factor = realMaxDepth > 5 ? 0.90 : 0.95;
+
     let totalUnits = 0;
     for (let i = 0; i < realMaxDepth; i++) {
       totalUnits += Math.pow(factor, i);
     }
-    
+
     const baseStep = availableRadius / totalUnits;
-    
+
     let currentRadius = innerHoleRadius;
     for (let i = 0; i < depth; i++) {
       if (i >= realMaxDepth) return radius;
       currentRadius += baseStep * Math.pow(factor, i);
     }
-    
+
     if (depth >= realMaxDepth) return radius;
     return currentRadius;
   }
@@ -368,7 +415,7 @@ function zoomTo(p) {
   const arc = d3.arc()
     .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
     .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
-    .innerRadius(d => getScaleY(d.depth - p.depth - 1)) 
+    .innerRadius(d => getScaleY(d.depth - p.depth - 1))
     .outerRadius(d => getScaleY(d.depth - p.depth) - 1);
 
   // 6. Vyčistíme a vykreslíme
@@ -386,20 +433,20 @@ function zoomTo(p) {
         return localYellowScale(d.depth - p.depth - 1);
       }
       return "#89b4fa";
-    }) 
+    })
     .attr("d", arc)
     .style("cursor", "pointer");
 
   // Zvyšok (hover a click) zostáva rovnaký...
   paths.on("mouseover", (event, d) => {
-      hoverPath.textContent = d.data.path;
-      hoverSize.textContent = formatBytes(d.value);
-      const dirCount = d.data.dir_count || 0;
-      const fileCount = d.data.file_count || 0;
-      hoverStats.textContent = d.data.is_dir
-        ? getText("scanScreen.stats.contains", { dirCount, fileCount })
-        : getText("scanScreen.stats.fileType");
-    })
+    hoverPath.textContent = d.data.path;
+    hoverSize.textContent = formatBytes(d.value);
+    const dirCount = d.data.dir_count || 0;
+    const fileCount = d.data.file_count || 0;
+    hoverStats.textContent = d.data.is_dir
+      ? getText("scanScreen.stats.contains", { dirCount, fileCount })
+      : getText("scanScreen.stats.fileType");
+  })
     .on("mouseout", () => {
       hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
       hoverSize.textContent = "";
@@ -422,7 +469,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
-  
+
   backBtn.onclick = showDiskScreen;
   await loadTranslations();
   loadDisks();
@@ -432,7 +479,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 aboutBtn.onclick = async () => {
   applyTranslations(); // <-- PRIDANÉ: Znovu aplikujeme preklady
   aboutModal.classList.remove("hidden");
-  
+
   // Voliteľne môžete dynamicky načítať verziu z Tauri, ak nechcete hardcodovať:
   // const { getVersion } = window.__TAURI__.app;
   // document.getElementById("app-version").textContent = await getVersion();

@@ -26,6 +26,13 @@ struct FileNode {
     children: Vec<FileNode>,
 }
 
+// PRIDANÉ: Nová štruktúra pre live informácie pre frontend
+#[derive(Serialize, Clone)]
+struct LivePayload {
+    path: String,
+    size: u64,
+}
+
 #[tauri::command]
 fn get_disks() -> Vec<DiskInfo> {
     let disks = Disks::new_with_refreshed_list();
@@ -51,7 +58,7 @@ fn get_disks() -> Vec<DiskInfo> {
     result
 }
 
-// Rekurzívna funkcia s pridaným throtlovaním pre live ticker
+// Rekurzívna funkcia s pridaným throtlovaním pre live ticker a posielaním veľkostí
 fn scan_directory(path: &Path, app_handle: &AppHandle, last_emit: &mut Instant) -> Option<FileNode> {
     let metadata = match path.symlink_metadata() {
         Ok(m) => m,
@@ -66,12 +73,6 @@ fn scan_directory(path: &Path, app_handle: &AppHandle, last_emit: &mut Instant) 
     if metadata.is_dir() {
         if metadata.file_type().is_symlink() {
             return None;
-        }
-
-        // OPTIMALIZÁCIA (Bod B): Správu na frontend pustíme maximálne raz za 50 ms
-        if last_emit.elapsed().as_millis() >= 50 {
-            let _ = app_handle.emit("scan-live-folder", path_str.clone());
-            *last_emit = Instant::now(); // Resetujeme časovač
         }
 
         let mut children = Vec::new();
@@ -90,6 +91,15 @@ fn scan_directory(path: &Path, app_handle: &AppHandle, last_emit: &mut Instant) 
             }
         }
 
+        // UPRAVENÉ: Správu na frontend pustíme maximálne raz za 50 ms, ale posielame už aj vypočítanú veľkosť (total_size)
+        if last_emit.elapsed().as_millis() >= 50 {
+            let _ = app_handle.emit("scan-live-folder", LivePayload {
+                path: path_str.clone(),
+                size: total_size,
+            });
+            *last_emit = Instant::now(); // Resetujeme časovač
+        }
+
         Some(FileNode {
             name,
             path: path_str,
@@ -101,6 +111,16 @@ fn scan_directory(path: &Path, app_handle: &AppHandle, last_emit: &mut Instant) 
         })
     } else {
         let size = metadata.len();
+
+        // Aby sme posielali dáta priebežne aj pri veľkých súboroch, ak narazíme na samostatný súbor po limite 50ms:
+        if last_emit.elapsed().as_millis() >= 50 {
+            let _ = app_handle.emit("scan-live-folder", LivePayload {
+                path: path_str.clone(),
+                size,
+            });
+            *last_emit = Instant::now();
+        }
+
         Some(FileNode {
             name,
             path: path_str,
@@ -133,7 +153,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_opener::init()) // <-- PRIDANÉ
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![get_disks, start_async_scan])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
