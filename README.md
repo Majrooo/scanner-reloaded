@@ -25,6 +25,12 @@ You can find more about the original author and his work here: [www.steffengerla
 - **[D3.js v7](https://d3js.org/)**: Used for creating the interactive Sunburst Partition layout.
 - **Vanilla JS / HTML / CSS**: For a lightweight and dependency-free frontend.
 
+> ### 🧠 Built with AI & Vibe Coding
+>
+> This project is a proud product of **Vibe Coding**! 🚀
+>
+> It was built in active collaboration with **Google Gemini**, showcasing how modern AI-guided development can rapidly prototype and deliver a high-performance desktop application, merging a Rust backend with a smooth D3.js frontend visualization.
+
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri Extension](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
