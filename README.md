@@ -6,7 +6,7 @@ A modern, fast, and cross-platform disk space visualizer built with Tauri, Rust,
 
 This project is a tribute to and a modern remake of the classic "Scanner" utility by Steffen Gerlach. The original tool provided a simple yet powerful sunburst chart to visualize disk usage, which was an inspiration for this application.
 
-![Original Scanner by Steffen Gerlach](http://www.steffengerlach.de/freeware/_scnthumb.gif)
+![Original Scanner by Steffen Gerlach](images/scnshot_scanner.gif)
 
 You can find more about the original author and his work here: [www.steffengerlach.de](http://www.steffengerlach.de/freeware/index.html)
 
