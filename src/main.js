@@ -173,6 +173,7 @@ async function loadDisks() {
 async function startDiskScan(path, totalSpace) {
   diskScreen.classList.add("hidden");
   scanScreen.classList.remove("hidden");
+  document.getElementById("live-ticker-container").classList.remove("hidden");
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
   document.getElementById("live-ticker-bar").style.width = "0%"; // Reset progress baru
 
@@ -224,6 +225,14 @@ async function startDiskScan(path, totalSpace) {
   unlistenFinished = await listen("scan-finished-with-data", (event) => {
     liveTicker.textContent = getText("scanScreen.statuses.finished");
     document.getElementById("live-ticker-bar").style.width = "100%"; // Nastavíme plný progress bar
+
+    // PRIDANÉ: Skrytie elementu po 6 sekundách (6000 ms)
+    setTimeout(() => {
+      const tickerContainer = document.getElementById("live-ticker-container");
+      if (tickerContainer) {
+        tickerContainer.classList.add("hidden");
+      }
+    }, 6000);
 
     const fullTree = event.payload;
 
@@ -320,7 +329,7 @@ function drawSunburst(data) {
     .attr("transform", `translate(${baseSize / 2},${baseSize / 2})`);
 
   // Pozadie stredového kruhu
-// Pozadie stredového kruhu s presnou detekciou kliknutia
+  // Pozadie stredového kruhu s presnou detekciou kliknutia
   svg.append("circle")
     .attr("r", innerHoleRadius)
     .attr("fill", "#1e1e2e")
@@ -341,7 +350,7 @@ function zoomTo(p) {
   const svg = d3.select("#sunburst-group");
   if (svg.empty()) return;
 
-// Meníme štýl kurzora na presnom SVG kruhu namiesto HTML elementu
+  // Meníme štýl kurzora na presnom SVG kruhu namiesto HTML elementu
   const d3Center = d3.select("#d3-center-click-zone");
   if (!d3Center.empty()) {
     d3Center.style("cursor", p.parent ? "pointer" : "default");
