@@ -1,0 +1,67 @@
+{
+  "defaultLanguage": "sk",
+  "languages": {
+    "sk": {
+      "name": "Slovenčina",
+      "appTitle": "Scanner Reloaded",
+      "common": {
+        "languageLabel": "Jazyk"
+      },
+      "diskScreen": {
+        "title": "Vyberte disk na analýzu",
+        "used": "Využité: {used} z {total}"
+      },
+      "scanScreen": {
+        "backButton": "⬅ Späť na disky",
+        "initializing": "Pripravujem skenovanie...",
+        "filterLabel": "Skryť drobné súbory a zložky (Rýchly režim)",
+        "hoverPlaceholder": "Ukaž myšou na priečinok...",
+        "center": {
+          "goUp": "⬆ Hore"
+        },
+        "statuses": {
+          "initializingScan": "Inicializujem skenovanie disku...",
+          "counting": "Počítam...",
+          "current": "Aktuálne: {path}",
+          "finished": "✅ Skenovanie dokončené úspešne.",
+          "error": "❌ Chyba: {message}"
+        },
+        "stats": {
+          "contains": "Obsahuje: {dirCount} priečinkov, {fileCount} súborov",
+          "fileType": "Typ: Súbor"
+        }
+      }
+    },
+    "en": {
+      "name": "English",
+      "appTitle": "Scanner Reloaded",
+      "common": {
+        "languageLabel": "Language"
+      },
+      "diskScreen": {
+        "title": "Select a disk to analyze",
+        "used": "Used: {used} of {total}"
+      },
+      "scanScreen": {
+        "backButton": "⬅ Back to disks",
+        "initializing": "Preparing scan...",
+        "filterLabel": "Hide small files and folders (Fast mode)",
+        "hoverPlaceholder": "Hover over a folder to inspect it...",
+        "center": {
+          "goUp": "⬆ Up"
+        },
+        "statuses": {
+          "initializingScan": "Initializing disk scan...",
+          "counting": "Counting...",
+          "current": "Currently: {path}",
+          "finished": "✅ Scan completed successfully.",
+          "error": "❌ Error: {message}"
+        },
+        "stats": {
+          "contains": "Contains: {dirCount} folders, {fileCount} files",
+          "fileType": "Type: File"
+        }
+      }
+    }
+  }
+}

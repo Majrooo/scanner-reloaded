@@ -33,6 +33,92 @@ const radius = 320;
 const innerHoleRadius = 80;
 const maxDepth = 24;
 
+let translationsData = null;
+let currentLanguage = "sk";
+
+function getNestedValue(obj, path) {
+  return path.split(".").reduce((current, key) => current?.[key], obj);
+}
+
+function interpolate(template, replacements = {}) {
+  if (typeof template !== "string") return template;
+  return template.replace(/\{(\w+)\}/g, (_, key) => replacements[key] ?? "");
+}
+
+function getText(key, replacements = {}) {
+  if (!translationsData) return key;
+
+  const currentTranslations = translationsData.languages?.[currentLanguage];
+  const fallbackTranslations = translationsData.languages?.[translationsData.defaultLanguage] || {};
+  const value = getNestedValue(currentTranslations, key) ?? getNestedValue(fallbackTranslations, key) ?? key;
+
+  return interpolate(value, replacements);
+}
+
+function applyTranslations() {
+  if (!translationsData) return;
+
+  document.documentElement.lang = currentLanguage;
+  document.title = getText("appTitle");
+
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    const key = element.getAttribute("data-i18n");
+    if (key) {
+      element.textContent = getText(key);
+    }
+  });
+
+  const languageSelect = document.getElementById("language-select");
+  if (languageSelect) {
+    languageSelect.value = currentLanguage;
+  }
+}
+
+async function loadTranslations() {
+  try {
+    const response = await fetch("./translations.json");
+    if (!response.ok) throw new Error("Failed to load translations");
+
+    translationsData = await response.json();
+    const languages = Object.keys(translationsData.languages || {});
+    const languageSelect = document.getElementById("language-select");
+
+    if (languageSelect) {
+      languageSelect.innerHTML = "";
+      languages.forEach((code) => {
+        const option = document.createElement("option");
+        option.value = code;
+        option.textContent = translationsData.languages[code].name || code.toUpperCase();
+        languageSelect.appendChild(option);
+      });
+
+      const storedLanguage = localStorage.getItem("disk-scanner-language");
+      const browserLanguage = navigator.language?.split("-")[0];
+      const preferredLanguage = storedLanguage || (languages.includes(browserLanguage) ? browserLanguage : translationsData.defaultLanguage || languages[0]);
+      currentLanguage = languages.includes(preferredLanguage) ? preferredLanguage : translationsData.defaultLanguage || languages[0];
+      languageSelect.value = currentLanguage;
+
+      languageSelect.addEventListener("change", (event) => {
+        currentLanguage = event.target.value;
+        localStorage.setItem("disk-scanner-language", currentLanguage);
+        applyTranslations();
+
+        if (currentFocus) {
+          zoomTo(currentFocus);
+        }
+
+        if (!scanScreen.classList.contains("hidden")) {
+          loadDisks();
+        }
+      });
+    }
+
+    applyTranslations();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 // Globálna konfigurácia aplikácie
 const APP_CONFIG = {
   usePerformanceFilter: true, 
@@ -67,7 +153,7 @@ async function loadDisks() {
     card.innerHTML = `
       <div class="disk-name" title="${disk.name} (${disk.mount_point})">${disk.name} (${disk.mount_point})</div>
       <div class="disk-bar-bg"><div class="disk-bar-fill" style="width: ${pct}%"></div></div>
-      <div>Využité: ${formatBytes(used)} z ${formatBytes(disk.total_space)}</div>
+      <div>${getText("diskScreen.used", { used: formatBytes(used), total: formatBytes(disk.total_space) })}</div>
     `;
     card.onclick = () => startDiskScan(disk.mount_point);
     diskList.appendChild(card);
@@ -77,22 +163,22 @@ async function loadDisks() {
 async function startDiskScan(path) {
   diskScreen.classList.add("hidden");
   scanScreen.classList.remove("hidden");
-  liveTicker.textContent = "Inicializujem skenovanie disku...";
+  liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
   
   // Vyčistíme starý graf z obrazovky
   d3.select("#sunburst-chart").selectAll("*").remove();
 
   rootPath = path.replace(/\\/g, "/");
-  updateCenterHUD("📁", path, "Počítam...");
+  updateCenterHUD("📁", path, getText("scanScreen.statuses.counting"));
 
   // Načúvame iba bleskovému textovému tickeru z Rustu (žiadna záťaž na procesor)
   unlistenProgress = await listen("scan-live-folder", (event) => {
-    liveTicker.textContent = `Aktuálne: ${event.payload}`;
+    liveTicker.textContent = getText("scanScreen.statuses.current", { path: event.payload });
   });
 
   // Načúvame finálnym dátam
   unlistenFinished = await listen("scan-finished-with-data", (event) => {
-    liveTicker.textContent = "✅ Skenovanie dokončené úspešne.";
+    liveTicker.textContent = getText("scanScreen.statuses.finished");
     
     const fullTree = event.payload;
     
@@ -112,7 +198,7 @@ async function startDiskScan(path) {
 
   // Sledovanie zlyhania
   await listen("scan-failed", (event) => {
-    liveTicker.textContent = `❌ Chyba: ${event.payload}`;
+    liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
     if(unlistenProgress) unlistenProgress();
   });
 
@@ -209,7 +295,7 @@ function zoomTo(p) {
   };
   centerInfo.style.cursor = p.parent ? "pointer" : "default";
 
-  updateCenterHUD(p.parent ? "⬆ Hore" : "📁", p.data.name, formatBytes(p.value));
+  updateCenterHUD(p.parent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
   updateBreadcrumbs(p);
 
   if (gPartition && rootNode) {
@@ -303,10 +389,14 @@ function zoomTo(p) {
   paths.on("mouseover", (event, d) => {
       hoverPath.textContent = d.data.path;
       hoverSize.textContent = formatBytes(d.value);
-      hoverStats.textContent = d.data.is_dir ? `Obsahuje: ${d.data.dir_count || 0} priečinkov, ${d.data.file_count || 0} súborov` : `Typ: Súbor`;
+      const dirCount = d.data.dir_count || 0;
+      const fileCount = d.data.file_count || 0;
+      hoverStats.textContent = d.data.is_dir
+        ? getText("scanScreen.stats.contains", { dirCount, fileCount })
+        : getText("scanScreen.stats.fileType");
     })
     .on("mouseout", () => {
-      hoverPath.textContent = "Ukaž myšou na priečinok...";
+      hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
       hoverSize.textContent = "";
       hoverStats.textContent = "";
     })
@@ -318,7 +408,7 @@ function zoomTo(p) {
 }
 
 // Event Listenery po načítaní DOM
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   if (filterToggle) {
     filterToggle.addEventListener("change", (event) => {
       APP_CONFIG.usePerformanceFilter = event.target.checked;
@@ -329,5 +419,6 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   
   backBtn.onclick = showDiskScreen;
+  await loadTranslations();
   loadDisks();
 });

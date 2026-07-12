@@ -5,11 +5,9 @@ html, body {
   color: #cdd6f4;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
-  /* KĽÚČOVÉ: Prehliadač ignoruje akékoľvek "loading" stavy z Tauri */
   cursor: default !important;
 }
 
-/* Prvky, ktoré reálne reagujú na klik/myš, si interaktivitu zapnú samé */
 #disk-list, .disk-card, button, input, .breadcrumb-item, path, #center-info {
   cursor: pointer;
 }
@@ -17,6 +15,28 @@ html, body {
 .container {
   max-width: 900px;
   margin: 0 auto;
+  padding: 20px 20px 0;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.language-label {
+  color: #cdd6f4;
+  font-size: 14px;
+}
+
+#language-select {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border: 1px solid #313244;
+  border-radius: 6px;
+  padding: 6px 10px;
 }
 
 h1, h2 {
