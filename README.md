@@ -2,7 +2,7 @@
 
 A modern, fast, and cross-platform disk space visualizer built with Tauri, Rust, and D3.js.
 
-![Scanner Reloaded Screenshot](images/screenshot.png)
+![Scanner Reloaded Screenshot](images/screenshot.jpg)
 
 This project is a tribute to and a modern remake of the classic "Scanner" utility by Steffen Gerlach. The original tool provided a simple yet powerful sunburst chart to visualize disk usage, which was an inspiration for this application.
 
