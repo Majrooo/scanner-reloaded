@@ -1,0 +1,4 @@
+You are an AI agent in the Cline extension for VS Code.
+Always adhere to the context described in the PROJECT_CONTEXT.md file.
+Before any major refactoring, first propose a plan in the chat.
+When searching for code, prefer using tools like `grep` or `search` over reading entire files to minimize token consumption.
