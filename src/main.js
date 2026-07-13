@@ -23,6 +23,10 @@ let centerName = document.getElementById("center-name");
 let centerSize = document.getElementById("center-size");
 let centerInfo = document.getElementById("center-info");
 
+// PRIDANÉ: Globálne premenné pre vlastné kontextové menu
+let menuTargetNode = null;
+const contextMenu = document.getElementById("custom-context-menu");
+
 // Globálna premenná, kde si uložíme celkovú kapacitu vybraného disku
 let selectedDiskTotalSpace = 0;
 let totalScannedBytes = 0;
@@ -189,47 +193,38 @@ async function startDiskScan(path, totalSpace) {
 
   updateCenterHUD("📁", path, "0 Bytes");
 
-  // Predpokladáme, že event z Rustu "scan-live-folder" posiela payload ako objekt alebo upravené dáta:
-  // Ak vám posiela iba text (cestu), pre meranie presnej veľkosti uprvte Rust payload na: (String, u64) -> (cesta, veľkosť súboru)
   unlistenProgress = await listen("scan-live-folder", (event) => {
     let currentPath = "";
     let currentSize = 0;
 
-    // Prispôsobenie podľa toho, či payload posiela len cestu, alebo aj veľkosť
     if (typeof event.payload === "object" && event.payload !== null) {
       currentPath = event.payload.path || "";
       currentSize = event.payload.size || 0;
     } else {
-      currentPath = event.payload; // Ak zatiaľ posiela iba čistý String cesty
+      currentPath = event.payload;
     }
 
     totalScannedBytes += currentSize;
 
     const now = performance.now();
-    // 100ms Časový zámok (Throttling) - VÝRAZNE ŠETRÍ PROCESOR A PAMÄŤ
     if (now - lastUpdateTime >= 100) {
       lastUpdateTime = now;
 
-      // 1. Aktualizácia textu v progress bare
       liveTicker.textContent = getText("scanScreen.statuses.current", { path: currentPath });
 
-      // 2. Výpočet percent a posun červeného pruhu
       if (selectedDiskTotalSpace > 0) {
-        // Počítame progress voči celkovej veľkosti DISKU (alebo použite použité miesto, ak ho prenesiete)
         const progressPct = Math.min(100, (totalScannedBytes / selectedDiskTotalSpace) * 100);
         document.getElementById("live-ticker-bar").style.width = `${progressPct}%`;
       }
 
-      // 3. Aktualizácia veľkosti načítaných dát v STREDE grafu
       updateCenterHUD("⏳", rootPath, formatBytes(totalScannedBytes));
     }
   });
 
   unlistenFinished = await listen("scan-finished-with-data", (event) => {
     liveTicker.textContent = getText("scanScreen.statuses.finished");
-    document.getElementById("live-ticker-bar").style.width = "100%"; // Nastavíme plný progress bar
+    document.getElementById("live-ticker-bar").style.width = "100%";
 
-    // PRIDANÉ: Skrytie elementu po 6 sekundách (6000 ms)
     setTimeout(() => {
       const tickerContainer = document.getElementById("live-ticker-container");
       if (tickerContainer) {
@@ -297,6 +292,7 @@ function updateBreadcrumbs(p) {
     container.appendChild(item);
 
     if (!isLast) {
+      style = document.createElement("span");
       const separator = document.createElement("span");
       separator.className = "breadcrumb-separator";
       separator.textContent = " ❯ ";
@@ -310,7 +306,6 @@ function drawSunburst(data) {
 
   const baseSize = 640;
 
-  // Priradíme dáta priamo do globálnych premenných, ŽIADNE "const" ani "let" tu nesmie byť!
   rootNode = d3.hierarchy(data)
     .sum(d => d.is_dir ? 0 : (d.size || 0))
     .sort((a, b) => b.value - a.value);
@@ -321,7 +316,6 @@ function drawSunburst(data) {
 
   currentFocus = rootNode;
 
-  // Vyčistíme starý graf pred vykreslením nového
   d3.select("#sunburst-chart").selectAll("*").remove();
   const svg = d3.select("#sunburst-chart")
     .attr("viewBox", `0 0 ${baseSize} ${baseSize}`)
@@ -331,20 +325,17 @@ function drawSunburst(data) {
     .attr("id", "sunburst-group")
     .attr("transform", `translate(${baseSize / 2},${baseSize / 2})`);
 
-  // Pozadie stredového kruhu
-  // Pozadie stredového kruhu s presnou detekciou kliknutia
   svg.append("circle")
     .attr("r", innerHoleRadius)
     .attr("fill", "#1e1e2e")
     .attr("id", "d3-center-click-zone")
-    .style("cursor", "default") // Základný kurzor, ak sme na najvyššej úrovni
+    .style("cursor", "default")
     .on("click", () => {
       if (currentFocus && currentFocus.parent) {
         zoomTo(currentFocus.parent);
       }
     });
 
-  // Vykreslíme úvodný stav
   zoomTo(rootNode);
 }
 
@@ -353,7 +344,6 @@ function zoomTo(p) {
   const svg = d3.select("#sunburst-group");
   if (svg.empty()) return;
 
-  // Meníme štýl kurzora na presnom SVG kruhu namiesto HTML elementu
   const d3Center = d3.select("#d3-center-click-zone");
   if (!d3Center.empty()) {
     d3Center.style("cursor", p.parent ? "pointer" : "default");
@@ -366,10 +356,8 @@ function zoomTo(p) {
     gPartition(rootNode);
   }
 
-  // 1. Najprv zoberieme úplne všetkých teoretických potomkov
   const descendants = p.descendants();
 
-  // 2. Aplikujeme kompletný filter (geometrický + výkonnostný) HNEĎ NA ZAČIATKU
   const visibleDescendants = descendants.filter(d => {
     const basicCheck = d.depth > p.depth &&
       d.depth <= p.depth + maxDepth &&
@@ -388,7 +376,6 @@ function zoomTo(p) {
     return true;
   });
 
-  // 3. 📁 OPRAVA: Skutočnú maximálnu hĺbku vypočítame VÝHRADNE z tých uzlov, ktoré naozaj IDEME VYKRESLIŤ
   let realMaxDepth = 0;
   visibleDescendants.forEach(d => {
     const currentRelativeDepth = d.depth - p.depth;
@@ -399,11 +386,9 @@ function zoomTo(p) {
 
   if (realMaxDepth === 0) realMaxDepth = 1;
 
-  // 4. Dynamická mierka, ktorá teraz dostane 100% presné očistené číslo
   function getScaleY(depth) {
     if (depth <= 0) return innerHoleRadius;
     const availableRadius = radius - innerHoleRadius;
-
     const factor = realMaxDepth > 5 ? 0.90 : 0.95;
 
     let totalUnits = 0;
@@ -423,14 +408,12 @@ function zoomTo(p) {
     return currentRadius;
   }
 
-  // 5. Oblúky s novou upravenou mierkou
   const arc = d3.arc()
     .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
     .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
     .innerRadius(d => getScaleY(d.depth - p.depth - 1))
     .outerRadius(d => getScaleY(d.depth - p.depth) - 1);
 
-  // 6. Vyčistíme a vykreslíme
   svg.selectAll("path").remove();
 
   const paths = svg.append("g")
@@ -449,7 +432,6 @@ function zoomTo(p) {
     .attr("d", arc)
     .style("cursor", "pointer");
 
-  // Zvyšok (hover a click) zostáva rovnaký...
   paths.on("mouseover", (event, d) => {
     hoverPath.textContent = d.data.path;
     hoverSize.textContent = formatBytes(d.value);
@@ -468,8 +450,26 @@ function zoomTo(p) {
       if (d.children && d.children.length > 0) {
         zoomTo(d);
       }
+    })
+    // PRIDANÉ: Spracovanie pravého kliknutia (Context Menu) priamo na d3 objektoch
+    .on("contextmenu", (event, d) => {
+      event.preventDefault();
+      menuTargetNode = d;
+
+      if (contextMenu) {
+        contextMenu.style.top = `${event.pageY}px`;
+        contextMenu.style.left = `${event.pageX}px`;
+        contextMenu.classList.remove("hidden");
+      }
     });
 }
+
+// Skrytie kontextového menu pri kliknutí kamkoľvek mimo neho
+window.addEventListener("click", () => {
+  if (contextMenu) {
+    contextMenu.classList.add("hidden");
+  }
+});
 
 // Event Listenery po načítaní DOM
 window.addEventListener("DOMContentLoaded", async () => {
@@ -483,18 +483,133 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   backBtn.onclick = showDiskScreen;
+
+  // PRIDANÉ: Priradenie akcií pre položky kontextového menu (správne umiestnené v DOMContentLoaded)
+  const cmOpenExplorer = document.getElementById("cm-open-explorer");
+  if (cmOpenExplorer) {
+    cmOpenExplorer.onclick = async () => {
+      if (menuTargetNode) await invoke("show_in_file_manager", { path: menuTargetNode.data.path });
+    };
+  }
+
+  const cmOpenTc = document.getElementById("cm-open-tc");
+  if (cmOpenTc) {
+    cmOpenTc.onclick = async () => {
+      if (menuTargetNode) await invoke("show_in_total_commander", { path: menuTargetNode.data.path });
+    };
+  }
+
+  const cmProperties = document.getElementById("cm-properties");
+  if (cmProperties) {
+    cmProperties.onclick = async () => {
+      if (menuTargetNode) await invoke("show_file_properties", { path: menuTargetNode.data.path });
+    };
+  }
+
+const cmTrash = document.getElementById("cm-trash");
+  if (cmTrash) {
+    cmTrash.onclick = async () => {
+      if (menuTargetNode) {
+        if (confirm(`Naozaj chcete presunúť "${menuTargetNode.data.name}" do koša?`)) {
+          try {
+            await invoke("move_to_trash", { path: menuTargetNode.data.path });
+            
+            if (menuTargetNode.parent) {
+              const parentNode = menuTargetNode.parent;
+              
+              // 1. Odstránenie uzla zo surových dát (vaša pôvodná logika)
+              if (parentNode.data.children) {
+                parentNode.data.children = parentNode.data.children.filter(
+                  child => child.path !== menuTargetNode.data.path
+                );
+              }
+              
+              // 2. OPRAVA: Odstránenie uzla priamo z D3 štruktúry rodiča
+              if (parentNode.children) {
+                parentNode.children = parentNode.children.filter(
+                  child => child.data.path !== menuTargetNode.data.path
+                );
+              }
+              
+              // 3. Prepočítanie celého stromu (veľkosti sa preženú smerom k rootu)
+              rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
+                      .sort((a, b) => b.value - a.value);
+              
+              // 4. Aktualizácia rozloženia (partition layout)
+              if (gPartition) {
+                gPartition(rootNode);
+              }
+              
+              // 5. Prekreslenie grafu zameraného na rodiča
+              zoomTo(parentNode);
+            } else {
+              showDiskScreen();
+            }
+
+          } catch (err) {
+            alert("Chyba: " + err);
+          }
+        }
+      }
+    };
+  }
+
+const cmDelete = document.getElementById("cm-delete");
+  if (cmDelete) {
+    cmDelete.onclick = async () => {
+      if (menuTargetNode) {
+        if (confirm(`POZOR: Naozaj chcete TRVALO vymazať "${menuTargetNode.data.name}"? Táto akcia sa nedá vrátiť.`)) {
+          try {
+            await invoke("permanent_delete", { path: menuTargetNode.data.path });
+            
+            if (menuTargetNode.parent) {
+              const parentNode = menuTargetNode.parent;
+              
+              // 1. Odstránenie zo surových dát
+              if (parentNode.data.children) {
+                parentNode.data.children = parentNode.data.children.filter(
+                  child => child.path !== menuTargetNode.data.path
+                );
+              }
+              
+              // 2. OPRAVA: Odstránenie uzla priamo z D3 štruktúry rodiča
+              if (parentNode.children) {
+                parentNode.children = parentNode.children.filter(
+                  child => child.data.path !== menuTargetNode.data.path
+                );
+              }
+              
+              // 3. Prepočítanie stromu
+              rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
+                      .sort((a, b) => b.value - a.value);
+              
+              // 4. Aktualizácia rozloženia
+              if (gPartition) {
+                gPartition(rootNode);
+              }
+              
+              // 5. Prekreslenie grafu
+              zoomTo(parentNode);
+            } else {
+              showDiskScreen();
+            }
+
+          } catch (err) {
+            alert("Chyba: " + err);
+          }
+        }
+      }
+    };
+  }
+
   await loadTranslations();
   loadDisks();
 });
 
 // Otvorenie modálneho okna
 aboutBtn.onclick = async () => {
-  applyTranslations(); // <-- PRIDANÉ: Znovu aplikujeme preklady
+  applyTranslations();
   aboutModal.classList.remove("hidden");
-
-  // Voliteľne môžete dynamicky načítať verziu z Tauri, ak nechcete hardcodovať:
-  // const { getVersion } = window.__TAURI__.app;
-  // document.getElementById("app-version").textContent = await getVersion();
 };
 
 // Zatvorenie modálneho okna
@@ -502,12 +617,12 @@ closeAboutBtn.onclick = () => {
   aboutModal.classList.add("hidden");
 };
 
-// Zatvorenie kliknutím mimo okna
-window.onclick = (event) => {
+// Zatvorenie kliknutím mimo okna (opravené aby nezatváralo kontextové menu)
+window.addEventListener("click", (event) => {
   if (event.target === aboutModal) {
     aboutModal.classList.add("hidden");
   }
-};
+});
 
 // Bezpečné otvorenie GitHubu v externom prehliadači cez Tauri rozhranie
 if (githubLink) {
