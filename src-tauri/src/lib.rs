@@ -78,8 +78,8 @@ fn find_tc_in_registry() -> Option<String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::System::Registry::{
-        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE,
-        KEY_READ,
+        HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, RegCloseKey, RegOpenKeyExW,
+        RegQueryValueExW,
     };
 
     let registry_paths = [
@@ -101,8 +101,14 @@ fn find_tc_in_registry() -> Option<String> {
     ];
 
     for (hkey, subkey, value_name) in &registry_paths {
-        let wide_subkey: Vec<u16> = OsStr::new(subkey).encode_wide().chain(std::iter::once(0)).collect();
-        let wide_value: Vec<u16> = OsStr::new(value_name).encode_wide().chain(std::iter::once(0)).collect();
+        let wide_subkey: Vec<u16> = OsStr::new(subkey)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let wide_value: Vec<u16> = OsStr::new(value_name)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
 
         unsafe {
             let mut h_key: windows_sys::Win32::System::Registry::HKEY = 0;
@@ -305,7 +311,9 @@ fn scan_directory(
                 if SCAN_CANCELLED.load(Ordering::Relaxed) {
                     return None;
                 }
-                if let Some(child_node) = scan_directory(&entry.path(), app_handle, last_emit, running_total) {
+                if let Some(child_node) =
+                    scan_directory(&entry.path(), app_handle, last_emit, running_total)
+                {
                     total_size += child_node.size;
                     dir_count += child_node.dir_count;
                     file_count += child_node.file_count;
@@ -382,12 +390,17 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
         let mut last_emit = Instant::now();
         let mut running_total: u64 = 0;
 
-        if let Some(full_tree) = scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total) {
+        if let Some(full_tree) =
+            scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total)
+        {
             let _ = app_handle.emit("scan-finished-with-data", full_tree);
         } else {
             // A8: Ak bolo skenovanie zrušené, pošleme scan-failed so správou o zrušení
             if SCAN_CANCELLED.load(Ordering::Relaxed) {
-                let _ = app_handle.emit("scan-failed", "Skenovanie bolo zrušené používateľom".to_string());
+                let _ = app_handle.emit(
+                    "scan-failed",
+                    "Skenovanie bolo zrušené používateľom".to_string(),
+                );
             } else {
                 let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
             }
@@ -412,9 +425,13 @@ fn show_in_file_manager(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
+        // Konverzia separátorov na Windows formát (\)
         let windows_path = path.replace("/", "\\");
-        Command::new("explorer")
-            .arg(format!("/select,{}", windows_path))
+
+        std::process::Command::new("explorer")
+            // Argumenty rozdelíme. Rust ich automaticky správne obalí do úvodzoviek, ak je to potrebné.
+            .arg("/select,")
+            .arg(windows_path)
             .spawn()
             .map_err(|e| format!("Nepodarilo sa otvoriť Prieskumníka: {}", e))?;
     }
@@ -457,18 +474,19 @@ fn show_in_total_commander(path: String) -> Result<(), String> {
         let windows_path = path.replace("/", "\\");
 
         let param = if target_path.is_dir() {
-            format!("/O /L={}", windows_path)
+            format!("/L={}", windows_path)
         } else {
             let parent = target_path
                 .parent()
                 .unwrap_or(target_path)
                 .to_string_lossy()
                 .replace("/", "\\");
-            format!("/O /L={}", parent)
+            format!("/L={}", parent)
         };
 
         Command::new(&tc_executable)
-            .args(param.split_whitespace())
+            .arg("/O")
+            .arg(param)
             .spawn()
             .map_err(|e| {
                 format!(
@@ -646,23 +664,18 @@ fn move_to_trash(path: String) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         // Try gio trash first, then trash-cli
-        let result = Command::new("gio")
-            .args(["trash", &path])
-            .output();
+        let result = Command::new("gio").args(["trash", &path]).output();
 
         match result {
             Ok(output) if output.status.success() => {}
             _ => {
                 // Fallback to trash-cli
-                Command::new("trash-put")
-                    .arg(&path)
-                    .output()
-                    .map_err(|e| {
-                        format!(
-                            "Nepodarilo sa presunúť do koša (skúste nainštalovať trash-cli): {}",
-                            e
-                        )
-                    })?;
+                Command::new("trash-put").arg(&path).output().map_err(|e| {
+                    format!(
+                        "Nepodarilo sa presunúť do koša (skúste nainštalovať trash-cli): {}",
+                        e
+                    )
+                })?;
             }
         }
     }
@@ -727,7 +740,6 @@ fn open_system_utility(utility: String) -> Result<(), String> {
 
     Ok(())
 }
-
 
 // ─── App Entry Point ─────────────────────────────────────────────────────────
 
