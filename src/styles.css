@@ -103,6 +103,63 @@ h1, h2 {
 .disk-bar-bg { background: #313244; height: 8px; border-radius: 4px; margin: 10px 0; overflow: hidden; }
 .disk-bar-fill { background: #f38ba8; height: 100%; }
 
+/* B4: Ikona typu disku */
+.disk-type-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  display: block;
+  text-align: center;
+}
+
+/* B5: Empty state */
+.empty-state {
+  text-align: center;
+  color: #6c7086;
+  font-size: 18px;
+  padding: 60px 20px;
+  font-style: italic;
+}
+
+/* B6: Loading spinner */
+.scan-spinner {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: 2px solid #45475a;
+  border-top-color: #f38ba8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  z-index: 3;
+}
+
+.scan-spinner.hidden {
+  display: none;
+}
+
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* B9: Stats bar */
+.scan-stats-bar {
+  background: #181825;
+  border: 1px solid #313244;
+  border-radius: 6px;
+  padding: 8px 16px;
+  margin-bottom: 15px;
+  font-size: 13px;
+  color: #a6adc8;
+  text-align: center;
+  font-weight: 500;
+}
+
+.scan-stats-bar.hidden {
+  display: none;
+}
+
 /* Skenovacia obrazovka */
 .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 #back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; }

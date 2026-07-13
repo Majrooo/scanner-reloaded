@@ -228,16 +228,28 @@ function showConfirm(message, isDanger = false) {
 
 async function loadDisks() {
   diskList.innerHTML = "";
+  const noDisksMsg = document.getElementById("no-disks-message");
   let disks = await invoke("get_disks");
   disks.sort((a, b) => a.mount_point.localeCompare(b.mount_point));
+
+  // B5: Empty state pre žiadne disky
+  if (disks.length === 0) {
+    if (noDisksMsg) noDisksMsg.classList.remove("hidden");
+    return;
+  }
+  if (noDisksMsg) noDisksMsg.classList.add("hidden");
 
   disks.forEach(disk => {
     const used = disk.total_space - disk.available_space;
     const pct = (used / disk.total_space) * 100;
 
+    // B4: Ikona typu disku
+    const typeIcon = getText(`diskScreen.diskType.${disk.kind || "unknown"}`);
+
     const card = document.createElement("div");
     card.className = "disk-card";
     card.innerHTML = `
+      <div class="disk-type-icon">${typeIcon}</div>
       <div class="disk-name" title="${disk.name} (${disk.mount_point})">${disk.name} (${disk.mount_point})</div>
       <div class="disk-bar-bg"><div class="disk-bar-fill" style="width: ${pct}%"></div></div>
       <div>${getText("diskScreen.used", { used: formatBytes(used), total: formatBytes(disk.total_space) })}</div>
@@ -261,6 +273,14 @@ async function startDiskScan(path, totalSpace) {
   isScanning = true;
   if (cancelScanBtn) cancelScanBtn.classList.remove("hidden");
 
+  // B6: Zobraziť spinner počas skenu
+  const spinner = document.getElementById("scan-spinner");
+  if (spinner) spinner.classList.remove("hidden");
+
+  // B9: Skryť stats bar počas skenu
+  const statsBar = document.getElementById("scan-stats-bar");
+  if (statsBar) statsBar.classList.add("hidden");
+
   d3.select("#sunburst-chart").selectAll("*").remove();
 
   rootPath = path.replace(/\\/g, "/");
@@ -281,7 +301,9 @@ async function startDiskScan(path, totalSpace) {
       currentPath = event.payload;
     }
 
-    totalScannedBytes += currentSize;
+    // B8: Backend emituje running_total (kumulatívny súčet veľkostí všetkých naskenovaných súborov)
+    // Hodnota je absolútna (nie prírastok), preto používame priame priradenie
+    totalScannedBytes = currentSize;
 
     const now = performance.now();
     if (now - lastUpdateTime >= 100) {
@@ -303,6 +325,10 @@ async function startDiskScan(path, totalSpace) {
     isScanning = false;
     if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
 
+    // B6: Skryť spinner po dokončení
+    const spinner = document.getElementById("scan-spinner");
+    if (spinner) spinner.classList.add("hidden");
+
     liveTicker.textContent = getText("scanScreen.statuses.finished");
     document.getElementById("live-ticker-bar").style.width = "100%";
 
@@ -321,6 +347,17 @@ async function startDiskScan(path, totalSpace) {
     };
     normalizePaths(fullTree);
 
+    // B9: Zobraziť stats bar s celkovými štatistikami
+    const statsBar = document.getElementById("scan-stats-bar");
+    if (statsBar && fullTree) {
+      statsBar.textContent = getText("scanScreen.statsBar", {
+        files: fullTree.file_count || 0,
+        dirs: fullTree.dir_count || 0,
+        size: formatBytes(fullTree.size || 0)
+      });
+      statsBar.classList.remove("hidden");
+    }
+
     drawSunburst(fullTree);
 
     if (unlistenProgress) unlistenProgress();
@@ -332,6 +369,10 @@ async function startDiskScan(path, totalSpace) {
     // A8: Skryť tlačidlo zrušenia pri chybe
     isScanning = false;
     if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+
+    // B6: Skryť spinner pri chybe
+    const spinner = document.getElementById("scan-spinner");
+    if (spinner) spinner.classList.add("hidden");
 
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
     document.getElementById("live-ticker-bar").style.width = "0%";
@@ -394,7 +435,14 @@ function updateBreadcrumbs(p) {
 }
 
 function drawSunburst(data) {
-  if (!data || !data.children || data.children.length === 0) return;
+  const emptyFolderMsg = document.getElementById("empty-folder-message");
+
+  // B5: Empty state pre prázdny priečinok
+  if (!data || !data.children || data.children.length === 0) {
+    if (emptyFolderMsg) emptyFolderMsg.classList.remove("hidden");
+    return;
+  }
+  if (emptyFolderMsg) emptyFolderMsg.classList.add("hidden");
 
   const baseSize = 640;
 
@@ -456,6 +504,16 @@ function zoomTo(p) {
 
   updateCenterHUD(p.parent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
   updateBreadcrumbs(p);
+
+  // B9: Update stats bar pre aktuálny fokus
+  const statsBar = document.getElementById("scan-stats-bar");
+  if (statsBar && p.data) {
+    statsBar.textContent = getText("scanScreen.statsBar", {
+      files: p.data.file_count || 0,
+      dirs: p.data.dir_count || 0,
+      size: formatBytes(p.value || 0)
+    });
+  }
 
   if (gPartition && rootNode) {
     gPartition(rootNode);

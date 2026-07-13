@@ -18,6 +18,7 @@ struct DiskInfo {
     mount_point: String,
     total_space: u64,
     available_space: u64,
+    kind: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -236,9 +237,15 @@ fn get_disks() -> Vec<DiskInfo> {
         let name = disk.name().to_string_lossy().into_owned();
         let mount_point = disk.mount_point().to_string_lossy().into_owned();
 
-        if matches!(disk.kind(), sysinfo::DiskKind::Unknown(_))
-            || mount_point.contains("BaseImages")
-        {
+        // B4: Pridanie typu disku (SSD/HDD)
+        let kind = match disk.kind() {
+            sysinfo::DiskKind::SSD => "ssd",
+            sysinfo::DiskKind::HDD => "hdd",
+            _ => "unknown",
+        };
+
+        // B4: Nefiltrujeme Unknown disky - USB/externé disky môžu byť detekované ako Unknown
+        if mount_point.contains("BaseImages") {
             continue;
         }
         if disk.total_space() == 0 {
@@ -254,6 +261,7 @@ fn get_disks() -> Vec<DiskInfo> {
             mount_point,
             total_space: disk.total_space(),
             available_space: disk.available_space(),
+            kind: kind.to_string(),
         });
     }
     result
@@ -263,6 +271,7 @@ fn scan_directory(
     path: &Path,
     app_handle: &AppHandle,
     last_emit: &mut Instant,
+    running_total: &mut u64,
 ) -> Option<FileNode> {
     // A8: Ak bolo skenovanie zrušené, okamžite sa vrátime
     if SCAN_CANCELLED.load(Ordering::Relaxed) {
@@ -296,7 +305,7 @@ fn scan_directory(
                 if SCAN_CANCELLED.load(Ordering::Relaxed) {
                     return None;
                 }
-                if let Some(child_node) = scan_directory(&entry.path(), app_handle, last_emit) {
+                if let Some(child_node) = scan_directory(&entry.path(), app_handle, last_emit, running_total) {
                     total_size += child_node.size;
                     dir_count += child_node.dir_count;
                     file_count += child_node.file_count;
@@ -305,12 +314,13 @@ fn scan_directory(
             }
         }
 
+        // B8: Emitujeme running_total (celkovo naskenované doteraz), nie veľkosť priečinka
         if last_emit.elapsed().as_millis() >= 50 {
             let _ = app_handle.emit(
                 "scan-live-folder",
                 LivePayload {
                     path: path_str.clone(),
-                    size: total_size,
+                    size: *running_total,
                 },
             );
             *last_emit = Instant::now();
@@ -327,13 +337,15 @@ fn scan_directory(
         })
     } else {
         let size = metadata.len();
+        // B8: Pripočítame veľkosť súboru k running_total
+        *running_total += size;
 
         if last_emit.elapsed().as_millis() >= 50 {
             let _ = app_handle.emit(
                 "scan-live-folder",
                 LivePayload {
                     path: path_str.clone(),
-                    size,
+                    size: *running_total,
                 },
             );
             *last_emit = Instant::now();
@@ -368,8 +380,9 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
         }
 
         let mut last_emit = Instant::now();
+        let mut running_total: u64 = 0;
 
-        if let Some(full_tree) = scan_directory(target_path, &app_handle, &mut last_emit) {
+        if let Some(full_tree) = scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total) {
             let _ = app_handle.emit("scan-finished-with-data", full_tree);
         } else {
             // A8: Ak bolo skenovanie zrušené, pošleme scan-failed so správou o zrušení
