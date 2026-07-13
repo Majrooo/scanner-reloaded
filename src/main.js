@@ -267,6 +267,13 @@ async function startDiskScan(path, totalSpace) {
   scanScreen.classList.remove("hidden");
   document.getElementById("live-ticker-container").classList.remove("hidden");
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
+
+  // OPRAVA: Vyčisti breadcrumbs a zobraz iba aktuálne skenovanú cestu
+  const breadcrumbsContainer = document.getElementById("current-folder-title");
+  if (breadcrumbsContainer) {
+    breadcrumbsContainer.innerHTML = `<span class="breadcrumb-item active">${path}</span>`;
+  }
+
   document.getElementById("live-ticker-bar").style.width = "0%";
 
   // Zmena: Upraviť ľavé tlačidlo na "Zrušiť" a skryť pravé
