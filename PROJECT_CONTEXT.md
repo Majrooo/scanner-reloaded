@@ -19,6 +19,16 @@
     *   **Internationalization (i18n)**: The application supports multiple languages (English and Slovak) via a `translations.json` file, with language selection persisted in local storage.
 *   **Database**: Not applicable for core functionality; file system is the primary data source.
 
+## Project Structure
+
+The project follows the standard Tauri directory layout:
+
+*   **`src/`**: This directory contains all frontend assets. The core logic is in `main.js`, the user interface in `index.html`, styling in `style.css`, and internationalization strings are in `translations.json`.
+*   **`src-tauri/`**: This directory contains all backend-related files.
+    *   **`src-tauri/src/`**: The Rust backend code resides here, with the main application logic and command handlers defined in `lib.rs`.
+    *   **`tauri.conf.json`**: The central configuration file for the Tauri application, defining windows, plugins, and build settings.
+    *   **`Cargo.toml`**: The manifest for the Rust backend, managing its dependencies.
+
 ## Architecture
 
 The application follows a client-server architecture facilitated by the Tauri framework:
