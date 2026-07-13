@@ -33,9 +33,15 @@
       <div class="disk-screen-header">
         <h1 id="disk-screen-title" data-i18n="diskScreen.title">Vyberte disk na analýzu</h1>
         <button id="refresh-disks-btn" class="refresh-btn" data-i18n="diskScreen.refresh">🔄 Obnoviť</button>
+        <button id="scan-folder-btn" class="scan-folder-btn" data-i18n="diskScreen.scanFolder">📁 Skenovať priečinok</button>
       </div>
       <div id="disk-list"></div>
       <div id="no-disks-message" class="empty-state hidden" data-i18n="diskScreen.noDisks">Nenašli sa žiadne disky.</div>
+    </div>
+
+    <!-- C2: Drag & drop overlay -->
+    <div id="drag-drop-overlay" class="drag-drop-overlay hidden">
+      <div class="drag-drop-content" data-i18n="scanScreen.dragDropHint">📁 Pretiahnite priečinok sem pre skenovanie</div>
     </div>
 
     <div id="scan-screen" class="hidden">

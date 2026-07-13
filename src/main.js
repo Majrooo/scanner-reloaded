@@ -810,6 +810,26 @@ window.addEventListener("DOMContentLoaded", async () => {
     refreshDisksBtn.onclick = () => loadDisks();
   }
 
+  // A7: Scan folder button - otvorí dialog pre výber priečinka
+  const scanFolderBtn = document.getElementById("scan-folder-btn");
+  if (scanFolderBtn) {
+    scanFolderBtn.onclick = async () => {
+      try {
+        const selected = await window.__TAURI__.dialog.open({
+          directory: true,
+          multiple: false,
+          title: getText("diskScreen.scanFolder"),
+        });
+        if (selected) {
+          // Pre priečinok nepoznáme total_space, použijeme 0 (progress bar sa nezobrazí percentuálne)
+          startDiskScan(selected, 0);
+        }
+      } catch (err) {
+        console.error("Folder selection failed:", err);
+      }
+    };
+  }
+
   // A8: Cancel scan button - zruší skenovanie a vráti na obrazovku diskov
   if (cancelScanBtn) {
     cancelScanBtn.onclick = async () => {
@@ -1116,6 +1136,40 @@ if (githubLink) {
     } catch (error) {
       console.error("Nepodarilo sa otvoriť GitHub odkaz", error);
       window.open("https://github.com/majrooo/scanner-reloaded", "_blank", "noopener,noreferrer");
+    }
+  });
+}
+
+// ── C2: Drag & drop skenovanie (Tauri 2 natívne eventy) ──────────────────────
+const dragDropOverlay = document.getElementById("drag-drop-overlay");
+
+// Skenovanie funguje len na obrazovke diskov (diskScreen viditeľný)
+function isOnDiskScreen() {
+  return diskScreen && !diskScreen.classList.contains("hidden");
+}
+
+// Tauri 2 používa natívne drag-drop eventy cez currentWindow
+const currentWindow = window.__TAURI__?.window?.getCurrentWindow?.();
+
+if (currentWindow) {
+  // drag-enter: zobraz overlay
+  currentWindow.onDragDropEvent((event) => {
+    if (!isOnDiskScreen()) return;
+
+    if (event.payload.type === "enter") {
+      if (dragDropOverlay) dragDropOverlay.classList.remove("hidden");
+    } else if (event.payload.type === "leave") {
+      if (dragDropOverlay) dragDropOverlay.classList.add("hidden");
+    } else if (event.payload.type === "drop") {
+      if (dragDropOverlay) dragDropOverlay.classList.add("hidden");
+
+      // event.payload.paths obsahuje zoznam cest
+      const paths = event.payload.paths;
+      if (paths && paths.length > 0) {
+        const folderPath = paths[0];
+        // Pre drag&drop priečinka nepoznáme total_space
+        startDiskScan(folderPath, 0);
+      }
     }
   });
 }

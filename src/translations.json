@@ -17,12 +17,13 @@
         "title": "Vyberte disk na analýzu",
         "used": "Využité: {used} z {total}",
         "refresh": "🔄 Obnoviť",
+        "scanFolder": "📁 Skenovať priečinok",
         "noDisks": "Nenašli sa žiadne disky.",
         "diskType": {
-          "ssd": "🚀 SSD",
-          "hdd": "🐌 HDD",
+          "ssd": "💾 SSD",
+          "hdd": "💿 HDD",
           "removable": "🔌 Vymeniteľné",
-          "unknown": "❓ Disk"
+          "unknown": "💿 Disk"
         }
       },
       "scanScreen": {
@@ -34,6 +35,7 @@
         "cancelScan": "✖ Zrušiť skenovanie",
         "emptyFolder": "Tento priečinok je prázdny",
         "statsBar": "{files} súborov, {dirs} priečinkov • Celkom: {size}",
+        "dragDropHint": "📁 Pretiahnite priečinok sem pre skenovanie",
         "center": {
           "goUp": "⬆ Hore"
         },
@@ -104,12 +106,13 @@
         "title": "Select a disk to analyze",
         "used": "Used: {used} of {total}",
         "refresh": "🔄 Refresh",
+        "scanFolder": "📁 Scan folder",
         "noDisks": "No disks found.",
         "diskType": {
-          "ssd": "🚀 SSD",
-          "hdd": "🐌 HDD",
+          "ssd": "💾 SSD",
+          "hdd": "💿 HDD",
           "removable": "🔌 Removable",
-          "unknown": "❓ Disk"
+          "unknown": "💿 Disk"
         }
       },
       "scanScreen": {
@@ -121,6 +124,7 @@
         "cancelScan": "✖ Cancel scan",
         "emptyFolder": "This folder is empty",
         "statsBar": "{files} files, {dirs} folders • Total: {size}",
+        "dragDropHint": "📁 Drag a folder here to scan",
         "center": {
           "goUp": "⬆ Up"
         },
