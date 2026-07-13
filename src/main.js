@@ -51,6 +51,7 @@ const tcCurrentPathInfo = document.getElementById("tc-current-path-info");
 let selectedDiskTotalSpace = 0;
 let totalScannedBytes = 0;
 let lastUpdateTime = 0;
+let tickerHideTimeout = null;
 
 // Globálne premenné pre správnu synchronizáciu
 let memoryTree = {};
@@ -261,6 +262,12 @@ async function loadDisks() {
 }
 
 async function startDiskScan(path, totalSpace) {
+  // OPRAVA: Zrušíme akýkoľvek existujúci časovač pre skrytie lišty
+  if (tickerHideTimeout) {
+    clearTimeout(tickerHideTimeout);
+    tickerHideTimeout = null;
+  }
+
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
   diskScreen.classList.add("hidden");
@@ -342,12 +349,12 @@ async function startDiskScan(path, totalSpace) {
     liveTicker.textContent = getText("scanScreen.statuses.finished");
     document.getElementById("live-ticker-bar").style.width = "100%";
 
-    setTimeout(() => {
+    tickerHideTimeout = setTimeout(() => {
       const tickerContainer = document.getElementById("live-ticker-container");
       if (tickerContainer) {
         tickerContainer.classList.add("hidden");
       }
-    }, 6000);
+    }, 4000);
 
     const fullTree = event.payload;
 
@@ -400,6 +407,12 @@ function showDiskScreen() {
   if (isScanning) {
     invoke("cancel_scan").catch(err => console.error("Failed to cancel scan on back navigation:", err));
     showToast(getText("toast.scanCancelled"), "info");
+  }
+
+  // OPRAVA: Zrušíme časovač pre skrytie lišty pri návrate na hlavnú obrazovku
+  if (tickerHideTimeout) {
+    clearTimeout(tickerHideTimeout);
+    tickerHideTimeout = null;
   }
 
   if (unlistenProgress) unlistenProgress();
