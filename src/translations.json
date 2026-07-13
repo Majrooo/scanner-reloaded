@@ -36,6 +36,30 @@
           "contains": "Obsahuje: {dirCount} priečinkov, {fileCount} súborov",
           "fileType": "Typ: Súbor"
         }
+      },
+      "contextMenu": {
+        "openExplorer": "📁 Otvoriť v prieskumníkovi",
+        "openTC": "💾 Otvoriť v Total Commander",
+        "properties": "ℹ️ Vlastnosti",
+        "trash": "🗑️ Presunúť do koša",
+        "delete": "❌ Vymazať navždy",
+        "setTCPath": "⚙️ Nastaviť cestu TC..."
+      },
+      "tcModal": {
+        "title": "Nastavenie cesty Total Commander",
+        "description": "Zadajte cestu k spustiteľnému súboru Total Commander (napr. C:\\totalcmd\\TOTALCMD64.EXE)",
+        "browse": "Prehľadávať",
+        "save": "Uložiť",
+        "clear": "Vymazať (auto-detekcia)",
+        "currentPath": "Aktuálna cesta: {path}",
+        "noPath": "Nie je nastavená (používa sa auto-detekcia)",
+        "saved": "Cesta bola uložená.",
+        "cleared": "Cesta bola vymazaná. Bude sa používať auto-detekcia.",
+        "invalidPath": "Zadaná cesta neexistuje: {path}"
+      },
+      "confirmations": {
+        "trash": "Naozaj chcete presunúť \"{name}\" do koša?",
+        "delete": "POZOR: Naozaj chcete TRVALO vymazať \"{name}\"? Táto akcia sa nedá vrátiť."
       }
     },
     "en": {
@@ -45,7 +69,7 @@
         "title": "About",
         "version": "Version",
         "developer": "Developer",
-         "githubLink": "🐈 GitHub Repository"
+        "githubLink": "🐈 GitHub Repository"
       },
       "common": {
         "languageLabel": "Language"
@@ -73,6 +97,30 @@
           "contains": "Contains: {dirCount} folders, {fileCount} files",
           "fileType": "Type: File"
         }
+      },
+      "contextMenu": {
+        "openExplorer": "📁 Open in File Explorer",
+        "openTC": "💾 Open in Total Commander",
+        "properties": "ℹ️ Properties",
+        "trash": "🗑️ Move to Trash",
+        "delete": "❌ Delete Permanently",
+        "setTCPath": "⚙️ Set TC Path..."
+      },
+      "tcModal": {
+        "title": "Total Commander Path Settings",
+        "description": "Enter the path to the Total Commander executable (e.g. C:\\totalcmd\\TOTALCMD64.EXE)",
+        "browse": "Browse",
+        "save": "Save",
+        "clear": "Clear (auto-detect)",
+        "currentPath": "Current path: {path}",
+        "noPath": "Not set (using auto-detection)",
+        "saved": "Path has been saved.",
+        "cleared": "Path has been cleared. Auto-detection will be used.",
+        "invalidPath": "The specified path does not exist: {path}"
+      },
+      "confirmations": {
+        "trash": "Are you sure you want to move \"{name}\" to the trash?",
+        "delete": "WARNING: Are you sure you want to PERMANENTLY delete \"{name}\"? This action cannot be undone."
       }
     }
   }

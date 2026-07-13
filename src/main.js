@@ -23,9 +23,18 @@ let centerName = document.getElementById("center-name");
 let centerSize = document.getElementById("center-size");
 let centerInfo = document.getElementById("center-info");
 
-// PRIDANÉ: Globálne premenné pre vlastné kontextové menu
+// Context menu
 let menuTargetNode = null;
 const contextMenu = document.getElementById("custom-context-menu");
+
+// TC Path Modal
+const tcPathModal = document.getElementById("tc-path-modal");
+const tcPathInput = document.getElementById("tc-path-input");
+const tcBrowseBtn = document.getElementById("tc-browse-btn");
+const tcSaveBtn = document.getElementById("tc-save-btn");
+const tcClearBtn = document.getElementById("tc-clear-btn");
+const tcCloseBtn = document.getElementById("close-tc-modal-btn");
+const tcCurrentPathInfo = document.getElementById("tc-current-path-info");
 
 // Globálna premenná, kde si uložíme celkovú kapacitu vybraného disku
 let selectedDiskTotalSpace = 0;
@@ -498,7 +507,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   const cmOpenTc = document.getElementById("cm-open-tc");
   if (cmOpenTc) {
     cmOpenTc.onclick = async () => {
-      if (menuTargetNode) await invoke("show_in_total_commander", { path: menuTargetNode.data.path });
+      if (menuTargetNode) {
+        try {
+          await invoke("show_in_total_commander", { path: menuTargetNode.data.path });
+        } catch (err) {
+          alert(err);
+        }
+      }
     };
   }
 
@@ -513,7 +528,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmTrash) {
     cmTrash.onclick = async () => {
       if (menuTargetNode) {
-        if (confirm(`Naozaj chcete presunúť "${menuTargetNode.data.name}" do koša?`)) {
+        if (confirm(getText("confirmations.trash", { name: menuTargetNode.data.name }))) {
           try {
             await invoke("move_to_trash", { path: menuTargetNode.data.path });
 
@@ -561,7 +576,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmDelete) {
     cmDelete.onclick = async () => {
       if (menuTargetNode) {
-        if (confirm(`POZOR: Naozaj chcete TRVALO vymazať "${menuTargetNode.data.name}"? Táto akcia sa nedá vrátiť.`)) {
+        if (confirm(getText("confirmations.delete", { name: menuTargetNode.data.name }))) {
           try {
             await invoke("permanent_delete", { path: menuTargetNode.data.path });
 
@@ -603,6 +618,92 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
       }
     };
+  }
+
+  // ── TC Path Modal Logic ──────────────────────────────────────────────
+
+  async function openTcPathModal() {
+    try {
+      const currentPath = await invoke("get_tc_path");
+      tcPathInput.value = currentPath || "";
+      tcCurrentPathInfo.textContent = currentPath
+        ? getText("tcModal.currentPath", { path: currentPath })
+        : getText("tcModal.noPath");
+    } catch {
+      tcPathInput.value = "";
+      tcCurrentPathInfo.textContent = getText("tcModal.noPath");
+    }
+    applyTranslations();
+    tcPathModal.classList.remove("hidden");
+  }
+
+  if (tcCloseBtn) {
+    tcCloseBtn.onclick = () => tcPathModal.classList.add("hidden");
+  }
+
+  window.addEventListener("click", (event) => {
+    if (event.target === tcPathModal) {
+      tcPathModal.classList.add("hidden");
+    }
+  });
+
+  if (tcBrowseBtn) {
+    tcBrowseBtn.onclick = async () => {
+      try {
+        const selected = await window.__TAURI__.dialog.open({
+          filters: [{ name: "Executable", extensions: ["exe"] }],
+          title: getText("tcModal.title"),
+        });
+        if (selected) {
+          tcPathInput.value = selected;
+        }
+      } catch (err) {
+        console.error("Browse failed:", err);
+      }
+    };
+  }
+
+  if (tcSaveBtn) {
+    tcSaveBtn.onclick = async () => {
+      const path = tcPathInput.value.trim();
+      try {
+        await invoke("set_tc_path", { path });
+        tcCurrentPathInfo.textContent = path
+          ? getText("tcModal.currentPath", { path })
+          : getText("tcModal.noPath");
+        alert(getText("tcModal.saved"));
+        tcPathModal.classList.add("hidden");
+      } catch (err) {
+        alert(err);
+      }
+    };
+  }
+
+  if (tcClearBtn) {
+    tcClearBtn.onclick = async () => {
+      try {
+        await invoke("set_tc_path", { path: "" });
+        tcPathInput.value = "";
+        tcCurrentPathInfo.textContent = getText("tcModal.noPath");
+        alert(getText("tcModal.cleared"));
+      } catch (err) {
+        alert(err);
+      }
+    };
+  }
+
+  // Add "Set TC Path" item to context menu dynamically
+  const cmSetTcPath = document.createElement("div");
+  cmSetTcPath.className = "menu-item";
+  cmSetTcPath.id = "cm-set-tc-path";
+  cmSetTcPath.setAttribute("data-i18n", "contextMenu.setTCPath");
+  cmSetTcPath.textContent = getText("contextMenu.setTCPath");
+  cmSetTcPath.onclick = () => openTcPathModal();
+
+  // Insert before the divider in context menu
+  const cmDivider = contextMenu?.querySelector(".divider");
+  if (cmDivider && contextMenu) {
+    contextMenu.insertBefore(cmSetTcPath, cmDivider);
   }
 
   await loadTranslations();

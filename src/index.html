@@ -74,12 +74,30 @@
   </div>
 
   <div id="custom-context-menu" class="context-menu hidden">
-    <div class="menu-item" id="cm-open-explorer">📁 Otvoriť v prieskumníkovi</div>
-    <div class="menu-item" id="cm-open-tc">💾 Otvoriť v Total Commander</div>
-    <div class="menu-item" id="cm-properties">ℹ️ Vlastnosti</div>
+    <div class="menu-item" id="cm-open-explorer" data-i18n="contextMenu.openExplorer">📁 Otvoriť v prieskumníkovi</div>
+    <div class="menu-item" id="cm-open-tc" data-i18n="contextMenu.openTC">💾 Otvoriť v Total Commander</div>
+    <div class="menu-item" id="cm-properties" data-i18n="contextMenu.properties">ℹ️ Vlastnosti</div>
     <div class="divider"></div>
-    <div class="menu-item text-warning" id="cm-trash">🗑️ Presunúť do koša</div>
-    <div class="menu-item text-danger" id="cm-delete">❌ Vymazať navždy</div>
+    <div class="menu-item text-warning" id="cm-trash" data-i18n="contextMenu.trash">🗑️ Presunúť do koša</div>
+    <div class="menu-item text-danger" id="cm-delete" data-i18n="contextMenu.delete">❌ Vymazať navždy</div>
+  </div>
+
+  <!-- Modal for setting Total Commander path -->
+  <div id="tc-path-modal" class="modal hidden">
+    <div class="modal-content tc-modal-content">
+      <span id="close-tc-modal-btn" class="close-btn">&times;</span>
+      <h2 data-i18n="tcModal.title">Nastavenie cesty Total Commander</h2>
+      <p class="tc-modal-desc" data-i18n="tcModal.description">Zadajte cestu k spustiteľnému súboru Total Commander (napr. C:\totalcmd\TOTALCMD64.EXE)</p>
+      <div class="tc-input-row">
+        <input type="text" id="tc-path-input" class="tc-path-input" placeholder="C:\totalcmd\TOTALCMD64.EXE" />
+        <button id="tc-browse-btn" class="tc-browse-btn" data-i18n="tcModal.browse">Prehľadávať</button>
+      </div>
+      <div class="tc-current-path" id="tc-current-path-info"></div>
+      <div class="tc-modal-buttons">
+        <button id="tc-save-btn" class="tc-save-btn" data-i18n="tcModal.save">Uložiť</button>
+        <button id="tc-clear-btn" class="tc-clear-btn" data-i18n="tcModal.clear">Vymazať (auto-detekcia)</button>
+      </div>
+    </div>
   </div>
 
   <script src="/d3.min.js"></script>
