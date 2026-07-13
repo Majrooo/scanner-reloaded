@@ -47,7 +47,7 @@ fn get_disks() -> Vec<DiskInfo> {
         let mount_point = disk.mount_point().to_string_lossy().into_owned();
 
         if matches!(disk.kind(), sysinfo::DiskKind::Unknown(_))
-            && mount_point.contains("BaseImages")
+            || mount_point.contains("BaseImages")
         {
             continue;
         }
@@ -159,15 +159,22 @@ fn scan_directory(
 fn start_async_scan(path: String, app_handle: AppHandle) {
     thread::spawn(move || {
         let target_path = Path::new(&path);
-        if target_path.exists() {
-            // Inicializujeme časovač pre prvé odoslanie
-            let mut last_emit = Instant::now();
+        if !target_path.exists() {
+            let _ = app_handle.emit("scan-failed", format!("Cesta neexistuje: {}", path));
+            return;
+        }
+        if !target_path.is_dir() {
+            let _ = app_handle.emit("scan-failed", format!("Nie je priečinok: {}", path));
+            return;
+        }
 
-            if let Some(full_tree) = scan_directory(target_path, &app_handle, &mut last_emit) {
-                let _ = app_handle.emit("scan-finished-with-data", full_tree);
-            } else {
-                let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
-            }
+        // Inicializujeme časovač pre prvé odoslanie
+        let mut last_emit = Instant::now();
+
+        if let Some(full_tree) = scan_directory(target_path, &app_handle, &mut last_emit) {
+            let _ = app_handle.emit("scan-finished-with-data", full_tree);
+        } else {
+            let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
         }
     });
 }
@@ -292,6 +299,12 @@ fn move_to_trash(path: String) -> Result<(), String> {
             FO_DELETE, FOF_ALLOWUNDO, FOF_WANTNUKEWARNING, SHFILEOPSTRUCTW, SHFileOperationW,
         };
 
+        // Validácia cesty
+        let target = Path::new(&path);
+        if !target.exists() {
+            return Err(format!("Cesta neexistuje: {}", path));
+        }
+
         // 1. Windows vyžaduje spätné lomky \
         let windows_path = path.replace("/", "\\");
 
@@ -330,6 +343,9 @@ fn move_to_trash(path: String) -> Result<(), String> {
 #[tauri::command]
 fn permanent_delete(path: String) -> Result<(), String> {
     let target = Path::new(&path);
+    if !target.exists() {
+        return Err(format!("Cesta neexistuje: {}", path));
+    }
     if target.is_dir() {
         std::fs::remove_dir_all(target).map_err(|e| e.to_string())
     } else {

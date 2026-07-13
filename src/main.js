@@ -37,6 +37,7 @@ let memoryTree = {};
 let rootPath = "";
 let unlistenProgress;
 let unlistenFinished;
+let unlistenFailed;
 
 // Globálne referencie pre D3 uzly (Dôležité pre živý filter)
 let rootNode = null;
@@ -244,12 +245,14 @@ async function startDiskScan(path, totalSpace) {
 
     if (unlistenProgress) unlistenProgress();
     if (unlistenFinished) unlistenFinished();
+    if (unlistenFailed) unlistenFailed();
   });
 
-  await listen("scan-failed", (event) => {
+  unlistenFailed = await listen("scan-failed", (event) => {
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
     document.getElementById("live-ticker-bar").style.width = "0%";
     if (unlistenProgress) unlistenProgress();
+    if (unlistenFailed) unlistenFailed();
   });
 
   invoke("start_async_scan", { path });
@@ -258,6 +261,7 @@ async function startDiskScan(path, totalSpace) {
 function showDiskScreen() {
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
+  if (unlistenFailed) unlistenFailed();
   scanScreen.classList.add("hidden");
   diskScreen.classList.remove("hidden");
   rootNode = null;
@@ -292,7 +296,6 @@ function updateBreadcrumbs(p) {
     container.appendChild(item);
 
     if (!isLast) {
-      style = document.createElement("span");
       const separator = document.createElement("span");
       separator.className = "breadcrumb-separator";
       separator.textContent = " ❯ ";
@@ -506,40 +509,40 @@ window.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-const cmTrash = document.getElementById("cm-trash");
+  const cmTrash = document.getElementById("cm-trash");
   if (cmTrash) {
     cmTrash.onclick = async () => {
       if (menuTargetNode) {
         if (confirm(`Naozaj chcete presunúť "${menuTargetNode.data.name}" do koša?`)) {
           try {
             await invoke("move_to_trash", { path: menuTargetNode.data.path });
-            
+
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
-              
+
               // 1. Odstránenie uzla zo surových dát (vaša pôvodná logika)
               if (parentNode.data.children) {
                 parentNode.data.children = parentNode.data.children.filter(
                   child => child.path !== menuTargetNode.data.path
                 );
               }
-              
+
               // 2. OPRAVA: Odstránenie uzla priamo z D3 štruktúry rodiča
               if (parentNode.children) {
                 parentNode.children = parentNode.children.filter(
                   child => child.data.path !== menuTargetNode.data.path
                 );
               }
-              
+
               // 3. Prepočítanie celého stromu (veľkosti sa preženú smerom k rootu)
               rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
                       .sort((a, b) => b.value - a.value);
-              
+
               // 4. Aktualizácia rozloženia (partition layout)
               if (gPartition) {
                 gPartition(rootNode);
               }
-              
+
               // 5. Prekreslenie grafu zameraného na rodiča
               zoomTo(parentNode);
             } else {
@@ -554,40 +557,40 @@ const cmTrash = document.getElementById("cm-trash");
     };
   }
 
-const cmDelete = document.getElementById("cm-delete");
+  const cmDelete = document.getElementById("cm-delete");
   if (cmDelete) {
     cmDelete.onclick = async () => {
       if (menuTargetNode) {
         if (confirm(`POZOR: Naozaj chcete TRVALO vymazať "${menuTargetNode.data.name}"? Táto akcia sa nedá vrátiť.`)) {
           try {
             await invoke("permanent_delete", { path: menuTargetNode.data.path });
-            
+
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
-              
+
               // 1. Odstránenie zo surových dát
               if (parentNode.data.children) {
                 parentNode.data.children = parentNode.data.children.filter(
                   child => child.path !== menuTargetNode.data.path
                 );
               }
-              
+
               // 2. OPRAVA: Odstránenie uzla priamo z D3 štruktúry rodiča
               if (parentNode.children) {
                 parentNode.children = parentNode.children.filter(
                   child => child.data.path !== menuTargetNode.data.path
                 );
               }
-              
+
               // 3. Prepočítanie stromu
               rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
                       .sort((a, b) => b.value - a.value);
-              
+
               // 4. Aktualizácia rozloženia
               if (gPartition) {
                 gPartition(rootNode);
               }
-              
+
               // 5. Prekreslenie grafu
               zoomTo(parentNode);
             } else {
