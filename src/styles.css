@@ -257,6 +257,17 @@ h1, h2 {
 #back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; }
 #back-to-disks-btn:hover { background: #45475a; }
 
+/* Nový štýl pre tlačidlo v režime zrušenia */
+#back-to-disks-btn.in-cancel-mode {
+  background: #f38ba8;
+  color: #11111b;
+  font-weight: bold;
+}
+
+#back-to-disks-btn.in-cancel-mode:hover {
+  background: #eb6f92;
+}
+
 .cancel-scan-btn {
   background: #f38ba8;
   color: #11111b;
@@ -267,6 +278,7 @@ h1, h2 {
   font-weight: bold;
   font-size: 13px;
   transition: background 0.2s ease;
+  display: none; /* Trvalo skryté */
 }
 
 .cancel-scan-btn:hover {

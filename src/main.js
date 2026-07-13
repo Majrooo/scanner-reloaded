@@ -267,11 +267,13 @@ async function startDiskScan(path, totalSpace) {
   scanScreen.classList.remove("hidden");
   document.getElementById("live-ticker-container").classList.remove("hidden");
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
-  document.getElementById("live-ticker-bar").style.width = "0%"; // Reset progress baru
+  document.getElementById("live-ticker-bar").style.width = "0%";
 
-  // A8: Zobraziť tlačidlo zrušenia skenovania
+  // Zmena: Upraviť ľavé tlačidlo na "Zrušiť" a skryť pravé
   isScanning = true;
-  if (cancelScanBtn) cancelScanBtn.classList.remove("hidden");
+  backBtn.textContent = getText("scanScreen.cancelScan");
+  backBtn.classList.add("in-cancel-mode");
+  if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
 
   // B6: Zobraziť spinner počas skenu
   const spinner = document.getElementById("scan-spinner");
@@ -321,9 +323,10 @@ async function startDiskScan(path, totalSpace) {
   });
 
   unlistenFinished = await listen("scan-finished-with-data", (event) => {
-    // A8: Skryť tlačidlo zrušenia po dokončení
+    // Zmena: Vrátiť tlačidlo do stavu "Späť"
     isScanning = false;
-    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+    backBtn.textContent = getText("scanScreen.backButton");
+    backBtn.classList.remove("in-cancel-mode");
 
     // B6: Skryť spinner po dokončení
     const spinner = document.getElementById("scan-spinner");
@@ -366,9 +369,10 @@ async function startDiskScan(path, totalSpace) {
   });
 
   unlistenFailed = await listen("scan-failed", (event) => {
-    // A8: Skryť tlačidlo zrušenia pri chybe
+    // Zmena: Vrátiť tlačidlo do stavu "Späť" pri chybe
     isScanning = false;
-    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+    backBtn.textContent = getText("scanScreen.backButton");
+    backBtn.classList.remove("in-cancel-mode");
 
     // B6: Skryť spinner pri chybe
     const spinner = document.getElementById("scan-spinner");
@@ -384,13 +388,22 @@ async function startDiskScan(path, totalSpace) {
 }
 
 function showDiskScreen() {
+  // Ak skenovanie stále beží (napr. používateľ klikol na "Zrušiť"),
+  // musíme explicitne zavolať backend, aby sa proces ukončil.
+  if (isScanning) {
+    invoke("cancel_scan").catch(err => console.error("Failed to cancel scan on back navigation:", err));
+    showToast(getText("toast.scanCancelled"), "info");
+  }
+
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
   if (unlistenFailed) unlistenFailed();
 
-  // A8: Skryť tlačidlo zrušenia a resetovať stav skenovania
+  // Reset stavu
   isScanning = false;
   if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+  backBtn.textContent = getText("scanScreen.backButton");
+  backBtn.classList.remove("in-cancel-mode");
 
   scanScreen.classList.add("hidden");
   diskScreen.classList.remove("hidden");
@@ -802,7 +815,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  backBtn.onclick = showDiskScreen;
+  // Zmena: Dynamická funkcia pre ľavé tlačidlo
+  backBtn.onclick = async () => {
+    if (isScanning) {
+      // Ak skenujeme, tlačidlo funguje ako "Zrušiť"
+      await invoke("cancel_scan");
+      // showDiskScreen sa postará o zvyšok (zastavenie listenerov, zobrazenie toastu)
+    }
+    // V oboch prípadoch (zrušenie alebo normálny návrat) prejdeme na obrazovku diskov.
+    showDiskScreen();
+  };
 
   // A6: Refresh button - obnoví zoznam diskov
   const refreshDisksBtn = document.getElementById("refresh-disks-btn");
@@ -830,20 +852,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  // A8: Cancel scan button - zruší skenovanie a vráti na obrazovku diskov
-  if (cancelScanBtn) {
-    cancelScanBtn.onclick = async () => {
-      if (isScanning) {
-        try {
-          await invoke("cancel_scan");
-        } catch (err) {
-          console.error("Cancel scan failed:", err);
-        }
-        showToast(getText("toast.scanCancelled"), "info");
-        showDiskScreen();
-      }
-    };
-  }
+  // Pôvodné tlačidlo "Zrušiť" už nepotrebujeme, skryjeme ho
+  if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
 
   // A4: Zatvorenie confirm modalu kliknutím mimo neho
   window.addEventListener("click", (event) => {
