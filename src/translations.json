@@ -26,6 +26,13 @@
           "unknown": "💿 Disk"
         }
       },
+      "systemUtilities": {
+        "title": "Systémové utility",
+        "diskCleanup": "Čistenie disku",
+        "appsFeatures": "Aplikácie a súčasti",
+        "storageSettings": "Nastavenia úložiska",
+        "defrag": "Defragmentovať a optimalizovať jednotky"
+      },
       "scanScreen": {
         "backButton": "⬅ Späť na disky",
         "initializing": "Pripravujem skenovanie...",
@@ -114,6 +121,13 @@
           "removable": "🔌 Removable",
           "unknown": "💿 Disk"
         }
+      },
+      "systemUtilities": {
+        "title": "System Utilities",
+        "diskCleanup": "Disk Cleanup",
+        "appsFeatures": "Apps & Features",
+        "storageSettings": "Storage Settings",
+        "defrag": "Defragment and Optimize Drives"
       },
       "scanScreen": {
         "backButton": "⬅ Back to disks",

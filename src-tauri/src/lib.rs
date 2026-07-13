@@ -703,6 +703,32 @@ fn permanent_delete(path: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+#[cfg(target_os = "windows")]
+fn open_system_utility(utility: String) -> Result<(), String> {
+    let command = match utility.as_str() {
+        "disk-cleanup" => "cleanmgr.exe",
+        "apps-features" => "ms-settings:appsfeatures",
+        "storage-settings" => "ms-settings:storagesense",
+        "defrag" => "dfrgui.exe",
+        _ => return Err(format!("Neznáma utilita: {}", utility)),
+    };
+
+    if command.starts_with("ms-settings:") {
+        Command::new("cmd")
+            .args(&["/c", "start", command])
+            .spawn()
+            .map_err(|e| format!("Nepodarilo sa spustiť {}: {}", command, e))?;
+    } else {
+        Command::new(command)
+            .spawn()
+            .map_err(|e| format!("Nepodarilo sa spustiť {}: {}", command, e))?;
+    }
+
+    Ok(())
+}
+
+
 // ─── App Entry Point ─────────────────────────────────────────────────────────
 
 pub fn main() {
@@ -721,6 +747,8 @@ pub fn main() {
             permanent_delete,
             get_tc_path,
             set_tc_path,
+            #[cfg(target_os = "windows")]
+            open_system_utility,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

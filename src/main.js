@@ -1099,6 +1099,17 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // Zobrazenie sekcie s utilitami a priradenie eventov (len pre Windows)
+  const systemUtilitiesSection = document.getElementById("system-utilities-section");
+  if (isWindows && systemUtilitiesSection) {
+    systemUtilitiesSection.classList.remove("hidden");
+
+    document.getElementById("util-disk-cleanup")?.addEventListener("click", () => invoke("open_system_utility", { utility: "disk-cleanup" }));
+    document.getElementById("util-apps-features")?.addEventListener("click", () => invoke("open_system_utility", { utility: "apps-features" }));
+    document.getElementById("util-storage-settings")?.addEventListener("click", () => invoke("open_system_utility", { utility: "storage-settings" }));
+    document.getElementById("util-defrag")?.addEventListener("click", () => invoke("open_system_utility", { utility: "defrag" }));
+  }
+
   await loadTranslations();
   loadDisks();
 });

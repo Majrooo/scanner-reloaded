@@ -171,6 +171,47 @@ h1, h2 {
   font-style: italic;
 }
 
+/* System Utilities */
+#system-utilities-section {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #313244;
+}
+
+.utilities-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.util-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background-color: #1e1e2e;
+  color: #a6adc8;
+  border: 1px solid #45475a;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-height: 50px;
+}
+
+.util-btn:hover {
+  border-color: #cba6f7;
+  color: #cba6f7;
+  transform: translateY(-2px);
+}
+
+.util-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
 /* B6: Loading spinner */
 .scan-spinner {
   position: absolute;
