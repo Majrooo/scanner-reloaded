@@ -1,10 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Instant;
 use sysinfo::Disks;
 use tauri::{AppHandle, Emitter};
+
+// A8: Globálny flag pre zrušenie skenovania
+static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
 // ─── Disk Info ───────────────────────────────────────────────────────────────
 
@@ -260,6 +264,11 @@ fn scan_directory(
     app_handle: &AppHandle,
     last_emit: &mut Instant,
 ) -> Option<FileNode> {
+    // A8: Ak bolo skenovanie zrušené, okamžite sa vrátime
+    if SCAN_CANCELLED.load(Ordering::Relaxed) {
+        return None;
+    }
+
     let metadata = match path.symlink_metadata() {
         Ok(m) => m,
         Err(_) => return None,
@@ -283,6 +292,10 @@ fn scan_directory(
 
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
+                // A8: Skontroluj flag zrušenia pri každom entry
+                if SCAN_CANCELLED.load(Ordering::Relaxed) {
+                    return None;
+                }
                 if let Some(child_node) = scan_directory(&entry.path(), app_handle, last_emit) {
                     total_size += child_node.size;
                     dir_count += child_node.dir_count;
@@ -340,6 +353,9 @@ fn scan_directory(
 
 #[tauri::command]
 fn start_async_scan(path: String, app_handle: AppHandle) {
+    // A8: Reset flag zrušenia pred začiatkom nového skenu
+    SCAN_CANCELLED.store(false, Ordering::Relaxed);
+
     thread::spawn(move || {
         let target_path = Path::new(&path);
         if !target_path.exists() {
@@ -356,9 +372,20 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
         if let Some(full_tree) = scan_directory(target_path, &app_handle, &mut last_emit) {
             let _ = app_handle.emit("scan-finished-with-data", full_tree);
         } else {
-            let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
+            // A8: Ak bolo skenovanie zrušené, pošleme scan-failed so správou o zrušení
+            if SCAN_CANCELLED.load(Ordering::Relaxed) {
+                let _ = app_handle.emit("scan-failed", "Skenovanie bolo zrušené používateľom".to_string());
+            } else {
+                let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
+            }
         }
     });
+}
+
+// A8: Command pre zrušenie skenovania
+#[tauri::command]
+fn cancel_scan() {
+    SCAN_CANCELLED.store(true, Ordering::Relaxed);
 }
 
 // ── Cross-platform: Show in File Manager ─────────────────────────────────────
@@ -672,6 +699,7 @@ pub fn main() {
         .invoke_handler(tauri::generate_handler![
             get_disks,
             start_async_scan,
+            cancel_scan,
             show_in_file_manager,
             show_in_total_commander,
             show_file_properties,

@@ -47,6 +47,30 @@ h1, h2 {
 .hidden { display: none !important; }
 
 /* Obrazovka diskov */
+.disk-screen-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+}
+
+.refresh-btn {
+  background: #313244;
+  color: #cdd6f4;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover {
+  background: #45475a;
+  transform: rotate(180deg);
+}
+
 #disk-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -83,6 +107,22 @@ h1, h2 {
 .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 #back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; }
 #back-to-disks-btn:hover { background: #45475a; }
+
+.cancel-scan-btn {
+  background: #f38ba8;
+  color: #11111b;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 13px;
+  transition: background 0.2s ease;
+}
+
+.cancel-scan-btn:hover {
+  background: #eb6f92;
+}
 
 /* Flexibilný layout pre graf */
 #chart-layout {
@@ -213,7 +253,18 @@ position: fixed;
 #hover-path { color: #bac2de; font-size: 14px; word-break: break-all; }
 #hover-size { color: #f9e2af; font-weight: bold; margin-top: 5px; }
 
-path { stroke: #11111b; stroke-width: 1.5px; }
+path { stroke: #11111b; stroke-width: 1.5px; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
+
+/* Hover highlight pre sunburst segmenty */
+path.hover-active {
+  opacity: 1 !important;
+  stroke: #cdd6f4;
+  stroke-width: 2.0px;
+}
+
+path.hover-dimmed {
+  opacity: 0.5 !important;
+}
 
 /* Kontajner pre riadok s filtrom */
 .filter-control-row {
@@ -519,4 +570,138 @@ input:checked + .slider:before {
 
 .tc-clear-btn:hover {
   background: #585b70;
+}
+
+/* ── Toast notifikácie ────────────────────────────────────────────────────── */
+
+#toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  min-width: 280px;
+  max-width: 400px;
+  pointer-events: auto;
+  animation: toast-slide-in 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast.toast-success {
+  border-left: 4px solid #a6e3a1;
+}
+
+.toast.toast-error {
+  border-left: 4px solid #f38ba8;
+}
+
+.toast.toast-info {
+  border-left: 4px solid #89b4fa;
+}
+
+.toast.toast-fading {
+  animation: toast-slide-out 0.3s ease forwards;
+}
+
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+/* ── Custom Confirm Modal ─────────────────────────────────────────────────── */
+
+.confirm-modal-content {
+  width: 420px;
+  max-width: 90vw;
+  text-align: center;
+}
+
+.confirm-modal-content h2 {
+  margin-bottom: 16px;
+}
+
+#confirm-message {
+  color: #cdd6f4;
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+  word-break: break-word;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirm-cancel-btn {
+  background: #45475a;
+  color: #cdd6f4;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.confirm-cancel-btn:hover {
+  background: #585b70;
+}
+
+.confirm-ok-btn {
+  background: #f38ba8;
+  color: #11111b;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.confirm-ok-btn:hover {
+  background: #eb6f92;
+}
+
+.confirm-ok-btn.danger {
+  background: #f38ba8;
+}
+
+.confirm-ok-btn.danger:hover {
+  background: #eb6f92;
 }

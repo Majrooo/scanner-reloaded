@@ -15,7 +15,8 @@
       },
       "diskScreen": {
         "title": "Vyberte disk na analýzu",
-        "used": "Využité: {used} z {total}"
+        "used": "Využité: {used} z {total}",
+        "refresh": "🔄 Obnoviť"
       },
       "scanScreen": {
         "backButton": "⬅ Späť na disky",
@@ -23,6 +24,7 @@
         "filterLabel": "Skryť drobné súbory a zložky (Rýchly režim)",
         "animationLabel": "Animovaný graf",
         "hoverPlaceholder": "Ukaž myšou na priečinok...",
+        "cancelScan": "✖ Zrušiť skenovanie",
         "center": {
           "goUp": "⬆ Hore"
         },
@@ -42,6 +44,7 @@
         "openExplorer": "📁 Otvoriť v prieskumníkovi",
         "openTC": "💾 Otvoriť v Total Commander",
         "properties": "ℹ️ Vlastnosti",
+        "copyPath": "📋 Kopírovať cestu",
         "trash": "🗑️ Presunúť do koša",
         "delete": "❌ Vymazať navždy",
         "setTCPath": "⚙️ Nastaviť cestu TC..."
@@ -59,8 +62,21 @@
         "invalidPath": "Zadaná cesta neexistuje: {path}"
       },
       "confirmations": {
+        "title": "Potvrdenie akcie",
+        "confirm": "Potvrdiť",
+        "cancel": "Zrušiť",
         "trash": "Naozaj chcete presunúť \"{name}\" do koša?",
         "delete": "POZOR: Naozaj chcete TRVALO vymazať \"{name}\"? Táto akcia sa nedá vrátiť."
+      },
+      "toast": {
+        "success": "✅ {message}",
+        "error": "❌ {message}",
+        "info": "ℹ️ {message}",
+        "pathCopied": "Cesta skopírovaná do schránky",
+        "trashed": "\"{name}\" bola presunutá do koša",
+        "deleted": "\"{name}\" bola trvalo vymazaná",
+        "scanCancelled": "Skenovanie bolo zrušené",
+        "copyFailed": "Nepodarilo sa skopírovať cestu"
       }
     },
     "en": {
@@ -77,7 +93,8 @@
       },
       "diskScreen": {
         "title": "Select a disk to analyze",
-        "used": "Used: {used} of {total}"
+        "used": "Used: {used} of {total}",
+        "refresh": "🔄 Refresh"
       },
       "scanScreen": {
         "backButton": "⬅ Back to disks",
@@ -85,6 +102,7 @@
         "filterLabel": "Hide small files and folders (Fast mode)",
         "animationLabel": "Animated graph",
         "hoverPlaceholder": "Hover over a folder to inspect it...",
+        "cancelScan": "✖ Cancel scan",
         "center": {
           "goUp": "⬆ Up"
         },
@@ -104,6 +122,7 @@
         "openExplorer": "📁 Open in File Explorer",
         "openTC": "💾 Open in Total Commander",
         "properties": "ℹ️ Properties",
+        "copyPath": "📋 Copy path",
         "trash": "🗑️ Move to Trash",
         "delete": "❌ Delete Permanently",
         "setTCPath": "⚙️ Set TC Path..."
@@ -121,8 +140,21 @@
         "invalidPath": "The specified path does not exist: {path}"
       },
       "confirmations": {
+        "title": "Confirm action",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
         "trash": "Are you sure you want to move \"{name}\" to the trash?",
         "delete": "WARNING: Are you sure you want to PERMANENTLY delete \"{name}\"? This action cannot be undone."
+      },
+      "toast": {
+        "success": "✅ {message}",
+        "error": "❌ {message}",
+        "info": "ℹ️ {message}",
+        "pathCopied": "Path copied to clipboard",
+        "trashed": "\"{name}\" has been moved to trash",
+        "deleted": "\"{name}\" has been permanently deleted",
+        "scanCancelled": "Scan has been cancelled",
+        "copyFailed": "Failed to copy path"
       }
     }
   }

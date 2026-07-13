@@ -27,6 +27,17 @@ let centerInfo = document.getElementById("center-info");
 let menuTargetNode = null;
 const contextMenu = document.getElementById("custom-context-menu");
 
+// Toast & Confirm
+const toastContainer = document.getElementById("toast-container");
+const confirmModal = document.getElementById("confirm-modal");
+const confirmMessage = document.getElementById("confirm-message");
+const confirmOkBtn = document.getElementById("confirm-ok-btn");
+const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
+
+// Cancel scan
+const cancelScanBtn = document.getElementById("cancel-scan-btn");
+let isScanning = false;
+
 // TC Path Modal
 const tcPathModal = document.getElementById("tc-path-modal");
 const tcPathInput = document.getElementById("tc-path-input");
@@ -169,6 +180,52 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// ── Toast notifikácie (A3) ────────────────────────────────────────────────────
+function showToast(message, type = "info", duration = 4000) {
+  if (!toastContainer) return;
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add("toast-fading");
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ── Custom Confirm Dialog (A4) ────────────────────────────────────────────────
+function showConfirm(message, isDanger = false) {
+  return new Promise((resolve) => {
+    if (!confirmModal || !confirmMessage) {
+      resolve(window.confirm(message));
+      return;
+    }
+
+    confirmMessage.textContent = message;
+    confirmOkBtn.classList.toggle("danger", isDanger);
+    confirmModal.classList.remove("hidden");
+
+    function cleanup() {
+      confirmModal.classList.add("hidden");
+      confirmOkBtn.onclick = null;
+      confirmCancelBtn.onclick = null;
+    }
+
+    confirmOkBtn.onclick = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    confirmCancelBtn.onclick = () => {
+      cleanup();
+      resolve(false);
+    };
+  });
+}
+
 async function loadDisks() {
   diskList.innerHTML = "";
   let disks = await invoke("get_disks");
@@ -199,6 +256,10 @@ async function startDiskScan(path, totalSpace) {
   document.getElementById("live-ticker-container").classList.remove("hidden");
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
   document.getElementById("live-ticker-bar").style.width = "0%"; // Reset progress baru
+
+  // A8: Zobraziť tlačidlo zrušenia skenovania
+  isScanning = true;
+  if (cancelScanBtn) cancelScanBtn.classList.remove("hidden");
 
   d3.select("#sunburst-chart").selectAll("*").remove();
 
@@ -238,6 +299,10 @@ async function startDiskScan(path, totalSpace) {
   });
 
   unlistenFinished = await listen("scan-finished-with-data", (event) => {
+    // A8: Skryť tlačidlo zrušenia po dokončení
+    isScanning = false;
+    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+
     liveTicker.textContent = getText("scanScreen.statuses.finished");
     document.getElementById("live-ticker-bar").style.width = "100%";
 
@@ -264,6 +329,10 @@ async function startDiskScan(path, totalSpace) {
   });
 
   unlistenFailed = await listen("scan-failed", (event) => {
+    // A8: Skryť tlačidlo zrušenia pri chybe
+    isScanning = false;
+    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
     document.getElementById("live-ticker-bar").style.width = "0%";
     if (unlistenProgress) unlistenProgress();
@@ -277,6 +346,11 @@ function showDiskScreen() {
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
   if (unlistenFailed) unlistenFailed();
+
+  // A8: Skryť tlačidlo zrušenia a resetovať stav skenovania
+  isScanning = false;
+  if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+
   scanScreen.classList.add("hidden");
   diskScreen.classList.remove("hidden");
   rootNode = null;
@@ -466,11 +540,24 @@ function zoomTo(p) {
       hoverStats.textContent = d.data.is_dir
         ? getText("scanScreen.stats.contains", { dirCount, fileCount })
         : getText("scanScreen.stats.fileType");
+
+      // A2: Hover highlight - zvýrazni aktívny segment, stlmi ostatné
+      d3.select("#sunburst-group").selectAll("path")
+        .classed("hover-active", false)
+        .classed("hover-dimmed", true);
+      d3.select(event.currentTarget)
+        .classed("hover-active", true)
+        .classed("hover-dimmed", false);
     })
-      .on("mouseout", () => {
+      .on("mouseout", (event) => {
         hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
         hoverSize.textContent = "";
         hoverStats.textContent = "";
+
+        // A2: Reset hover highlight
+        d3.select("#sunburst-group").selectAll("path")
+          .classed("hover-active", false)
+          .classed("hover-dimmed", false);
       })
       .on("click", (event, d) => {
         if (d.children && d.children.length > 0) {
@@ -659,6 +746,36 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   backBtn.onclick = showDiskScreen;
 
+  // A6: Refresh button - obnoví zoznam diskov
+  const refreshDisksBtn = document.getElementById("refresh-disks-btn");
+  if (refreshDisksBtn) {
+    refreshDisksBtn.onclick = () => loadDisks();
+  }
+
+  // A8: Cancel scan button - zruší skenovanie a vráti na obrazovku diskov
+  if (cancelScanBtn) {
+    cancelScanBtn.onclick = async () => {
+      if (isScanning) {
+        try {
+          await invoke("cancel_scan");
+        } catch (err) {
+          console.error("Cancel scan failed:", err);
+        }
+        showToast(getText("toast.scanCancelled"), "info");
+        showDiskScreen();
+      }
+    };
+  }
+
+  // A4: Zatvorenie confirm modalu kliknutím mimo neho
+  window.addEventListener("click", (event) => {
+    if (event.target === confirmModal) {
+      confirmModal.classList.add("hidden");
+      if (confirmOkBtn) confirmOkBtn.onclick = null;
+      if (confirmCancelBtn) confirmCancelBtn.onclick = null;
+    }
+  });
+
   // PRIDANÉ: Priradenie akcií pre položky kontextového menu (správne umiestnené v DOMContentLoaded)
   const cmOpenExplorer = document.getElementById("cm-open-explorer");
   if (cmOpenExplorer) {
@@ -674,7 +791,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         try {
           await invoke("show_in_total_commander", { path: menuTargetNode.data.path });
         } catch (err) {
-          alert(err);
+          showToast(err, "error");
         }
       }
     };
@@ -687,13 +804,34 @@ window.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
+  // A5: Kopírovanie cesty do schránky
+  const cmCopyPath = document.getElementById("cm-copy-path");
+  if (cmCopyPath) {
+    cmCopyPath.onclick = async () => {
+      if (menuTargetNode) {
+        try {
+          await navigator.clipboard.writeText(menuTargetNode.data.path);
+          showToast(getText("toast.pathCopied"), "success");
+        } catch (err) {
+          showToast(getText("toast.copyFailed"), "error");
+        }
+      }
+    };
+  }
+
   const cmTrash = document.getElementById("cm-trash");
   if (cmTrash) {
     cmTrash.onclick = async () => {
       if (menuTargetNode) {
-        if (confirm(getText("confirmations.trash", { name: menuTargetNode.data.name }))) {
+        // A4+A9: Vlastný confirm dialog + toast feedback
+        const confirmed = await showConfirm(
+          getText("confirmations.trash", { name: menuTargetNode.data.name }),
+          false
+        );
+        if (confirmed) {
           try {
             await invoke("move_to_trash", { path: menuTargetNode.data.path });
+            showToast(getText("toast.trashed", { name: menuTargetNode.data.name }), "success");
 
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
@@ -728,7 +866,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             }
 
           } catch (err) {
-            alert("Chyba: " + err);
+            showToast(err, "error");
           }
         }
       }
@@ -739,9 +877,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmDelete) {
     cmDelete.onclick = async () => {
       if (menuTargetNode) {
-        if (confirm(getText("confirmations.delete", { name: menuTargetNode.data.name }))) {
+        // A4+A9: Vlastný confirm dialog (danger) + toast feedback
+        const confirmed = await showConfirm(
+          getText("confirmations.delete", { name: menuTargetNode.data.name }),
+          true
+        );
+        if (confirmed) {
           try {
             await invoke("permanent_delete", { path: menuTargetNode.data.path });
+            showToast(getText("toast.deleted", { name: menuTargetNode.data.name }), "success");
 
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
@@ -776,7 +920,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             }
 
           } catch (err) {
-            alert("Chyba: " + err);
+            showToast(err, "error");
           }
         }
       }
@@ -834,10 +978,10 @@ window.addEventListener("DOMContentLoaded", async () => {
         tcCurrentPathInfo.textContent = path
           ? getText("tcModal.currentPath", { path })
           : getText("tcModal.noPath");
-        alert(getText("tcModal.saved"));
+        showToast(getText("tcModal.saved"), "success");
         tcPathModal.classList.add("hidden");
       } catch (err) {
-        alert(err);
+        showToast(err, "error");
       }
     };
   }
@@ -848,9 +992,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         await invoke("set_tc_path", { path: "" });
         tcPathInput.value = "";
         tcCurrentPathInfo.textContent = getText("tcModal.noPath");
-        alert(getText("tcModal.cleared"));
+        showToast(getText("tcModal.cleared"), "info");
       } catch (err) {
-        alert(err);
+        showToast(err, "error");
       }
     };
   }

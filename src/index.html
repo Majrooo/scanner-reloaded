@@ -30,7 +30,10 @@
     </div>
 
     <div id="disk-screen">
-      <h1 id="disk-screen-title" data-i18n="diskScreen.title">Vyberte disk na analýzu</h1>
+      <div class="disk-screen-header">
+        <h1 id="disk-screen-title" data-i18n="diskScreen.title">Vyberte disk na analýzu</h1>
+        <button id="refresh-disks-btn" class="refresh-btn" data-i18n="diskScreen.refresh">🔄 Obnoviť</button>
+      </div>
       <div id="disk-list"></div>
     </div>
 
@@ -38,6 +41,7 @@
       <div class="header-row">
         <button id="back-to-disks-btn" data-i18n="scanScreen.backButton">⬅ Späť na disky</button>
         <div id="current-folder-title" class="breadcrumbs-container"></div>
+        <button id="cancel-scan-btn" class="cancel-scan-btn hidden" data-i18n="scanScreen.cancelScan">✖ Zrušiť skenovanie</button>
       </div>
 
       <div id="live-ticker-container">
@@ -85,6 +89,7 @@
     <div class="menu-item" id="cm-open-explorer" data-i18n="contextMenu.openExplorer">📁 Otvoriť v prieskumníkovi</div>
     <div class="menu-item" id="cm-open-tc" data-i18n="contextMenu.openTC">💾 Otvoriť v Total Commander</div>
     <div class="menu-item" id="cm-properties" data-i18n="contextMenu.properties">ℹ️ Vlastnosti</div>
+    <div class="menu-item" id="cm-copy-path" data-i18n="contextMenu.copyPath">📋 Kopírovať cestu</div>
     <div class="divider"></div>
     <div class="menu-item text-warning" id="cm-trash" data-i18n="contextMenu.trash">🗑️ Presunúť do koša</div>
     <div class="menu-item text-danger" id="cm-delete" data-i18n="contextMenu.delete">❌ Vymazať navždy</div>
@@ -104,6 +109,21 @@
       <div class="tc-modal-buttons">
         <button id="tc-save-btn" class="tc-save-btn" data-i18n="tcModal.save">Uložiť</button>
         <button id="tc-clear-btn" class="tc-clear-btn" data-i18n="tcModal.clear">Vymazať (auto-detekcia)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification container -->
+  <div id="toast-container"></div>
+
+  <!-- Custom confirm dialog -->
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-content confirm-modal-content">
+      <h2 data-i18n="confirmations.title">Potvrdenie akcie</h2>
+      <p id="confirm-message"></p>
+      <div class="confirm-buttons">
+        <button id="confirm-cancel-btn" class="confirm-cancel-btn" data-i18n="confirmations.cancel">Zrušiť</button>
+        <button id="confirm-ok-btn" class="confirm-ok-btn" data-i18n="confirmations.confirm">Potvrdiť</button>
       </div>
     </div>
   </div>
