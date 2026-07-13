@@ -21,6 +21,7 @@
         "backButton": "⬅ Späť na disky",
         "initializing": "Pripravujem skenovanie...",
         "filterLabel": "Skryť drobné súbory a zložky (Rýchly režim)",
+        "animationLabel": "Animovaný graf",
         "hoverPlaceholder": "Ukaž myšou na priečinok...",
         "center": {
           "goUp": "⬆ Hore"
@@ -82,6 +83,7 @@
         "backButton": "⬅ Back to disks",
         "initializing": "Preparing scan...",
         "filterLabel": "Hide small files and folders (Fast mode)",
+        "animationLabel": "Animated graph",
         "hoverPlaceholder": "Hover over a folder to inspect it...",
         "center": {
           "goUp": "⬆ Up"

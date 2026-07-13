@@ -53,6 +53,12 @@ let rootNode = null;
 let gPartition = null;
 let currentFocus = null;
 
+// Animovaný graf
+let useAnimatedGraph = false;
+
+// Detekcia OS
+const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
+
 const radius = 320;
 const innerHoleRadius = 80;
 const maxDepth = 24;
@@ -346,6 +352,19 @@ function drawSunburst(data) {
       if (currentFocus && currentFocus.parent) {
         zoomTo(currentFocus.parent);
       }
+    })
+    // Pravý klik na stred grafu - otvorí kontextové menu pre aktuálny fokus
+    .on("contextmenu", (event) => {
+      event.preventDefault();
+      if (currentFocus) {
+        menuTargetNode = currentFocus;
+
+        if (contextMenu) {
+          contextMenu.style.top = `${event.pageY}px`;
+          contextMenu.style.left = `${event.pageX}px`;
+          contextMenu.classList.remove("hidden");
+        }
+      }
     });
 
   zoomTo(rootNode);
@@ -426,54 +445,179 @@ function zoomTo(p) {
     .innerRadius(d => getScaleY(d.depth - p.depth - 1))
     .outerRadius(d => getScaleY(d.depth - p.depth) - 1);
 
-  svg.selectAll("path").remove();
+  // Pomocná funkcia pre farbu
+  function getFillColor(d) {
+    if (d.data.is_dir) {
+      const localYellowScale = d3.scaleLinear()
+        .domain([0, realMaxDepth])
+        .range(["#ffcc00", "#423500"]);
+      return localYellowScale(d.depth - p.depth - 1);
+    }
+    return "#89b4fa";
+  }
 
-  const paths = svg.append("g")
-    .selectAll("path")
-    .data(visibleDescendants, d => d.data.path)
-    .join("path")
-    .attr("fill", d => {
-      if (d.data.is_dir) {
-        const localYellowScale = d3.scaleLinear()
-          .domain([0, realMaxDepth])
-          .range(["#ffcc00", "#423500"]);
-        return localYellowScale(d.depth - p.depth - 1);
-      }
-      return "#89b4fa";
+  // Pomocná funkcia pre event listenery na path
+  function attachPathEvents(paths) {
+    paths.on("mouseover", (event, d) => {
+      hoverPath.textContent = d.data.path;
+      hoverSize.textContent = formatBytes(d.value);
+      const dirCount = d.data.dir_count || 0;
+      const fileCount = d.data.file_count || 0;
+      hoverStats.textContent = d.data.is_dir
+        ? getText("scanScreen.stats.contains", { dirCount, fileCount })
+        : getText("scanScreen.stats.fileType");
     })
-    .attr("d", arc)
-    .style("cursor", "pointer");
+      .on("mouseout", () => {
+        hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
+        hoverSize.textContent = "";
+        hoverStats.textContent = "";
+      })
+      .on("click", (event, d) => {
+        if (d.children && d.children.length > 0) {
+          zoomTo(d);
+        }
+      })
+      .on("contextmenu", (event, d) => {
+        event.preventDefault();
+        menuTargetNode = d;
 
-  paths.on("mouseover", (event, d) => {
-    hoverPath.textContent = d.data.path;
-    hoverSize.textContent = formatBytes(d.value);
-    const dirCount = d.data.dir_count || 0;
-    const fileCount = d.data.file_count || 0;
-    hoverStats.textContent = d.data.is_dir
-      ? getText("scanScreen.stats.contains", { dirCount, fileCount })
-      : getText("scanScreen.stats.fileType");
-  })
-    .on("mouseout", () => {
-      hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
-      hoverSize.textContent = "";
-      hoverStats.textContent = "";
-    })
-    .on("click", (event, d) => {
-      if (d.children && d.children.length > 0) {
-        zoomTo(d);
-      }
-    })
-    // PRIDANÉ: Spracovanie pravého kliknutia (Context Menu) priamo na d3 objektoch
-    .on("contextmenu", (event, d) => {
-      event.preventDefault();
-      menuTargetNode = d;
+        if (contextMenu) {
+          contextMenu.style.top = `${event.pageY}px`;
+          contextMenu.style.left = `${event.pageX}px`;
+          contextMenu.classList.remove("hidden");
+        }
+      });
+  }
 
-      if (contextMenu) {
-        contextMenu.style.top = `${event.pageY}px`;
-        contextMenu.style.left = `${event.pageX}px`;
-        contextMenu.classList.remove("hidden");
-      }
+  if (useAnimatedGraph) {
+    // ── ANIMOVANÝ REŽIM ──────────────────────────────────────────────
+    const TRANSITION_DURATION = 600;
+
+    // Pomocná funkcia pre interpoláciu oblúkov
+    function arcTween(oldArc, newArc) {
+      const interpolateStartAngle = d3.interpolate(oldArc.startAngle, newArc.startAngle);
+      const interpolateEndAngle = d3.interpolate(oldArc.endAngle, newArc.endAngle);
+      const interpolateInnerR = d3.interpolate(oldArc.innerRadius, newArc.innerRadius);
+      const interpolateOuterR = d3.interpolate(oldArc.outerRadius, newArc.outerRadius);
+
+      return function(t) {
+        return arc({
+          startAngle: interpolateStartAngle(t),
+          endAngle: interpolateEndAngle(t),
+          innerRadius: interpolateInnerR(t),
+          outerRadius: interpolateOuterR(t),
+          depth: newArc.depth,
+          x0: newArc.x0,
+          x1: newArc.x1,
+          data: newArc.data
+        });
+      };
+    }
+
+    // Vypočítame arc data pre každý viditeľný uzol
+    const arcDataMap = new Map();
+    visibleDescendants.forEach(d => {
+      arcDataMap.set(d.data.path, {
+        startAngle: Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+        endAngle: Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
+        innerRadius: getScaleY(d.depth - p.depth - 1),
+        outerRadius: getScaleY(d.depth - p.depth) - 1,
+        depth: d.depth,
+        x0: d.x0,
+        x1: d.x1,
+        data: d.data
+      });
     });
+
+    // Získame existujúce paths
+    const existingPaths = svg.selectAll("path").data(visibleDescendants, d => d.data.path);
+
+    // Odchádzajúce paths (fade out + shrink to center)
+    existingPaths.exit()
+      .transition()
+      .duration(TRANSITION_DURATION / 2)
+      .style("opacity", 0)
+      .attrTween("d", function(d) {
+        const oldD = this.__arcData || {
+          startAngle: 0, endAngle: 0,
+          innerRadius: innerHoleRadius, outerRadius: innerHoleRadius
+        };
+        const target = {
+          startAngle: oldD.startAngle,
+          endAngle: oldD.startAngle,
+          innerRadius: innerHoleRadius,
+          outerRadius: innerHoleRadius
+        };
+        return arcTween(oldD, target);
+      })
+      .remove();
+
+    // Aktualizácia existujúcich paths (animácia z starej pozície na novú)
+    existingPaths.each(function(d) {
+      const el = this;
+      const newArcData = arcDataMap.get(d.data.path);
+      const oldArcData = el.__arcData || newArcData;
+
+      d3.select(el)
+        .transition()
+        .duration(TRANSITION_DURATION)
+        .attrTween("d", function() {
+          return arcTween(oldArcData, newArcData);
+        })
+        .attr("fill", getFillColor(d))
+        .on("end", function() {
+          el.__arcData = newArcData;
+        });
+    });
+
+    // Nové paths (expand from center)
+    const newPaths = existingPaths.enter()
+      .append("path")
+      .attr("fill", d => getFillColor(d))
+      .style("cursor", "pointer")
+      .style("opacity", 0)
+      .each(function(d) {
+        const newArcData = arcDataMap.get(d.data.path);
+        const startArc = {
+          startAngle: newArcData.startAngle,
+          endAngle: newArcData.startAngle,
+          innerRadius: innerHoleRadius,
+          outerRadius: innerHoleRadius
+        };
+        this.__arcData = startArc;
+        d3.select(this).attr("d", arc(startArc));
+      });
+
+    newPaths.transition()
+      .duration(TRANSITION_DURATION)
+      .style("opacity", 1)
+      .attrTween("d", function(d) {
+        const startArc = this.__arcData;
+        const endArc = arcDataMap.get(d.data.path);
+        return arcTween(startArc, endArc);
+      })
+      .on("end", function(d) {
+        this.__arcData = arcDataMap.get(d.data.path);
+      });
+
+    // Spojíme existujúce + nové pre event listenery
+    const allPaths = existingPaths.merge(newPaths);
+    attachPathEvents(allPaths);
+
+  } else {
+    // ── KLASSICKÝ REŽIM (okamžité prekreslenie) ──────────────────────
+    svg.selectAll("path").remove();
+
+    const paths = svg
+      .selectAll("path")
+      .data(visibleDescendants, d => d.data.path)
+      .join("path")
+      .attr("fill", d => getFillColor(d))
+      .attr("d", arc)
+      .style("cursor", "pointer");
+
+    attachPathEvents(paths);
+  }
 }
 
 // Skrytie kontextového menu pri kliknutí kamkoľvek mimo neho
@@ -488,6 +632,25 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (filterToggle) {
     filterToggle.addEventListener("change", (event) => {
       APP_CONFIG.usePerformanceFilter = event.target.checked;
+      if (currentFocus) {
+        zoomTo(currentFocus);
+      }
+    });
+  }
+
+  // Animation toggle listener
+  const animationToggle = document.getElementById("animation-toggle");
+  if (animationToggle) {
+    // Načítanie stavu z localStorage
+    const savedAnimationState = localStorage.getItem("disk-scanner-animation");
+    if (savedAnimationState === "true") {
+      animationToggle.checked = true;
+      useAnimatedGraph = true;
+    }
+
+    animationToggle.addEventListener("change", (event) => {
+      useAnimatedGraph = event.target.checked;
+      localStorage.setItem("disk-scanner-animation", useAnimatedGraph);
       if (currentFocus) {
         zoomTo(currentFocus);
       }
@@ -692,18 +855,26 @@ window.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  // Add "Set TC Path" item to context menu dynamically
-  const cmSetTcPath = document.createElement("div");
-  cmSetTcPath.className = "menu-item";
-  cmSetTcPath.id = "cm-set-tc-path";
-  cmSetTcPath.setAttribute("data-i18n", "contextMenu.setTCPath");
-  cmSetTcPath.textContent = getText("contextMenu.setTCPath");
-  cmSetTcPath.onclick = () => openTcPathModal();
+  // Add "Set TC Path" item to context menu dynamically (len na Windows)
+  if (isWindows) {
+    const cmSetTcPath = document.createElement("div");
+    cmSetTcPath.className = "menu-item";
+    cmSetTcPath.id = "cm-set-tc-path";
+    cmSetTcPath.setAttribute("data-i18n", "contextMenu.setTCPath");
+    cmSetTcPath.textContent = getText("contextMenu.setTCPath");
+    cmSetTcPath.onclick = () => openTcPathModal();
 
-  // Insert before the divider in context menu
-  const cmDivider = contextMenu?.querySelector(".divider");
-  if (cmDivider && contextMenu) {
-    contextMenu.insertBefore(cmSetTcPath, cmDivider);
+    // Insert before the divider in context menu
+    const cmDivider = contextMenu?.querySelector(".divider");
+    if (cmDivider && contextMenu) {
+      contextMenu.insertBefore(cmSetTcPath, cmDivider);
+    }
+  } else {
+    // Na ne-Windows systémoch skryjeme TC položky v kontextovom menu
+    const cmOpenTcItem = document.getElementById("cm-open-tc");
+    if (cmOpenTcItem) {
+      cmOpenTcItem.style.display = "none";
+    }
   }
 
   await loadTranslations();

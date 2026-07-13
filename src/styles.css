@@ -281,6 +281,21 @@ input:checked + .slider:before {
   transform: translateX(20px);
 }
 
+/* Separátor medzi prepínačmi v riadku filtrov */
+.filter-separator {
+  width: 1px;
+  height: 24px;
+  background: #45475a;
+  margin: 0 8px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Animovaný prepínač - fialová farba */
+#animation-toggle:checked + .slider {
+  background-color: #cba6f7;
+}
+
 /* Kontajner pre breadcrumbs */
 .breadcrumbs-container {
   display: flex;
