@@ -27,9 +27,9 @@ You can find more about the original author and his work here: [www.steffengerla
 
 > ### 🧠 Built with AI & Vibe Coding
 >
-> This project is a proud product of **Vibe Coding**! 🚀
+>This project is a proud product of **Vibe Coding**! 🚀
 >
-> It was built in active collaboration with **Google Gemini**, showcasing how modern AI-guided development can rapidly prototype and deliver a high-performance desktop application, merging a Rust backend with a smooth D3.js frontend visualization.
+> This project began in collaboration with **Google Gemini** and continues as a hands-on project for gaining experience and skills in AI-assisted programming. It serves as a practical example of how AI tools can accelerate development, from backend logic in Rust to frontend visualization with D3.js.
 
 ## Recommended IDE Setup
 
