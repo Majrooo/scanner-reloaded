@@ -35,6 +35,7 @@
         <button id="refresh-disks-btn" class="refresh-btn" data-i18n="diskScreen.refresh">🔄 Obnoviť</button>
       </div>
       <div id="disk-list"></div>
+      <div id="no-disks-message" class="empty-state hidden" data-i18n="diskScreen.noDisks">Nenašli sa žiadne disky.</div>
     </div>
 
     <div id="scan-screen" class="hidden">
@@ -47,7 +48,12 @@
       <div id="live-ticker-container">
         <div id="live-ticker-bar"></div>
         <div id="live-ticker" data-i18n="scanScreen.initializing">Pripravujem skenovanie...</div>
+        <div id="scan-spinner" class="scan-spinner"></div>
       </div>
+
+      <div id="scan-stats-bar" class="scan-stats-bar hidden"></div>
+
+      <div id="empty-folder-message" class="empty-state hidden" data-i18n="scanScreen.emptyFolder">Tento priečinok je prázdny</div>
 
       <div class="filter-control-row">
         <label class="switch-container">
