@@ -2870,6 +2870,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tauri-plugin-window-state",
+ "walkdir",
  "windows-sys 0.52.0",
 ]
 

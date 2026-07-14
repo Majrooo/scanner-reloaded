@@ -234,7 +234,7 @@ async function loadDisks() {
   const noDisksMsg = document.getElementById("no-disks-message");
   let disks = await invoke("get_disks");
   disks.sort((a, b) => a.mount_point.localeCompare(b.mount_point));
-  
+
   // B5: Empty state pre žiadne disky
   if (disks.length === 0) {
     if (noDisksMsg) noDisksMsg.classList.remove("hidden");
@@ -612,7 +612,16 @@ function zoomTo(p) {
     .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
     .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
     .innerRadius(d => getScaleY(d.depth - p.depth - 1))
-    .outerRadius(d => getScaleY(d.depth - p.depth) - 1);
+    .outerRadius(d => getScaleY(d.depth - p.depth) - 1)
+    .padAngle(d => {
+      // 1. Ak je segment 360-stupňový (celý disk), nedávaj medzeru (rieši SteamLibrary)
+      if (d.x1 - d.x0 >= 2 * Math.PI - 0.001) return 0.005;
+
+      // 2. Ak je segment príliš malý, daj menšiu medzeru, aby nezmizol
+      // 0.005 je pôvodná hodnota, ak sú súbory stále neviditeľné, znížte ju na 0.001
+      return 0.001;
+    });
+
 
   // Pomocná funkcia pre farbu
   function getFillColor(d) {
@@ -682,7 +691,7 @@ function zoomTo(p) {
       const interpolateInnerR = d3.interpolate(oldArc.innerRadius, newArc.innerRadius);
       const interpolateOuterR = d3.interpolate(oldArc.outerRadius, newArc.outerRadius);
 
-      return function(t) {
+      return function (t) {
         return arc({
           startAngle: interpolateStartAngle(t),
           endAngle: interpolateEndAngle(t),
@@ -719,7 +728,7 @@ function zoomTo(p) {
       .transition()
       .duration(TRANSITION_DURATION / 2)
       .style("opacity", 0)
-      .attrTween("d", function(d) {
+      .attrTween("d", function (d) {
         const oldD = this.__arcData || {
           startAngle: 0, endAngle: 0,
           innerRadius: innerHoleRadius, outerRadius: innerHoleRadius
@@ -735,7 +744,7 @@ function zoomTo(p) {
       .remove();
 
     // Aktualizácia existujúcich paths (animácia z starej pozície na novú)
-    existingPaths.each(function(d) {
+    existingPaths.each(function (d) {
       const el = this;
       const newArcData = arcDataMap.get(d.data.path);
       const oldArcData = el.__arcData || newArcData;
@@ -743,11 +752,11 @@ function zoomTo(p) {
       d3.select(el)
         .transition()
         .duration(TRANSITION_DURATION)
-        .attrTween("d", function() {
+        .attrTween("d", function () {
           return arcTween(oldArcData, newArcData);
         })
         .attr("fill", getFillColor(d))
-        .on("end", function() {
+        .on("end", function () {
           el.__arcData = newArcData;
         });
     });
@@ -758,7 +767,7 @@ function zoomTo(p) {
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
       .style("opacity", 0)
-      .each(function(d) {
+      .each(function (d) {
         const newArcData = arcDataMap.get(d.data.path);
         const startArc = {
           startAngle: newArcData.startAngle,
@@ -773,12 +782,12 @@ function zoomTo(p) {
     newPaths.transition()
       .duration(TRANSITION_DURATION)
       .style("opacity", 1)
-      .attrTween("d", function(d) {
+      .attrTween("d", function (d) {
         const startArc = this.__arcData;
         const endArc = arcDataMap.get(d.data.path);
         return arcTween(startArc, endArc);
       })
-      .on("end", function(d) {
+      .on("end", function (d) {
         this.__arcData = arcDataMap.get(d.data.path);
       });
 
@@ -964,7 +973,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
               // 3. Prepočítanie celého stromu (veľkosti sa preženú smerom k rootu)
               rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
-                      .sort((a, b) => b.value - a.value);
+                .sort((a, b) => b.value - a.value);
 
               // 4. Aktualizácia rozloženia (partition layout)
               if (gPartition) {
@@ -1018,7 +1027,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
               // 3. Prepočítanie stromu
               rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
-                      .sort((a, b) => b.value - a.value);
+                .sort((a, b) => b.value - a.value);
 
               // 4. Aktualizácia rozloženia
               if (gPartition) {

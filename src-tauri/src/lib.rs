@@ -6,6 +6,8 @@ use std::thread;
 use std::time::Instant;
 use sysinfo::Disks;
 use tauri::{AppHandle, Emitter};
+use walkdir::WalkDir;
+use std::collections::HashMap;
 
 // A8: Globálny flag pre zrušenie skenovania
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -274,101 +276,120 @@ fn get_disks() -> Vec<DiskInfo> {
 }
 
 fn scan_directory(
-    path: &Path,
+    root_path: &Path,
     app_handle: &AppHandle,
     last_emit: &mut Instant,
     running_total: &mut u64,
 ) -> Option<FileNode> {
-    // A8: Ak bolo skenovanie zrušené, okamžite sa vrátime
-    if SCAN_CANCELLED.load(Ordering::Relaxed) {
-        return None;
-    }
+    // Vytvoríme si pomocnú mapu pre zostavenie stromu (od koncových uzlov ku koreňu)
+    let mut nodes: HashMap<PathBuf, FileNode> = HashMap::new();
+    let mut paths_to_process = Vec::new();
 
-    let metadata = match path.symlink_metadata() {
-        Ok(m) => m,
-        Err(_) => return None,
-    };
+    // 1. Prejdeme celý disk pomocou WalkDir lineárne bez rekurzie.
+    // follow_links(false) tu striktne zakáže prechod na disk C: cez akékoľvek Junctions/Symlinks.
+    let walker = WalkDir::new(root_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok());
 
-    let name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| path.to_string_lossy().into_owned());
-    let path_str = path.to_string_lossy().into_owned();
-
-    if metadata.is_dir() {
-        if metadata.file_type().is_symlink() {
+    for entry in walker {
+        if SCAN_CANCELLED.load(Ordering::Relaxed) {
             return None;
         }
 
-        let mut children = Vec::new();
-        let mut total_size = 0;
-        let mut dir_count = 1;
-        let mut file_count = 0;
+        let path = entry.path().to_path_buf();
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue, // Preskočíme priečinky bez prístupových práv (napr. System Volume Information)
+        };
 
-        if let Ok(entries) = std::fs::read_dir(path) {
-            for entry in entries.flatten() {
-                // A8: Skontroluj flag zrušenia pri každom entry
-                if SCAN_CANCELLED.load(Ordering::Relaxed) {
-                    return None;
-                }
-                if let Some(child_node) =
-                    scan_directory(&entry.path(), app_handle, last_emit, running_total)
-                {
-                    total_size += child_node.size;
-                    dir_count += child_node.dir_count;
-                    file_count += child_node.file_count;
-                    children.push(child_node);
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+        let path_str = path.to_string_lossy().into_owned();
+
+        if metadata.is_dir() {
+            nodes.insert(
+                path.clone(),
+                FileNode {
+                    name,
+                    path: path_str,
+                    size: 0,
+                    is_dir: true,
+                    dir_count: 1,
+                    file_count: 0,
+                    children: Vec::new(),
+                },
+            );
+            paths_to_process.push(path);
+        } else {
+            let size = metadata.len();
+            *running_total += size;
+
+            nodes.insert(
+                path.clone(),
+                FileNode {
+                    name,
+                    path: path_str.clone(),
+                    size,
+                    is_dir: false,
+                    dir_count: 0,
+                    file_count: 1,
+                    children: Vec::new(),
+                },
+            );
+            paths_to_process.push(path);
+
+            // Priebežné odosielanie stavu na frontend
+            if last_emit.elapsed().as_millis() >= 50 {
+                let _ = app_handle.emit(
+                    "scan-live-folder",
+                    LivePayload {
+                        path: path_str,
+                        size: *running_total,
+                    },
+                );
+                *last_emit = Instant::now();
+            }
+        }
+    }
+
+    // 2. Zoradíme cesty od najdlhšej po najkratšiu (od spodu stromu nahor),
+    // aby sme mohli správne priradiť deti ich rodičom a sčítať veľkosti.
+    paths_to_process.sort_by_key(|p| std::cmp::Reverse(p.as_os_str().len()));
+
+    let root_path_buf = root_path.to_path_buf();
+    let mut final_root_node = None;
+
+    for path in paths_to_process {
+        if let Some(current_node) = nodes.remove(&path) {
+            if path == root_path_buf {
+                final_root_node = Some(current_node);
+                break;
+            }
+
+            if let Some(parent_path) = path.parent() {
+                if let Some(parent_node) = nodes.get_mut(parent_path) {
+                    parent_node.size += current_node.size;
+                    parent_node.dir_count += current_node.dir_count;
+                    parent_node.file_count += current_node.file_count;
+                    parent_node.children.push(current_node);
                 }
             }
         }
-
-        // B8: Emitujeme running_total (celkovo naskenované doteraz), nie veľkosť priečinka
-        if last_emit.elapsed().as_millis() >= 50 {
-            let _ = app_handle.emit(
-                "scan-live-folder",
-                LivePayload {
-                    path: path_str.clone(),
-                    size: *running_total,
-                },
-            );
-            *last_emit = Instant::now();
-        }
-
-        Some(FileNode {
-            name,
-            path: path_str,
-            size: total_size,
-            is_dir: true,
-            dir_count,
-            file_count,
-            children,
-        })
-    } else {
-        let size = metadata.len();
-        // B8: Pripočítame veľkosť súboru k running_total
-        *running_total += size;
-
-        if last_emit.elapsed().as_millis() >= 50 {
-            let _ = app_handle.emit(
-                "scan-live-folder",
-                LivePayload {
-                    path: path_str.clone(),
-                    size: *running_total,
-                },
-            );
-            *last_emit = Instant::now();
-        }
-
-        Some(FileNode {
-            name,
-            path: path_str,
-            size,
-            is_dir: false,
-            dir_count: 0,
-            file_count: 1,
-            children: Vec::new(),
-        })
     }
+
+    // Na konci ešte raz vyžiadame finálny stav na UI
+    let _ = app_handle.emit(
+        "scan-live-folder",
+        LivePayload {
+            path: root_path.to_string_lossy().into_owned(),
+            size: *running_total,
+        },
+    );
+
+    final_root_node
 }
 
 #[tauri::command]
@@ -390,6 +411,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
         let mut last_emit = Instant::now();
         let mut running_total: u64 = 0;
 
+        // Volanie upravenej funkcie scan_directory, ktorá prebehne celý disk lineárne pomocou WalkDir
         if let Some(full_tree) =
             scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total)
         {
