@@ -228,11 +228,13 @@ function showConfirm(message, isDanger = false) {
 }
 
 async function loadDisks() {
+  showToast(getText("toast.disksLoading"), "info", 2000);
+
   diskList.innerHTML = "";
   const noDisksMsg = document.getElementById("no-disks-message");
   let disks = await invoke("get_disks");
   disks.sort((a, b) => a.mount_point.localeCompare(b.mount_point));
-
+  
   // B5: Empty state pre žiadne disky
   if (disks.length === 0) {
     if (noDisksMsg) noDisksMsg.classList.remove("hidden");
@@ -259,6 +261,8 @@ async function loadDisks() {
     card.onclick = () => startDiskScan(disk.mount_point, usedSpace);
     diskList.appendChild(card);
   });
+
+  showToast(getText("toast.disksLoaded"), "success", 2000);
 }
 
 async function startDiskScan(path, totalSpace) {

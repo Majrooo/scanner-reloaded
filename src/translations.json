@@ -94,7 +94,9 @@
         "trashed": "\"{name}\" bola presunutá do koša",
         "deleted": "\"{name}\" bola trvalo vymazaná",
         "scanCancelled": "Skenovanie bolo zrušené",
-        "copyFailed": "Nepodarilo sa skopírovať cestu"
+        "copyFailed": "Nepodarilo sa skopírovať cestu",
+        "disksLoading": "Obnovujem zoznam diskov...",
+        "disksLoaded": "Zoznam diskov bol úspešne obnovený."
       }
     },
     "en": {
@@ -190,7 +192,9 @@
         "trashed": "\"{name}\" has been moved to trash",
         "deleted": "\"{name}\" has been permanently deleted",
         "scanCancelled": "Scan has been cancelled",
-        "copyFailed": "Failed to copy path"
+        "copyFailed": "Failed to copy path",
+        "disksLoading": "Refreshing disk list...",
+        "disksLoaded": "Disk list has been successfully refreshed."
       }
     }
   }
