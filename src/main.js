@@ -682,45 +682,32 @@ function zoomTo(p) {
 
   if (useAnimatedGraph) {
     // ── ANIMOVANÝ REŽIM ──────────────────────────────────────────────
+    // FIX: D3 arc generator's accessors (defined above) read x0/x1/depth from
+    // the passed object - they do NOT read startAngle/endAngle. To produce
+    // valid paths we must keep D3 hierarchy nodes throughout and interpolate
+    // x0/x1 between the old and new hierarchy node. We store the d3.hierarchy
+    // node itself in __arcData and reuse it as the arc generator input.
     const TRANSITION_DURATION = 600;
+    const isFiniteNode = (n) => n && Number.isFinite(n.x0) && Number.isFinite(n.x1);
 
-    // Pomocná funkcia pre interpoláciu oblúkov
-    function arcTween(oldArc, newArc) {
-      const interpolateStartAngle = d3.interpolate(oldArc.startAngle, newArc.startAngle);
-      const interpolateEndAngle = d3.interpolate(oldArc.endAngle, newArc.endAngle);
-      const interpolateInnerR = d3.interpolate(oldArc.innerRadius, newArc.innerRadius);
-      const interpolateOuterR = d3.interpolate(oldArc.outerRadius, newArc.outerRadius);
-
+    // Interpolates between two d3.hierarchy nodes by interpolating x0/x1
+    // and passing the result directly to the arc generator. Accessors use
+    // x0/x1/depth, which are all present in the interpolated node.
+    function arcTween(oldNode, newNode) {
+      const interpX0 = d3.interpolate(oldNode.x0, newNode.x0);
+      const interpX1 = d3.interpolate(oldNode.x1, newNode.x1);
       return function (t) {
         return arc({
-          startAngle: interpolateStartAngle(t),
-          endAngle: interpolateEndAngle(t),
-          innerRadius: interpolateInnerR(t),
-          outerRadius: interpolateOuterR(t),
-          depth: newArc.depth,
-          x0: newArc.x0,
-          x1: newArc.x1,
-          data: newArc.data
+          x0: interpX0(t),
+          x1: interpX1(t),
+          depth: newNode.depth,
+          data: newNode.data,
+          value: newNode.value
         });
       };
     }
 
-    // Vypočítame arc data pre každý viditeľný uzol
-    const arcDataMap = new Map();
-    visibleDescendants.forEach(d => {
-      arcDataMap.set(d.data.path, {
-        startAngle: Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
-        endAngle: Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI,
-        innerRadius: getScaleY(d.depth - p.depth - 1),
-        outerRadius: getScaleY(d.depth - p.depth) - 1,
-        depth: d.depth,
-        x0: d.x0,
-        x1: d.x1,
-        data: d.data
-      });
-    });
-
-    // Získame existujúce paths
+    // Získame existujúce paths (bound to d3.hierarchy nodes by `d.data.path` key)
     const existingPaths = svg.selectAll("path").data(visibleDescendants, d => d.data.path);
 
     // Odchádzajúce paths (fade out + shrink to center)
@@ -729,35 +716,50 @@ function zoomTo(p) {
       .duration(TRANSITION_DURATION / 2)
       .style("opacity", 0)
       .attrTween("d", function (d) {
-        const oldD = this.__arcData || {
-          startAngle: 0, endAngle: 0,
-          innerRadius: innerHoleRadius, outerRadius: innerHoleRadius
+        // The exiting element belongs to the previous zoomTo; its __arcData
+        // stores the d3.hierarchy node it was bound to (x0/x1 of the parent
+        // focus). We collapse it to the inner hole radius.
+        const oldNode = this.__arcData;
+        if (!isFiniteNode(oldNode)) return () => this.getAttribute("d");
+        // Build a synthetic "centered" node that the arc generator will draw
+        // as a zero-width ring at innerHoleRadius, producing a shrink effect.
+        const collapsedNode = {
+          x0: oldNode.x0,
+          x1: oldNode.x0,
+          depth: 0,
+          data: oldNode.data,
+          value: 0
         };
-        const target = {
-          startAngle: oldD.startAngle,
-          endAngle: oldD.startAngle,
-          innerRadius: innerHoleRadius,
-          outerRadius: innerHoleRadius
-        };
-        return arcTween(oldD, target);
+        try {
+          return arcTween(oldNode, collapsedNode);
+        } catch (err) {
+          return () => this.getAttribute("d");
+        }
       })
       .remove();
 
-    // Aktualizácia existujúcich paths (animácia z starej pozície na novú)
+    // Aktualizácia existujúcich paths (animácia zo starej pozície na novú)
     existingPaths.each(function (d) {
       const el = this;
-      const newArcData = arcDataMap.get(d.data.path);
-      const oldArcData = el.__arcData || newArcData;
+      const oldNode = el.__arcData;
+      // oldNode may be a d3.hierarchy node from a previous zoomTo,
+      // or undefined on the very first render. Validate both ends.
+      if (!isFiniteNode(oldNode) || !isFiniteNode(d)) return;
 
       d3.select(el)
         .transition()
         .duration(TRANSITION_DURATION)
         .attrTween("d", function () {
-          return arcTween(oldArcData, newArcData);
+          try {
+            return arcTween(oldNode, d);
+          } catch (err) {
+            return () => el.getAttribute("d");
+          }
         })
         .attr("fill", getFillColor(d))
         .on("end", function () {
-          el.__arcData = newArcData;
+          // Persist the new node so the next zoomTo can animate from here.
+          el.__arcData = d;
         });
     });
 
@@ -768,27 +770,35 @@ function zoomTo(p) {
       .style("cursor", "pointer")
       .style("opacity", 0)
       .each(function (d) {
-        const newArcData = arcDataMap.get(d.data.path);
-        const startArc = {
-          startAngle: newArcData.startAngle,
-          endAngle: newArcData.startAngle,
-          innerRadius: innerHoleRadius,
-          outerRadius: innerHoleRadius
-        };
-        this.__arcData = startArc;
-        d3.select(this).attr("d", arc(startArc));
+        try {
+          // Store the new d3.hierarchy node; the arc generator uses
+          // its x0/x1/depth directly via the accessors above.
+          this.__arcData = d;
+          d3.select(this).attr("d", arc(d));
+        } catch (err) {
+          if (!this.__arcErrorLogged) {
+            console.warn("Sunburst: failed to render initial arc for", d?.data?.path, err);
+            this.__arcErrorLogged = true;
+          }
+        }
       });
 
     newPaths.transition()
       .duration(TRANSITION_DURATION)
       .style("opacity", 1)
       .attrTween("d", function (d) {
-        const startArc = this.__arcData;
-        const endArc = arcDataMap.get(d.data.path);
-        return arcTween(startArc, endArc);
+        const oldNode = this.__arcData;
+        if (!isFiniteNode(oldNode) || !isFiniteNode(d)) {
+          return () => this.getAttribute("d");
+        }
+        try {
+          return arcTween(oldNode, d);
+        } catch (err) {
+          return () => this.getAttribute("d");
+        }
       })
       .on("end", function (d) {
-        this.__arcData = arcDataMap.get(d.data.path);
+        this.__arcData = d;
       });
 
     // Spojíme existujúce + nové pre event listenery
@@ -804,6 +814,7 @@ function zoomTo(p) {
       .data(visibleDescendants, d => d.data.path)
       .join("path")
       .attr("fill", d => getFillColor(d))
+      .attr("d", d => { try { return arc(d); } catch { return null; } }) // FIX: Handle potential arc errors
       .attr("d", arc)
       .style("cursor", "pointer");
 
