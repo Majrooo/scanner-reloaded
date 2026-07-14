@@ -228,7 +228,7 @@ function showConfirm(message, isDanger = false) {
 }
 
 async function loadDisks() {
-  showToast(getText("toast.disksLoading"), "info", 2000);
+  // showToast(getText("toast.disksLoading"), "info", 2000);
 
   diskList.innerHTML = "";
   const noDisksMsg = document.getElementById("no-disks-message");
