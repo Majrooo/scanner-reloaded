@@ -293,6 +293,9 @@ async function goBackToMenu() {
     if (el) el.innerHTML = "";
   });
 
+  // 1. Vyčistíme backend pamäť (Rust)
+  await invoke("clear_scan_state").catch(console.error);
+
   setTimeout(() => {
     window.location.replace("index.html");
   }, 100);

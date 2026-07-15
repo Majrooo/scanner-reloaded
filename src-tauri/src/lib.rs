@@ -475,6 +475,14 @@ fn cancel_scan() {
     SCAN_CANCELLED.store(true, Ordering::Relaxed);
 }
 
+#[tauri::command]
+fn clear_scan_state(state: tauri::State<'_, ScanState>) -> Result<(), String> {
+    if let Ok(mut lock) = state.current_tree.lock() {
+        *lock = None; // Vymaže Option a uvoľní FileNode z RAM
+    }
+    Ok(())
+}
+
 // ── Dynamic sub-tree access (Local Relative Throttling) ──────────────────────
 
 
@@ -951,6 +959,7 @@ pub fn main() {
             get_disks,
             start_async_scan,
             cancel_scan,
+            clear_scan_state,
             get_submenu_tree,
             show_in_file_manager,
             show_in_total_commander,
