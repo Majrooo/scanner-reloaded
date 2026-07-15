@@ -296,6 +296,9 @@ async function goBackToMenu() {
   // 1. Vyčistíme backend pamäť (Rust)
   await invoke("clear_scan_state").catch(console.error);
 
+  // 2. Prikážeme WebView uvoľniť systémovú cache a pamäť
+  await invoke("optimize_webview_memory").catch(console.error);
+
   setTimeout(() => {
     window.location.replace("index.html");
   }, 100);

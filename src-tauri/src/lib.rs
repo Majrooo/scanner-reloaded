@@ -9,6 +9,7 @@ use sysinfo::Disks;
 use tauri::{AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
 use std::collections::HashMap;
+use tauri::WebviewWindow;
 
 // A8: Globálny flag pre zrušenie skenovania
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -36,8 +37,8 @@ struct DiskInfo {
 
 #[derive(Serialize, Clone)]
 pub(crate) struct FileNode {
-    name: String,
-    path: String,
+    name: Box<str>,
+    path: Box<str>,
     size: u64,
     is_dir: bool,
     dir_count: usize,
@@ -293,8 +294,8 @@ fn scan_directory(
     running_total: &mut u64,
 ) -> Option<FileNode> {
     // Vytvoríme si pomocnú mapu pre zostavenie stromu (od koncových uzlov ku koreňu)
-    let mut nodes: HashMap<PathBuf, FileNode> = HashMap::new();
-    let mut paths_to_process = Vec::new();
+    let mut nodes: HashMap<PathBuf, FileNode> = HashMap::with_capacity(250_000);
+    let mut paths_to_process = Vec::with_capacity(250_000);
 
     // 1. Prejdeme celý disk pomocou WalkDir lineárne bez rekurzie.
     // follow_links(false) tu striktne zakáže prechod na disk C: cez akékoľvek Junctions/Symlinks.
@@ -316,16 +317,16 @@ fn scan_directory(
 
         let name = path
             .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.to_string_lossy().into_owned());
-        let path_str = path.to_string_lossy().into_owned();
+            .map(|n| n.to_string_lossy().into_owned().into_boxed_str())
+            .unwrap_or_else(|| path.to_string_lossy().into_owned().into_boxed_str());
 
         if metadata.is_dir() {
+            let path_str = path.to_string_lossy().into_owned().into_boxed_str();
             nodes.insert(
                 path.clone(),
                 FileNode {
                     name,
-                    path: path_str,
+                    path: path_str.clone(),
                     size: 0,
                     is_dir: true,
                     dir_count: 1,
@@ -337,12 +338,13 @@ fn scan_directory(
         } else {
             let size = metadata.len();
             *running_total += size;
-
+ 
+            let live_path_str = path.to_string_lossy().to_string(); // Create an owned String here
             nodes.insert(
                 path.clone(),
                 FileNode {
                     name,
-                    path: path_str.clone(),
+                    path: "".into(), // Pre súbory cestu neukladáme
                     size,
                     is_dir: false,
                     dir_count: 0,
@@ -357,7 +359,7 @@ fn scan_directory(
                 let _ = app_handle.emit(
                     "scan-live-folder",
                     LivePayload {
-                        path: path_str,
+                        path: live_path_str.to_string(),
                         size: *running_total,
                     },
                 );
@@ -404,9 +406,14 @@ fn scan_directory(
 }
 
 /// Normalize all paths in the tree to use forward slashes (matches frontend convention).
+/// Zároveň rekonštruuje cesty pre súbory.
 fn normalize_paths(node: &mut FileNode) {
-    node.path = node.path.replace('\\', "/");
+    node.path = node.path.replace('\\', "/").into();
     for child in &mut node.children {
+        if !child.is_dir {
+            // Rekonštrukcia cesty pre súbor
+            child.path = format!("{}/{}", node.path, child.name).into_boxed_str();
+        }
         normalize_paths(child);
     }
 }
@@ -483,6 +490,16 @@ fn clear_scan_state(state: tauri::State<'_, ScanState>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn optimize_webview_memory(window: WebviewWindow) -> Result<(), String> {
+    // 100% bezpečné a multiplatformové Tauri v2 API
+    // Vymaže cache, históriu vykresľovania a uvoľní pamäť WebView na minimum
+    window.clear_all_browsing_data()
+        .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
 // ── Dynamic sub-tree access (Local Relative Throttling) ──────────────────────
 
 
@@ -490,8 +507,8 @@ fn clear_scan_state(state: tauri::State<'_, ScanState>) -> Result<(), String> {
 /// so the returned subtree looks like a "root" (its children stay untouched).
 fn clone_as_subtree_root(node: &FileNode) -> FileNode {
     FileNode {
-        name: node.name.clone(),
-        path: node.path.clone(),
+        name: node.name.clone(), // Box<str> je cheap to clone (Arc-like)
+        path: node.path.clone(), // Box<str> je cheap to clone
         size: node.size,
         is_dir: node.is_dir,
         dir_count: node.dir_count,
@@ -524,7 +541,7 @@ fn collapse_local(node: &mut FileNode, parent_size: u64) {
     let mut large_children: Vec<FileNode> = Vec::new();
 
     for child in node.children.drain(..) {
-        if child.size < threshold && child.name != OTHERS_NAME {
+        if child.size < threshold && child.name.as_ref() != OTHERS_NAME {
             small_items_size += child.size;
             small_items_file_count += child.file_count;
             small_items_dir_count += child.dir_count;
@@ -535,8 +552,8 @@ fn collapse_local(node: &mut FileNode, parent_size: u64) {
 
     if small_items_size > 0 {
         let others_node = FileNode {
-            name: OTHERS_NAME.to_string(),
-            path: format!("{}/{}", node.path, OTHERS_NAME),
+            name: OTHERS_NAME.into(),
+            path: format!("{}/{}", node.path, OTHERS_NAME).into_boxed_str(),
             size: small_items_size,
             is_dir: false,
             dir_count: small_items_dir_count,
@@ -548,9 +565,9 @@ fn collapse_local(node: &mut FileNode, parent_size: u64) {
 
     // Zoradíme podľa veľkosti zostupne, ale `__others__` vždy na koniec.
     large_children.sort_by(|a, b| {
-        if a.name == OTHERS_NAME {
+        if a.name.as_ref() == OTHERS_NAME {
             std::cmp::Ordering::Greater
-        } else if b.name == OTHERS_NAME {
+        } else if b.name.as_ref() == OTHERS_NAME {
             std::cmp::Ordering::Less
         } else {
             b.size.cmp(&a.size)
@@ -597,6 +614,20 @@ fn get_submenu_tree(
     // Aplikujeme relatívne orezávanie (prah = subtree.size).
     let subtree_size = subtree.size;
     collapse_local(&mut subtree, subtree_size.max(1));
+
+    // Rekurzívne zrekonštruujeme cesty pre súbory v orezanom podstrome
+    fn reconstruct_file_paths(node: &mut FileNode) {
+        for child in &mut node.children {
+            if !child.is_dir {
+                let normalized_parent_path = node.path.replace('\\', "/");
+                child.path = format!("{}/{}", normalized_parent_path, child.name).into_boxed_str();
+            } else {
+                reconstruct_file_paths(child);
+            }
+        }
+    }
+
+    reconstruct_file_paths(&mut subtree);
 
     Ok(subtree)
 }
@@ -960,6 +991,7 @@ pub fn main() {
             start_async_scan,
             cancel_scan,
             clear_scan_state,
+            optimize_webview_memory,
             get_submenu_tree,
             show_in_file_manager,
             show_in_total_commander,
