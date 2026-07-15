@@ -31,6 +31,70 @@ const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const cancelScanBtn = document.getElementById("cancel-scan-btn");
 let isScanning = false;
 
+/**
+ * Deserializuje binárny strom (pre-order) z Uint8Array na JS objekt.
+ * Formát (jeden uzol):
+ *   [is_dir: 1 byte]
+ *   [size: 8 bytes LE]
+ *   [dir_count: 4 bytes LE (u32)]
+ *   [file_count: 4 bytes LE (u32)]
+ *   [name_len: 2 bytes LE (u16)]
+ *   [name: N bytes UTF-8]
+ *   [path_len: 2 bytes LE (u16)]
+ *   [path: M bytes UTF-8]
+ *   [children_count: 4 bytes LE (u32)] — len ak is_dir == true
+ *   ... potom rekurzívne deti
+ */
+function deserializeBinaryTree(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  const decoder = new TextDecoder("utf-8");
+  let offset = 0;
+
+  function readNode() {
+    const isDir = view.getUint8(offset++) === 1;
+    const size = Number(view.getBigUint64(offset, true));
+    offset += 8;
+    const dirCount = view.getUint32(offset, true);
+    offset += 4;
+    const fileCount = view.getUint32(offset, true);
+    offset += 4;
+
+    const nameLen = view.getUint16(offset, true);
+    offset += 2;
+    const nameBytes = new Uint8Array(arrayBuffer, offset, nameLen);
+    const name = decoder.decode(nameBytes);
+    offset += nameLen;
+
+    const pathLen = view.getUint16(offset, true);
+    offset += 2;
+    const pathBytes = new Uint8Array(arrayBuffer, offset, pathLen);
+    const path = decoder.decode(pathBytes);
+    offset += pathLen;
+
+    const node = {
+      name,
+      path,
+      size,
+      is_dir: isDir,
+      dir_count: dirCount,
+      file_count: fileCount,
+      children: []
+    };
+
+    if (isDir) {
+      const childrenCount = view.getUint32(offset, true);
+      offset += 4;
+      for (let i = 0; i < childrenCount; i++) {
+        node.children.push(readNode());
+      }
+    }
+
+    return node;
+  }
+
+  return readNode();
+}
+
 // Globálna premenná, kde si uložíme celkovú kapacitu vybraného disku
 let selectedDiskTotalSpace = 0;
 let totalScannedBytes = 0;
@@ -244,24 +308,29 @@ async function startDiskScan(path, totalSpace) {
     }, 4000);
 
     try {
-      const rootData = await invoke("get_submenu_tree", { targetPath: rootPath });
+      // Nacitame CELY strom (bez orezania) pre lokalnu navigaciu
+      const rootData = await invoke("get_full_tree");
       memoryTree = rootData;
+      // Pre prvy render aplikujeme collapse lokalne
+      const renderData = deepCloneNode(memoryTree);
+      collapseLocalJS(renderData, Math.max(renderData.size, 1));
       isFirstRenderAfterScan = true;
-      currentViewPath = rootData.path || rootPath;
-      drawSunburst(rootData);
+      currentViewPath = renderData.path || rootPath;
+      drawSunburst(renderData);
 
       const statsBar = document.getElementById("scan-stats-bar");
-      if (statsBar && rootData) {
+      if (statsBar && memoryTree) {
         statsBar.textContent = getText("scanScreen.statsBar", {
-          files: rootData.file_count || 0,
-          dirs: rootData.dir_count || 0,
-          size: formatBytes(rootData.size || 0)
+          files: memoryTree.file_count || 0,
+          dirs: memoryTree.dir_count || 0,
+          size: formatBytes(memoryTree.size || 0)
         });
         statsBar.classList.remove("hidden");
       }
     } catch (err) {
-      console.error("Failed to fetch subtree:", err);
-      showToast(typeof err === "string" ? err : "Nepodarilo sa načítať strom.", "error");
+      console.error("Failed to fetch binary tree:", err);
+      const errorMsg = (typeof err === "string" ? err : (err?.message || err?.toString() || "Nepodarilo sa načítať strom."));
+      showToast(errorMsg, "error");
     }
 
     if (unlistenProgress) unlistenProgress();
@@ -365,29 +434,119 @@ function updateBreadcrumbs(currentPath) {
   });
 }
 
-async function navigateToPath(targetPath) {
+function navigateToPath(targetPath) {
   if (!targetPath || targetPath === currentViewPath) return;
-  try {
-    const data = await invoke("get_submenu_tree", { targetPath });
-    currentViewPath = data.path || targetPath;
-    drawSunburst(data); // This will call updateBreadcrumbs
-  } catch (err) {
-    console.error("navigateToPath failed:", err);
-    showToast(typeof err === "string" ? err : "Nepodarilo sa načítať priečinok.", "error");
+  
+  const found = findNodeByPath(memoryTree, targetPath);
+  if (!found) {
+    showToast("Priečinok '" + targetPath + "' sa nenašiel v strome.", "error");
+    return;
   }
+
+  // Deep clone + apply local collapse
+  const cloned = deepCloneNode(found);
+  collapseLocalJS(cloned, Math.max(cloned.size, 1));
+
+  currentViewPath = cloned.path || targetPath;
+  drawSunburst(cloned);
 }
 
-/** Vypýta si od Rustu nový podstrom pre daný priečinok a prekreslí D3 graf. */
-async function updateSunburstForFolder(folderPath) {
+function updateSunburstForFolder(folderPath) {
   if (!folderPath) return;
-  try {
-    const newData = await invoke("get_submenu_tree", { targetPath: folderPath });
-    currentViewPath = newData.path || folderPath;
-    drawSunburst(newData); // This will call updateBreadcrumbs
-  } catch (err) {
-    console.error("updateSunburstForFolder failed:", err);
-    showToast(typeof err === "string" ? err : "Nepodarilo sa načítať priečinok.", "error");
+  
+  const found = findNodeByPath(memoryTree, folderPath);
+  if (!found) {
+    showToast("Priečinok '" + folderPath + "' sa nenašiel v strome.", "error");
+    return;
   }
+
+  // Deep clone + apply local collapse
+  const cloned = deepCloneNode(found);
+  collapseLocalJS(cloned, Math.max(cloned.size, 1));
+
+  currentViewPath = cloned.path || folderPath;
+  drawSunburst(cloned);
+}
+
+/**
+ * Deep clone a node (simple JSON-safe clone, but handles the tree structure).
+ */
+function deepCloneNode(node) {
+  return JSON.parse(JSON.stringify(node));
+}
+
+/**
+ * Find a node by its path in the tree (case-insensitive, forward-slash paths).
+ */
+function findNodeByPath(node, targetPath) {
+  if (!node || !targetPath) return null;
+  const normalizedTarget = targetPath.replace(/\\/g, "/").replace(/\/+$/, "");
+  const normalizedNode = node.path.replace(/\\/g, "/").replace(/\/+$/, "");
+  if (normalizedNode.toLowerCase() === normalizedTarget.toLowerCase()) {
+    return node;
+  }
+  for (const child of node.children) {
+    const found = findNodeByPath(child, targetPath);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * JS equivalent of Rust's collapse_local.
+ * Recursively collapses children whose size is below RELATIVE_THRESHOLD
+ * of the parent's size into a single __others__ node.
+ */
+const RELATIVE_THRESHOLD = 0.001;
+const OTHERS_NAME = "__others__";
+
+function collapseLocalJS(node, parentSize) {
+  if (!node.is_dir || !node.children || node.children.length === 0) {
+    return;
+  }
+
+  // Recursively clean deeper levels first
+  for (const child of node.children) {
+    collapseLocalJS(child, Math.max(node.size, 1));
+  }
+
+  const threshold = Math.max(1, parentSize * RELATIVE_THRESHOLD);
+
+  let smallItemsSize = 0;
+  let smallItemsFileCount = 0;
+  let smallItemsDirCount = 0;
+  const largeChildren = [];
+
+  for (const child of node.children) {
+    if (child.size < threshold && child.name !== OTHERS_NAME) {
+      smallItemsSize += child.size;
+      smallItemsFileCount += child.file_count;
+      smallItemsDirCount += child.dir_count;
+    } else {
+      largeChildren.push(child);
+    }
+  }
+
+  if (smallItemsSize > 0) {
+    largeChildren.push({
+      name: OTHERS_NAME,
+      path: node.path + "/" + OTHERS_NAME,
+      size: smallItemsSize,
+      is_dir: false,
+      dir_count: smallItemsDirCount,
+      file_count: smallItemsFileCount,
+      children: []
+    });
+  }
+
+  // Sort by size descending, __others__ always at the end
+  largeChildren.sort((a, b) => {
+    if (a.name === OTHERS_NAME) return 1;
+    if (b.name === OTHERS_NAME) return -1;
+    return b.size - a.size;
+  });
+
+  node.children = largeChildren;
 }
 
 function getParentPath(path) {
@@ -438,38 +597,41 @@ function drawSunburst(data) {
 
   currentFocus = rootNode;
 
-  d3.select("#sunburst-chart").selectAll("*").remove();
-  const svg = d3.select("#sunburst-chart")
-    .attr("viewBox", `0 0 ${baseSize} ${baseSize}`)
-    .attr("width", "100%")
-    .attr("height", "100%")
-    .append("g")
-    .attr("id", "sunburst-group")
-    .attr("transform", `translate(${baseSize / 2},${baseSize / 2})`);
-
-  svg.append("circle")
-    .attr("r", innerHoleRadius)
-    .attr("fill", "#1e1e2e")
-    .attr("id", "d3-center-click-zone")
-    .style("cursor", "default")
-    .on("click", () => {
-      // Namiesto D3 zoomu ideme hore cez Rust - dynamicky načítame podstrom rodiča.
-      const parentPath = getParentPath(currentViewPath);
-      if (parentPath && parentPath !== currentViewPath) {
-        updateSunburstForFolder(parentPath);
-      }
-    })
-    .on("contextmenu", (event) => {
-      event.preventDefault();
-      if (currentFocus) {
-        menuTargetNode = currentFocus;
-        if (contextMenu) {
-          contextMenu.style.top = `${event.pageY}px`;
-          contextMenu.style.left = `${event.pageX}px`;
-          contextMenu.classList.remove("hidden");
+  // Nemažeme všetky elementy - používame enter-update-exit pre plynulé animácie
+  let svg;
+  if (d3.select("#sunburst-chart").select("#sunburst-group").empty()) {
+    // Prvý krát vytvoríme celé SVG
+    d3.select("#sunburst-chart")
+      .attr("viewBox", `0 0 ${baseSize} ${baseSize}`)
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .append("g")
+      .attr("id", "sunburst-group")
+      .attr("transform", `translate(${baseSize / 2},${baseSize / 2})`)
+      .append("circle")
+      .attr("r", innerHoleRadius)
+      .attr("fill", "#1e1e2e")
+      .attr("id", "d3-center-click-zone")
+      .style("cursor", "default")
+      .on("click", () => {
+        const parentPath = getParentPath(currentViewPath);
+        if (parentPath && parentPath !== currentViewPath) {
+          updateSunburstForFolder(parentPath);
         }
-      }
-    });
+      })
+      .on("contextmenu", (event) => {
+        event.preventDefault();
+        if (currentFocus) {
+          menuTargetNode = currentFocus;
+          if (contextMenu) {
+            contextMenu.style.top = `${event.pageY}px`;
+            contextMenu.style.left = `${event.pageX}px`;
+            contextMenu.classList.remove("hidden");
+          }
+        }
+      });
+  }
+  svg = d3.select("#sunburst-group");
 
   zoomTo(rootNode);
   updateBreadcrumbs(data.path);
@@ -635,74 +797,67 @@ function zoomTo(p) {
   }
   if (useAnimatedGraph && !isFirstRenderAfterScan) {
     const TRANSITION_DURATION = APP_CONFIG.transitionDuration;
-    const isFiniteNode = (n) => n && Number.isFinite(n.x0) && Number.isFinite(n.x1);
 
-    const existingPaths = svg.selectAll("path").data(visibleDescendants, d => d.data.path);
-
-    existingPaths.exit()
-      .transition()
-      .duration(TRANSITION_DURATION / 2)
-      .style("opacity", 0)
-      .attrTween("d", function (d) {
-        const oldNode = this.__arcData;
-        if (!isFiniteNode(oldNode)) return () => this.getAttribute("d");
-        const collapsedNode = { x0: oldNode.x0, x1: oldNode.x0, depth: 0, data: oldNode.data, value: 0 };
-        try { return SunburstAnimations.arcTween(oldNode, collapsedNode, arc); } catch (err) { return () => this.getAttribute("d"); }
-      })
-      .remove();
-
-    existingPaths.each(function (d) {
-      const el = this;
-      const oldNode = el.__arcData;
-      if (!isFiniteNode(oldNode) || !isFiniteNode(d)) return;
-      d3.select(el)
-        .transition()
-        .duration(TRANSITION_DURATION)
-        .attrTween("d", function () {
-          try { return SunburstAnimations.arcTween(oldNode, d, arc); } catch (err) { return () => el.getAttribute("d"); }
-        })
-        .attr("fill", getFillColor(d))
-        .on("end", function () { el.__arcData = d; });
+    // Ulozime stare __arcData pred odstranenim elementov
+    const oldArcData = new Map();
+    svg.selectAll("path").each(function() {
+      if (this.__arcData?.data?.path) {
+        oldArcData.set(this.__arcData.data.path, this.__arcData);
+      }
     });
 
-    const newPaths = existingPaths.enter()
-      .append("path")
+    // Odstranime vsetky existujuce path elementy
+    svg.selectAll("path").remove();
+
+    // Vytvorime nove path elementy
+    const paths = svg
+      .selectAll("path")
+      .data(visibleDescendants, d => d.data.path)
+      .join("path")
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
-      .style("opacity", 0)
-      .each(function (d) {
-        try {
-          this.__arcData = d;
-          d3.select(this).attr("d", arc(d));
-        } catch (err) {
-          if (!this.__arcErrorLogged) {
-            console.warn("Sunburst: failed to render initial arc for", d?.data?.path, err);
-            this.__arcErrorLogged = true;
-          }
-        }
-      });
+      .each(function(d) { this.__arcData = { ...d }; });
 
-    newPaths.transition()
-      .duration(TRANSITION_DURATION)
-      .style("opacity", 1)
-      .attrTween("d", function (d) {
-        const oldNode = this.__arcData;
-        if (!isFiniteNode(oldNode) || !isFiniteNode(d)) return () => this.getAttribute("d");
-        try { return SunburstAnimations.arcTween(oldNode, d, arc); } catch (err) { return () => this.getAttribute("d"); }
-      })
-      .on("end", function (d) { this.__arcData = d; });
+    // Pre kazdy uzol, ktory existoval aj predtym, spustime arcTween animaciu
+    paths.each(function(d) {
+      const el = this;
+      const oldNode = oldArcData.get(d.data.path);
+      if (oldNode) {
+        // Animujeme z oldNode do d pomocou arcTween
+        d3.select(el)
+          .transition()
+          .duration(TRANSITION_DURATION)
+          .attrTween("d", function() {
+            try { return SunburstAnimations.arcTween(oldNode, d, arc); } catch { return () => arc(d); }
+          })
+          .attr("fill", getFillColor(d));
+      } else {
+        // Novy uzol: fade in
+        d3.select(el)
+          .style("opacity", 0)
+          .transition()
+          .duration(TRANSITION_DURATION)
+          .style("opacity", 1)
+          .attrTween("d", function() {
+            // Animujeme od nuly (x1 = x0) do finalneho tvaru
+            const startNode = { ...d, x1: d.x0 };
+            try { return SunburstAnimations.arcTween(startNode, d, arc); } catch { return () => arc(d); }
+          });
+      }
+    });
 
-    const allPaths = existingPaths.merge(newPaths);
-    attachPathEvents(allPaths);
+    attachPathEvents(paths);
   } else {
-    // Statický režim vykreslenia bez permanentných animácií
+    // Statický režim vykreslenia
     svg.selectAll("path").remove();
     const paths = svg
       .selectAll("path")
       .data(visibleDescendants, d => d.data.path)
       .join("path")
       .attr("fill", d => getFillColor(d))
-      .style("cursor", "pointer");
+      .style("cursor", "pointer")
+      // Vždy ukladáme __arcData pre prípad, že sa neskôr zapnú animácie
+      .each(function(d) { this.__arcData = { ...d }; });
 
     // Kontrola, či ide o prvý úvodný render po dokončení skenu
     if (isFirstRenderAfterScan && APP_CONFIG.introAnimationType !== "none") {

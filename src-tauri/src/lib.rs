@@ -14,15 +14,11 @@ use walkdir::WalkDir;
 // Global flag to cancel a scan.
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
-// Global state for dynamically loading sub-trees (Local Relative Throttling).
+// Global state for storing the full scan tree (frontend handles local navigation).
 #[derive(Default)]
 pub struct ScanState {
     current_tree: Mutex<Option<FileNode>>,
 }
-
-const OTHERS_NAME: &str = "__others__";
-// Threshold for relative throttling: 0.1% of the size of the currently displayed folder.
-const RELATIVE_THRESHOLD: f64 = 0.001;
 
 // ─── Disk Info ───────────────────────────────────────────────────────────────
 
@@ -44,6 +40,52 @@ pub(crate) struct FileNode {
     dir_count: usize,
     file_count: usize,
     children: Vec<FileNode>,
+}
+
+impl FileNode {
+    /// Serializes this node and all its children into a compact binary format (pre-order traversal).
+    /// Format (per node):
+    ///   [is_dir: 1 byte]
+    ///   [size: 8 bytes LE]
+    ///   [dir_count: 4 bytes LE (u32)]
+    ///   [file_count: 4 bytes LE (u32)]
+    ///   [name_len: 2 bytes LE (u16)]
+    ///   [name: N bytes UTF-8]
+    ///   [path_len: 2 bytes LE (u16)]
+    ///   [path: M bytes UTF-8]
+    ///   [children_count: 4 bytes LE (u32)] — only if is_dir == true
+    /// Then recursively each child.
+    pub fn serialize_to_binary(&self, buf: &mut Vec<u8>) {
+        // is_dir
+        buf.push(if self.is_dir { 1 } else { 0 });
+        // size (u64, 8 bytes LE)
+        buf.extend_from_slice(&self.size.to_le_bytes());
+        // dir_count (usize -> u32, 4 bytes LE)
+        buf.extend_from_slice(&(self.dir_count as u32).to_le_bytes());
+        // file_count (usize -> u32, 4 bytes LE)
+        buf.extend_from_slice(&(self.file_count as u32).to_le_bytes());
+        // name_len (u16, 2 bytes LE)
+        let name_bytes = self.name.as_bytes();
+        let name_len = name_bytes.len().min(u16::MAX as usize) as u16;
+        buf.extend_from_slice(&name_len.to_le_bytes());
+        // name
+        buf.extend_from_slice(&name_bytes[..name_len as usize]);
+        // path_len (u16, 2 bytes LE)
+        let path_bytes = self.path.as_bytes();
+        let path_len = path_bytes.len().min(u16::MAX as usize) as u16;
+        buf.extend_from_slice(&path_len.to_le_bytes());
+        // path
+        buf.extend_from_slice(&path_bytes[..path_len as usize]);
+        // children_count (only if is_dir)
+        if self.is_dir {
+            let cc = self.children.len().min(u32::MAX as usize) as u32;
+            buf.extend_from_slice(&cc.to_le_bytes());
+            // recursively serialize children
+            for child in &self.children {
+                child.serialize_to_binary(buf);
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Clone)]
@@ -517,76 +559,12 @@ fn clone_as_subtree_root(node: &FileNode) -> FileNode {
     }
 }
 
-/// Recursively collapses children whose size is below `RELATIVE_THRESHOLD`
-/// of the parent's size into a single `__others__` node. This is "Local
-/// Relative Throttling" - thresholds are computed relative to the currently
-/// focused folder instead of the whole disk.
-fn collapse_local(node: &mut FileNode, parent_size: u64) {
-    if !node.is_dir || node.children.is_empty() {
-        return;
-    }
-
-    // Recursively clean deeper levels first.
-    for child in &mut node.children {
-        collapse_local(child, node.size.max(1));
-    }
-
-    // Threshold: RELATIVE_THRESHOLD % of the size of the currently displayed folder.
-    let threshold = (parent_size as f64 * RELATIVE_THRESHOLD) as u64;
-
-    let mut small_items_size = 0;
-    let mut small_items_file_count = 0;
-    let mut small_items_dir_count = 0;
-
-    let mut large_children: Vec<FileNode> = Vec::new();
-
-    for child in node.children.drain(..) {
-        if child.size < threshold && child.name.as_ref() != OTHERS_NAME {
-            small_items_size += child.size;
-            small_items_file_count += child.file_count;
-            small_items_dir_count += child.dir_count;
-        } else {
-            large_children.push(child);
-        }
-    }
-
-    if small_items_size > 0 {
-        let others_node = FileNode {
-            name: OTHERS_NAME.into(),
-            path: format!("{}/{}", node.path, OTHERS_NAME).into_boxed_str(),
-            size: small_items_size,
-            is_dir: false,
-            dir_count: small_items_dir_count,
-            file_count: small_items_file_count,
-            children: Vec::new(),
-        };
-        large_children.push(others_node);
-    }
-
-    // Sort by size descending, but `__others__` always at the end.
-    large_children.sort_by(|a, b| {
-        if a.name.as_ref() == OTHERS_NAME {
-            std::cmp::Ordering::Greater
-        } else if b.name.as_ref() == OTHERS_NAME {
-            std::cmp::Ordering::Less
-        } else {
-            b.size.cmp(&a.size)
-        }
-    });
-
-    node.children = large_children;
-}
-
-/// Returns a copy of the subtree rooted at `target_path` with relative
-/// throttling applied. If the path is not found, an error is returned.
+/// Returns the entire tree serialized into compact binary format.
+/// The frontend will deserialize and perform local navigation + collapse.
 #[tauri::command]
-fn get_submenu_tree(
+fn get_binary_tree(
     state: tauri::State<'_, ScanState>,
-    target_path: String,
-) -> Result<FileNode, String> {
-    // Normalize input to forward slashes and case-insensitive (Windows).
-    let normalized_target = target_path.replace('\\', "/").trim_end_matches('/').to_string();
-
+) -> Result<Vec<u8>, String> {
     let guard = state
         .current_tree
         .lock()
@@ -596,59 +574,28 @@ fn get_submenu_tree(
         .as_ref()
         .ok_or_else(|| "No scanned tree exists yet".to_string())?;
 
-    // Special case: if we are asking for the root of the tree.
-    let normalized_root = root.path.replace('\\', "/").trim_end_matches('/').to_string();
-
-    let node_opt = if normalized_target.eq_ignore_ascii_case(&normalized_root) {
-        Some(root)
-    } else {
-        // Search the entire tree (case-insensitive due to Windows).
-        find_node_by_path_case_insensitive(root, &normalized_target)
-    };
-
-    let node = node_opt.ok_or_else(|| {
-        format!("Folder '{}' not found in tree", target_path)
-    })?;
-
-    let mut subtree = clone_as_subtree_root(node);
-    // Aplikujeme relatívne orezávanie (prah = subtree.size).
-    let subtree_size = subtree.size;
-    collapse_local(&mut subtree, subtree_size.max(1));
-
-    // Recursively reconstruct paths for files in the trimmed subtree.
-    fn reconstruct_file_paths(node: &mut FileNode) {
-        for child in &mut node.children {
-            if !child.is_dir {
-                let normalized_parent_path = node.path.replace('\\', "/");
-                child.path = format!("{}/{}", normalized_parent_path, child.name).into_boxed_str();
-            } else {
-                reconstruct_file_paths(child);
-            }
-        }
-    }
-
-    reconstruct_file_paths(&mut subtree);
-
-    Ok(subtree)
+    let mut buf = Vec::with_capacity(10 * 1024 * 1024); // pre-allocate 10 MB
+    root.serialize_to_binary(&mut buf);
+    Ok(buf)
 }
 
-/// Case-insensitive DFS vyhľadávanie uzla podľa cesty (v rámci Windows
-/// súborového systému, kde `C:\Users` a `c:\users` sú ekvivalentné).
-fn find_node_by_path_case_insensitive<'a>(
-    node: &'a FileNode,
-    target_path: &str,
-) -> Option<&'a FileNode> {
-    let path_replaced = node.path.replace('\\', "/");
-    let normalized_node_path = path_replaced.trim_end_matches('/');
-    if normalized_node_path.eq_ignore_ascii_case(target_path) {
-        return Some(node);
-    }
-    for child in &node.children {
-        if let Some(found) = find_node_by_path_case_insensitive(child, target_path) {
-            return Some(found);
-        }
-    }
-    None
+/// Returns the FULL tree as JSON (without collapsing) for local navigation.
+/// The frontend stores this in memory and performs all navigation locally.
+#[tauri::command]
+fn get_full_tree(
+    state: tauri::State<'_, ScanState>,
+) -> Result<FileNode, String> {
+    let guard = state
+        .current_tree
+        .lock()
+        .map_err(|_| "Failed to get access to scan state".to_string())?;
+
+    let root = guard
+        .as_ref()
+        .ok_or_else(|| "No scanned tree exists yet".to_string())?;
+
+    // Clone the root without any collapsing - frontend does it locally
+    Ok(clone_as_subtree_root(root))
 }
 
 // ── Cross-platform: Show in File Manager ─────────────────────────────────────
@@ -992,7 +939,8 @@ pub fn main() {
             cancel_scan,
             clear_scan_state,
             optimize_webview_memory,
-            get_submenu_tree,
+            get_binary_tree,
+            get_full_tree,
             show_in_file_manager,
             show_in_total_commander,
             show_file_properties,
