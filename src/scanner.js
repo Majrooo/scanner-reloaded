@@ -310,29 +310,45 @@ function updateCenterHUD(icon, name, size) {
   centerSize.textContent = size;
 }
 
-function updateBreadcrumbs(p) {
+function updateBreadcrumbs(currentPath) {
   const container = document.getElementById("current-folder-title");
   if (!container) return;
   container.innerHTML = "";
-  const ancestors = p.ancestors().reverse();
-  ancestors.forEach((node, index) => {
-    const isLast = index === ancestors.length - 1;
+
+  if (!currentPath) return;
+
+  const separator = currentPath.includes('\\') ? '\\' : '/';
+  const segments = currentPath.split(separator).filter(s => s);
+
+  let builtPath = "";
+
+  segments.forEach((segment, index) => {
+    if (index === 0 && segments.length > 1) {
+      builtPath = segment.endsWith(':') ? segment + separator : segment;
+    } else if (index > 0) {
+      builtPath += (builtPath.endsWith(separator) ? "" : separator) + segment;
+    } else {
+      builtPath = segment;
+    }
+
+    const pathForAction = builtPath;
+    const isLast = index === segments.length - 1;
+
     const item = document.createElement("span");
     item.className = `breadcrumb-item ${isLast ? "active" : ""}`;
-    item.textContent = node.data.name;
+    item.textContent = segment.endsWith(separator) ? segment.slice(0, -1) : segment;
+
     if (!isLast) {
-      // Klik na breadcrumb ide cez Rust - dynamicky načítame podstrom pre danú cestu.
-      const target = node.data.path;
-      item.onclick = () => {
-        if (target) navigateToPath(target);
-      };
+      item.onclick = () => navigateToPath(pathForAction);
     }
+
     container.appendChild(item);
+
     if (!isLast) {
-      const separator = document.createElement("span");
-      separator.className = "breadcrumb-separator";
-      separator.textContent = " ❯ ";
-      container.appendChild(separator);
+      const separatorEl = document.createElement("span");
+      separatorEl.className = "breadcrumb-separator";
+      separatorEl.textContent = " ❯ ";
+      container.appendChild(separatorEl);
     }
   });
 }
@@ -342,7 +358,7 @@ async function navigateToPath(targetPath) {
   try {
     const data = await invoke("get_submenu_tree", { targetPath });
     currentViewPath = data.path || targetPath;
-    drawSunburst(data);
+    drawSunburst(data); // This will call updateBreadcrumbs
   } catch (err) {
     console.error("navigateToPath failed:", err);
     showToast(typeof err === "string" ? err : "Nepodarilo sa načítať priečinok.", "error");
@@ -355,7 +371,7 @@ async function updateSunburstForFolder(folderPath) {
   try {
     const newData = await invoke("get_submenu_tree", { targetPath: folderPath });
     currentViewPath = newData.path || folderPath;
-    drawSunburst(newData);
+    drawSunburst(newData); // This will call updateBreadcrumbs
   } catch (err) {
     console.error("updateSunburstForFolder failed:", err);
     showToast(typeof err === "string" ? err : "Nepodarilo sa načítať priečinok.", "error");
@@ -375,6 +391,7 @@ function drawSunburst(data) {
   if (!data || !data.children || data.children.length === 0) {
     if (emptyFolderMsg) emptyFolderMsg.classList.remove("hidden");
     updateCenterHUD("🤷", data ? data.name : "?", getText("scanScreen.emptyFolder"));
+    updateBreadcrumbs(data ? data.path : currentViewPath);
     return;
   }
   if (emptyFolderMsg) emptyFolderMsg.classList.add("hidden");
@@ -425,6 +442,7 @@ function drawSunburst(data) {
     });
 
   zoomTo(rootNode);
+  updateBreadcrumbs(data.path);
 }
 
 function zoomTo(p) {
@@ -439,8 +457,7 @@ function zoomTo(p) {
 
   // Zobrazenie "Hore" ikony v strede, ak existuje rodič (t. j. nie sme na root úrovni).
   const hasParent = !!getParentPath(currentViewPath);
-  updateCenterHUD(hasParent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
-  updateBreadcrumbs(p);
+  updateCenterHUD(hasParent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value)); // Breadcrumbs are updated from drawSunburst
 
   const statsBar = document.getElementById("scan-stats-bar");
   if (statsBar && p.data) {
