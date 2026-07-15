@@ -11,8 +11,8 @@
     *   **Frontend**: JavaScript, HTML, CSS
 *   **Frameworks/Libraries**:
     *   **Application Framework**: Tauri (for building cross-platform desktop applications)
-    *   **Frontend Visualization**: D3.js (for creating interactive sunburst charts)
-    *   **Tauri APIs/Plugins**:
+    *   **Frontend Visualization**: Modular D3.js, primarily using `d3-hierarchy` for the sunburst chart layout.
+     *   **Tauri APIs/Plugins**:
         *   `@tauri-apps/api/core`: For Inter-Process Communication (IPC) between the frontend and backend, event listening, and invoking Rust commands.
         *   `@tauri-apps/plugin-dialog`: For native file open/save, message, and confirmation dialogs.
         *   `@tauri-apps/api/tray`: For system tray icon management (though not explicitly used in the main frontend logic, it's part of the dependencies).
