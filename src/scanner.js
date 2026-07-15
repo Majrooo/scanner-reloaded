@@ -600,12 +600,14 @@ function zoomTo(p) {
         hoverStats.textContent = getText("scanScreen.stats.otherFiles", { count: fileCount });
       }
 
+      // Get the ancestors of the hovered node, which form the hierarchical branch.
+      const ancestors = d.ancestors();
+      const ancestorPaths = new Set(ancestors.map(node => node.data.path));
+
+      // Dim all segments except the current branch, and highlight only the hovered segment.
       d3.select("#sunburst-group").selectAll("path")
-        .classed("hover-active", false)
-        .classed("hover-dimmed", true);
-      d3.select(event.currentTarget)
-        .classed("hover-active", true)
-        .classed("hover-dimmed", false);
+        .classed("hover-dimmed", node => !ancestorPaths.has(node.data.path))
+        .classed("hover-active", node => node === d);
     })
       .on("mouseout", () => {
         hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
