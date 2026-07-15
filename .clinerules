@@ -6,7 +6,7 @@ Before any major refactoring, first propose a plan in the chat.
 When searching for code, prefer using tools like `grep` or `search` over reading entire files to minimize token consumption.
 
 # Code Modification Rules
-- **Make only local, partial changes (diffs).** Do not rewrite entire files.
+- **Prefer to make only local, partial changes (diffs).** Rewrite only if partial changes does not work.
 - **Focus on the requested task.** Do not perform unsolicited refactoring or code cleanup.
 - **Keep documentation in sync.** If you add or change a feature, update the relevant documentation (e.g., `README.md`).
 - **Use English for all comments** and adhere to the project's established coding style.
