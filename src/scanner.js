@@ -973,6 +973,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const autoToggleFilterCheckbox = document.getElementById("auto-toggle-filter");
   const performanceThresholdInput = document.getElementById("performance-threshold");
   const minSizeToRenderInput = document.getElementById("min-size-to-render");
+  const minAngleSlider = document.getElementById("setting-min-angle");
+  const minAngleValue = document.getElementById("min-angle-value");
   const relativeThresholdSlider = document.getElementById("setting-relative-threshold");
   const relativeThresholdValue = document.getElementById("relative-threshold-value");
 
@@ -1003,6 +1005,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     autoToggleFilterCheckbox.checked = APP_CONFIG.autoTogglePerformanceFilter;
     performanceThresholdInput.value = APP_CONFIG.performanceThreshold;
     minSizeToRenderInput.value = (APP_CONFIG.minSizeToRender / (1024 * 1024)).toFixed(1);
+    minAngleSlider.value = APP_CONFIG.minAngleToRender;
+    updateMinAngleLabel(APP_CONFIG.minAngleToRender);
     relativeThresholdSlider.value = APP_CONFIG.relativeThreshold;
     updateRelativeThresholdLabel(APP_CONFIG.relativeThreshold);
 
@@ -1013,7 +1017,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   function resetSettingsToDefaults() {
-    // Reset Excel animation settings
+    // Reset animation settings
     useInteractiveAnimationsCheckbox.checked = true;
     introAnimationTypeSelect.value = "sweep";
     transitionDurationSlider.value = 450;
@@ -1027,6 +1031,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     autoToggleFilterCheckbox.checked = true;
     performanceThresholdInput.value = 500;
     minSizeToRenderInput.value = "1.0";
+    minAngleSlider.value = 0.01;
+    updateMinAngleLabel(0.01);
     relativeThresholdSlider.value = 0.0015;
     updateRelativeThresholdLabel(0.0015);
 
@@ -1070,6 +1076,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     introGrowDurationValue.textContent = `${event.target.value}ms`;
   });
 
+  function updateMinAngleLabel(value) {
+    const numValue = parseFloat(value);
+    if (numValue === 0) {
+      minAngleValue.textContent = getText("settingsModal.performance.minAngleToRenderOff");
+    } else {
+      minAngleValue.textContent = `${numValue.toFixed(3)} rad`;
+    }
+  }
+
   function updateRelativeThresholdLabel(value) {
     if (parseFloat(value) === 0) {
       relativeThresholdValue.textContent = getText("settingsModal.performance.relativeThresholdOff");
@@ -1078,6 +1093,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  minAngleSlider.addEventListener("input", (event) => updateMinAngleLabel(event.target.value));
   relativeThresholdSlider.addEventListener("input", (event) => updateRelativeThresholdLabel(event.target.value));
 
   introAnimationTypeSelect.addEventListener("change", updateConditionalSettingsUI);
@@ -1102,6 +1118,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.autoTogglePerformanceFilter = autoToggleFilterCheckbox.checked;
     APP_CONFIG.performanceThreshold = parseInt(performanceThresholdInput.value, 10);
     APP_CONFIG.minSizeToRender = parseFloat(minSizeToRenderInput.value) * 1024 * 1024;
+    APP_CONFIG.minAngleToRender = parseFloat(minAngleSlider.value);
     APP_CONFIG.relativeThreshold = parseFloat(relativeThresholdSlider.value);
 
     APP_CONFIG.totalCommanderPath = tcPathInput.value;

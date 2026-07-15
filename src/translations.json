@@ -123,6 +123,8 @@
           "autoTogglePerformanceFilter": "Automaticky aktivovať filter",
           "performanceThreshold": "Prahový počet položiek",
           "minSizeToRender": "Minimálna veľkosť (MB)",
+          "minAngleToRender": "Minimálny uhol segmentu",
+          "minAngleToRenderOff": "Zobraziť všetko",
           "relativeThreshold": "Prah zlučovania (__others__)",
           "relativeThresholdOff": "Vypnuté"
         },
@@ -264,6 +266,8 @@
           "autoTogglePerformanceFilter": "Auto-toggle filter",
           "performanceThreshold": "Item count threshold",
           "minSizeToRender": "Minimum size to render (MB)",
+          "minAngleToRender": "Minimum segment angle",
+          "minAngleToRenderOff": "Show all",
           "relativeThreshold": "Aggregation Threshold (__others__)",
           "relativeThresholdOff": "Off"
         },

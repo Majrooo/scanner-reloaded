@@ -61,7 +61,7 @@
   border-top: 1px solid #313244;
 }
 
-.footer-right {
+.footer-actions {
   display: flex;
   gap: 12px;
 }
