@@ -1012,6 +1012,34 @@ window.addEventListener("DOMContentLoaded", async () => {
     settingsModal.classList.remove("hidden");
   }
 
+  function resetSettingsToDefaults() {
+    // Reset Excel animation settings
+    useInteractiveAnimationsCheckbox.checked = true;
+    introAnimationTypeSelect.value = "sweep";
+    transitionDurationSlider.value = 450;
+    transitionDurationValue.textContent = "450ms";
+    introSweepDurationSlider.value = 850;
+    introSweepDurationValue.textContent = "850ms";
+    introGrowDurationSlider.value = 400;
+    introGrowDurationValue.textContent = "400ms";
+
+    // Reset performance settings
+    autoToggleFilterCheckbox.checked = true;
+    performanceThresholdInput.value = 500;
+    minSizeToRenderInput.value = "1.0";
+    relativeThresholdSlider.value = 0.0015;
+    updateRelativeThresholdLabel(0.0015);
+
+    // Reset integrations
+    tcPathInput.value = "";
+
+    // Update conditional UI
+    updateConditionalSettingsUI();
+
+    // Show toast notification
+    showToast(getText("settingsModal.reset.success"), "info");
+  }
+
   function closeSettingsModal() {
     settingsModal.classList.add("hidden");
   }
@@ -1019,6 +1047,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   settingsBtn.addEventListener("click", openSettingsModal);
   settingsCloseBtn.addEventListener("click", closeSettingsModal);
   settingsCancelBtn.addEventListener("click", closeSettingsModal);
+
+  // Reset button functionality
+  const resetSettingsBtn = document.getElementById("reset-settings-btn");
+  if (resetSettingsBtn) {
+    resetSettingsBtn.addEventListener("click", resetSettingsToDefaults);
+  }
   settingsModal.addEventListener("click", (event) => {
     if (event.target === settingsModal) {
       closeSettingsModal();

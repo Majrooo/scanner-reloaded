@@ -134,7 +134,11 @@
         },
         "buttons": {
           "save": "Uložiť a použiť",
-          "cancel": "Zrušiť"
+          "cancel": "Zrušiť",
+          "reset": "Resetovať na predvolené"
+        },
+        "reset": {
+          "success": "Nastavenia boli resetované na predvolené hodnoty"
         }
       }
     },
@@ -271,7 +275,11 @@
         },
         "buttons": {
           "save": "Save and Apply",
-          "cancel": "Cancel"
+          "cancel": "Cancel",
+          "reset": "Reset to defaults"
+        },
+        "reset": {
+          "success": "Settings have been reset to default values"
         }
       }
     }

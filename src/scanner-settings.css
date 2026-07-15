@@ -52,12 +52,18 @@
   padding-right: 16px; /* Priestor pre scrollbar */
 }
 
-.settings-buttons {
+.modal-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid #313244;
+}
+
+.footer-right {
+  display: flex;
+  gap: 12px;
 }
 
 /* --- Sekcie a riadky nastavení --- */
@@ -157,7 +163,7 @@
 }
 
 /* --- Tlačidlá --- */
-.settings-save-btn, .settings-cancel-btn, .input-with-button button {
+.primary-btn, .secondary-btn {
   border: none;
   border-radius: 6px;
   padding: 8px 18px;
@@ -167,10 +173,23 @@
   transition: background-color 0.2s ease;
 }
 
-.settings-save-btn { background: #a6e3a1; color: #11111b; }
-.settings-save-btn:hover { background: #94d68b; }
-.settings-cancel-btn, .input-with-button button { background: #45475a; color: #cdd6f4; }
-.settings-cancel-btn:hover, .input-with-button button:hover { background: #585b70; }
+.primary-btn { background: #a6e3a1; color: #11111b; }
+.primary-btn:hover { background: #94d68b; }
+.secondary-btn, .input-with-button button { background: #45475a; color: #cdd6f4; }
+.secondary-btn:hover, .input-with-button button:hover { background: #585b70; }
+
+#reset-settings-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+}
+
+#reset-settings-btn:hover {
+  border-color: #ff4d4d;
+  color: #ff4d4d;
+  background: rgba(255, 77, 77, 0.05);
+}
 
 .close-btn {
   position: absolute;
