@@ -32,20 +32,6 @@ const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const cancelScanBtn = document.getElementById("cancel-scan-btn");
 let isScanning = false;
 
-/**
- * Deserializuje binárny strom (pre-order) z Uint8Array na JS objekt.
- * Formát (jeden uzol):
- *   [is_dir: 1 byte]
- *   [size: 8 bytes LE]
- *   [dir_count: 4 bytes LE (u32)]
- *   [file_count: 4 bytes LE (u32)]
- *   [name_len: 2 bytes LE (u16)]
- *   [name: N bytes UTF-8]
- *   [path_len: 2 bytes LE (u16)]
- *   [path: M bytes UTF-8]
- *   [children_count: 4 bytes LE (u32)] — len ak is_dir == true
- *   ... potom rekurzívne deti
- */
 function deserializeBinaryTree(arrayBuffer) {
   const view = new DataView(arrayBuffer);
   const decoder = new TextDecoder("utf-8");
@@ -207,7 +193,8 @@ const APP_CONFIG = {
   introAnimationType: "sweep",       // Možnosti: "none", "sweep", "grow"
   transitionDuration: 450,           // Pre interaktívny zoom (kliknutie)
   introSweepDuration: 850,           // Trvanie pre počiatočný vejár (sweep)
-  introGrowDuration: 400             // Trvanie pre počiatočnú expanziu (grow)
+  introGrowDuration: 400,            // Trvanie pre počiatočnú expanziu (grow)
+  relativeThreshold: 0.0015,          // Prah relatívneho zlučovania do __others__ (0.001 = 0.1%)
 };
 
 function formatBytes(bytes) {
@@ -517,7 +504,6 @@ function findNodeByPath(node, targetPath) {
  * Recursively collapses children whose size is below RELATIVE_THRESHOLD
  * of the parent's size into a single __others__ node.
  */
-const RELATIVE_THRESHOLD = 0.001;
 const OTHERS_NAME = "__others__";
 
 function collapseLocalJS(node, parentSize) {
@@ -530,7 +516,7 @@ function collapseLocalJS(node, parentSize) {
     collapseLocalJS(child, Math.max(node.size, 1));
   }
 
-  const threshold = Math.max(1, parentSize * RELATIVE_THRESHOLD);
+  const threshold = Math.max(1, parentSize * APP_CONFIG.relativeThreshold);
 
   let smallItemsSize = 0;
   let smallItemsFileCount = 0;
@@ -987,6 +973,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const autoToggleFilterCheckbox = document.getElementById("auto-toggle-filter");
   const performanceThresholdInput = document.getElementById("performance-threshold");
   const minSizeToRenderInput = document.getElementById("min-size-to-render");
+  const relativeThresholdSlider = document.getElementById("setting-relative-threshold");
+  const relativeThresholdValue = document.getElementById("relative-threshold-value");
 
   const tcPathInput = document.getElementById("tc-path-input");
   const browseTcPathBtn = document.getElementById("browse-tc-path-btn");
@@ -1015,6 +1003,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     autoToggleFilterCheckbox.checked = APP_CONFIG.autoTogglePerformanceFilter;
     performanceThresholdInput.value = APP_CONFIG.performanceThreshold;
     minSizeToRenderInput.value = (APP_CONFIG.minSizeToRender / (1024 * 1024)).toFixed(1);
+    relativeThresholdSlider.value = APP_CONFIG.relativeThreshold;
+    updateRelativeThresholdLabel(APP_CONFIG.relativeThreshold);
 
     tcPathInput.value = APP_CONFIG.totalCommanderPath || "";
 
@@ -1046,6 +1036,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     introGrowDurationValue.textContent = `${event.target.value}ms`;
   });
 
+  function updateRelativeThresholdLabel(value) {
+    if (parseFloat(value) === 0) {
+      relativeThresholdValue.textContent = getText("settingsModal.performance.relativeThresholdOff");
+    } else {
+      relativeThresholdValue.textContent = `${(value * 100).toFixed(2)}%`;
+    }
+  }
+
+  relativeThresholdSlider.addEventListener("input", (event) => updateRelativeThresholdLabel(event.target.value));
+
   introAnimationTypeSelect.addEventListener("change", updateConditionalSettingsUI);
 
   browseTcPathBtn.addEventListener("click", async () => {
@@ -1068,12 +1068,18 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.autoTogglePerformanceFilter = autoToggleFilterCheckbox.checked;
     APP_CONFIG.performanceThreshold = parseInt(performanceThresholdInput.value, 10);
     APP_CONFIG.minSizeToRender = parseFloat(minSizeToRenderInput.value) * 1024 * 1024;
+    APP_CONFIG.relativeThreshold = parseFloat(relativeThresholdSlider.value);
 
     APP_CONFIG.totalCommanderPath = tcPathInput.value;
 
     await invoke("set_tc_path", { path: tcPathInput.value || "" });
     await saveSettings();
     closeSettingsModal();
+
+    // Re-render the chart with new settings
+    if (currentViewPath) {
+      navigateToPath(currentViewPath);
+    }
   });
 
   window.addEventListener("click", (event) => {

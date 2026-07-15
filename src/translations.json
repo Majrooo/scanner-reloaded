@@ -122,7 +122,9 @@
           "usePerformanceFilter": "Použiť výkonnostný filter",
           "autoTogglePerformanceFilter": "Automaticky aktivovať filter",
           "performanceThreshold": "Prahový počet položiek",
-          "minSizeToRender": "Minimálna veľkosť (MB)"
+          "minSizeToRender": "Minimálna veľkosť (MB)",
+          "relativeThreshold": "Prah zlučovania (__others__)",
+          "relativeThresholdOff": "Vypnuté"
         },
         "integrations": {
           "title": "Systém a Integrácie",
@@ -257,7 +259,9 @@
           "usePerformanceFilter": "Use performance filter",
           "autoTogglePerformanceFilter": "Auto-toggle filter",
           "performanceThreshold": "Item count threshold",
-          "minSizeToRender": "Minimum size to render (MB)"
+          "minSizeToRender": "Minimum size to render (MB)",
+          "relativeThreshold": "Aggregation Threshold (__others__)",
+          "relativeThresholdOff": "Off"
         },
         "integrations": {
           "title": "System & Integrations",
