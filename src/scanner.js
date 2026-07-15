@@ -30,6 +30,7 @@ const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 // Cancel scan
 const cancelScanBtn = document.getElementById("cancel-scan-btn");
 let isScanning = false;
+let isFirstRenderAfterScan = false;
 
 // Globálna premenná, kde si uložíme celkovú kapacitu vybraného disku
 let selectedDiskTotalSpace = 0;
@@ -235,6 +236,7 @@ async function startDiskScan(path, totalSpace) {
     try {
       const rootData = await invoke("get_submenu_tree", { targetPath: rootPath });
       memoryTree = rootData;
+      isFirstRenderAfterScan = true;
       currentViewPath = rootData.path || rootPath;
       drawSunburst(rootData);
 
@@ -527,6 +529,24 @@ function zoomTo(p) {
       return 0.001;
     });
 
+  function introArcTween(d) {
+    // We are animating the end angle from the start angle to its final value.
+    const targetEndAngle = Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
+    const startAngleValue = Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
+
+    // Interpolate from startAngle to targetEndAngle.
+    const interpolateEndAngle = d3.interpolate(startAngleValue, targetEndAngle);
+
+    return function(t) {
+      // In each step t (from 0 to 1), return the modified object for the arc generator.
+      return arc({
+        ...d,
+        x1: p.x0 + (interpolateEndAngle(t) / (2 * Math.PI)) * (p.x1 - p.x0),
+      });
+    };
+  }
+
+
   function getFillColor(d) {
     // A9: VlastnĂˇ farba pre uzol "__others__"
     if (d.data.name === "__others__") {
@@ -586,7 +606,36 @@ function zoomTo(p) {
       });
   }
   if (useAnimatedGraph) {
-    const TRANSITION_DURATION = 600;
+    // If it's the first render, use the intro animation.
+    if (isFirstRenderAfterScan) {
+        svg.selectAll("path").remove();
+        const paths = svg
+            .selectAll("path")
+            .data(visibleDescendants, d => d.data.path)
+            .join("path")
+            .attr("fill", d => getFillColor(d))
+            .style("cursor", "pointer");
+
+        // Disable interaction during the animation.
+        paths.style("pointer-events", "none");
+
+        paths.transition()
+            .duration(1200) // Duration of the intro animation in ms.
+            .ease(d3.easeCubicOut) // Nice deceleration at the end.
+            .delay(d => (d.depth - p.depth) * 80) // Each deeper level starts 80ms later.
+            .attrTween("d", introArcTween)
+            .on("end", function() {
+                // Re-enable interaction (hover, click) after the animation is complete.
+                d3.select(this).style("pointer-events", "auto");
+            });
+
+        // Reset the flag so subsequent interactions (drill-down) don't use the intro animation.
+        isFirstRenderAfterScan = false;
+        attachPathEvents(paths);
+        return;
+    }
+
+    const TRANSITION_DURATION = 750;
     const isFiniteNode = (n) => n && Number.isFinite(n.x0) && Number.isFinite(n.x1);
 
     function arcTween(oldNode, newNode) {
@@ -661,15 +710,35 @@ function zoomTo(p) {
     const allPaths = existingPaths.merge(newPaths);
     attachPathEvents(allPaths);
   } else {
+    // Standard static rendering or intro animation if it's the first render.
     svg.selectAll("path").remove();
     const paths = svg
       .selectAll("path")
       .data(visibleDescendants, d => d.data.path)
       .join("path")
       .attr("fill", d => getFillColor(d))
-      .attr("d", d => { try { return arc(d); } catch { return null; } })
-      .attr("d", arc)
       .style("cursor", "pointer");
+
+    if (isFirstRenderAfterScan) {
+        // Disable interaction during the animation.
+        paths.style("pointer-events", "none");
+
+        paths.transition()
+            .duration(1200) // Duration of the intro animation in ms.
+            .ease(d3.easeCubicOut) // Nice deceleration at the end.
+            .delay(d => (d.depth - p.depth) * 80) // Each deeper level starts 80ms later.
+            .attrTween("d", introArcTween)
+            .on("end", function() {
+                // Re-enable interaction (hover, click) after the animation is complete.
+                d3.select(this).style("pointer-events", "auto");
+            });
+
+        // Reset the flag so subsequent interactions (drill-down) don't use the intro animation.
+        isFirstRenderAfterScan = false;
+    } else {
+        paths.attr("d", arc);
+    }
+
     attachPathEvents(paths);
   }
 }
