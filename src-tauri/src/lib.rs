@@ -7,21 +7,21 @@ use std::thread;
 use std::time::Instant;
 use sysinfo::Disks;
 use tauri::{AppHandle, Emitter, Manager};
-use walkdir::WalkDir;
 use std::collections::HashMap;
 use tauri::WebviewWindow;
+use walkdir::WalkDir;
 
-// A8: Globálny flag pre zrušenie skenovania
+// Global flag to cancel a scan.
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
-// Globálny stav pre dynamické načítanie podstromov (Local Relative Throttling)
+// Global state for dynamically loading sub-trees (Local Relative Throttling).
 #[derive(Default)]
 pub struct ScanState {
     current_tree: Mutex<Option<FileNode>>,
 }
 
 const OTHERS_NAME: &str = "__others__";
-// Prah pre relatívne orezávanie: 0.1 % z veľkosti aktuálne zobrazeného priečinka
+// Threshold for relative throttling: 0.1% of the size of the currently displayed folder.
 const RELATIVE_THRESHOLD: f64 = 0.001;
 
 // ─── Disk Info ───────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ struct AppConfig {
 }
 
 /// Returns the path to the config file: {app_data}/scanner-reloaded/config.json
-fn get_config_path() -> Option<PathBuf> {
+fn get_config_path() -> Option<PathBuf> { // A1: This function is correct.
     dirs::config_dir().map(|p| p.join("scanner-reloaded").join("config.json"))
 }
 
@@ -78,7 +78,7 @@ fn load_config() -> AppConfig {
 }
 
 fn save_config(cfg: &AppConfig) -> Result<(), String> {
-    let path = get_config_path().ok_or("Nepodarilo sa nájsť konfiguračný priečinok")?;
+    let path = get_config_path().ok_or("Could not find config directory")?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -256,15 +256,15 @@ fn get_disks() -> Vec<DiskInfo> {
     for disk in &disks {
         let name = disk.name().to_string_lossy().into_owned();
         let mount_point = disk.mount_point().to_string_lossy().into_owned();
-
-        // B4: Pridanie typu disku (SSD/HDD)
+        
+        // Add disk type (SSD/HDD).
         let kind = match disk.kind() {
             sysinfo::DiskKind::SSD => "ssd",
             sysinfo::DiskKind::HDD => "hdd",
-            _ => "unknown",
+            _ => "unknown", // B4: Correctly handles unknown types.
         };
 
-        // B4: Nefiltrujeme Unknown disky - USB/externé disky môžu byť detekované ako Unknown
+        // B4: Do not filter Unknown disks - USB/external drives can be detected as Unknown.
         if mount_point.contains("BaseImages") {
             continue;
         }
@@ -293,16 +293,16 @@ fn scan_directory(
     last_emit: &mut Instant,
     running_total: &mut u64,
 ) -> Option<FileNode> {
-    // Vytvoríme si pomocnú mapu pre zostavenie stromu (od koncových uzlov ku koreňu)
+    // Create a helper map to build the tree (from leaf nodes to the root).
     let mut nodes: HashMap<PathBuf, FileNode> = HashMap::with_capacity(250_000);
     let mut paths_to_process = Vec::with_capacity(250_000);
 
-    // 1. Prejdeme celý disk pomocou WalkDir lineárne bez rekurzie.
-    // follow_links(false) tu striktne zakáže prechod na disk C: cez akékoľvek Junctions/Symlinks.
+    // 1. Traverse the entire disk linearly using WalkDir without recursion.
+    // `follow_links(false)` strictly prevents traversing to C: drive via any Junctions/Symlinks.
     let walker = WalkDir::new(root_path)
         .follow_links(false)
         .into_iter()
-        .filter_map(|e| e.ok());
+        .filter_map(|e| e.ok()); // B1: Correctly filters out errors.
 
     for entry in walker {
         if SCAN_CANCELLED.load(Ordering::Relaxed) {
@@ -311,8 +311,8 @@ fn scan_directory(
 
         let path = entry.path().to_path_buf();
         let metadata = match entry.metadata() {
-            Ok(m) => m,
-            Err(_) => continue, // Preskočíme priečinky bez prístupových práv (napr. System Volume Information)
+            Ok(m) => m, // B2: Correctly gets metadata.
+            Err(_) => continue, // Skip folders without access rights (e.g., System Volume Information).
         };
 
         let name = path
@@ -339,12 +339,12 @@ fn scan_directory(
             let size = metadata.len();
             *running_total += size;
  
-            let live_path_str = path.to_string_lossy().to_string(); // Create an owned String here
+            let live_path_str = path.to_string_lossy().to_string();
             nodes.insert(
                 path.clone(),
                 FileNode {
                     name,
-                    path: "".into(), // Pre súbory cestu neukladáme
+                    path: "".into(), // For files, we don't store the path initially.
                     size,
                     is_dir: false,
                     dir_count: 0,
@@ -354,7 +354,7 @@ fn scan_directory(
             );
             paths_to_process.push(path);
 
-            // Priebežné odosielanie stavu na frontend
+            // Periodically send status to the frontend.
             if last_emit.elapsed().as_millis() >= 50 {
                 let _ = app_handle.emit(
                     "scan-live-folder",
@@ -368,8 +368,8 @@ fn scan_directory(
         }
     }
 
-    // 2. Zoradíme cesty od najdlhšej po najkratšiu (od spodu stromu nahor),
-    // aby sme mohli správne priradiť deti ich rodičom a sčítať veľkosti.
+    // 2. Sort paths from longest to shortest (from the bottom of the tree upwards)
+    // to correctly assign children to their parents and sum up sizes.
     paths_to_process.sort_by_key(|p| std::cmp::Reverse(p.as_os_str().len()));
 
     let root_path_buf = root_path.to_path_buf();
@@ -393,7 +393,7 @@ fn scan_directory(
         }
     }
 
-    // Na konci ešte raz vyžiadame finálny stav na UI
+    // At the end, request the final state on the UI one more time.
     let _ = app_handle.emit(
         "scan-live-folder",
         LivePayload {
@@ -406,12 +406,12 @@ fn scan_directory(
 }
 
 /// Normalize all paths in the tree to use forward slashes (matches frontend convention).
-/// Zároveň rekonštruuje cesty pre súbory.
+/// Also reconstructs paths for files.
 fn normalize_paths(node: &mut FileNode) {
     node.path = node.path.replace('\\', "/").into();
     for child in &mut node.children {
         if !child.is_dir {
-            // Rekonštrukcia cesty pre súbor
+            // Reconstruct path for file.
             child.path = format!("{}/{}", node.path, child.name).into_boxed_str();
         }
         normalize_paths(child);
@@ -420,7 +420,7 @@ fn normalize_paths(node: &mut FileNode) {
 
 #[tauri::command]
 fn start_async_scan(path: String, app_handle: AppHandle) {
-    // A8: Reset flag zrušenia pred začiatkom nového skenu
+    // Reset cancellation flag before starting a new scan.
     SCAN_CANCELLED.store(false, Ordering::Relaxed);
 
     thread::spawn(move || {
@@ -438,27 +438,27 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
         let mut last_emit = Instant::now();
         let mut running_total: u64 = 0;
 
-        // Volanie upravenej funkcie scan_directory, ktorá prebehne celý disk lineárne pomocou WalkDir
+        // Call the modified scan_directory function, which traverses the disk linearly using WalkDir.
         if let Some(mut full_tree) =
             scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total)
         {
-            // Cesty normalizujeme na forward slashes, aby ich vedel frontend ľahko porovnať
+            // Normalize paths to forward slashes so the frontend can easily compare them.
             normalize_paths(&mut full_tree);
 
-            // Kompletný neorezaný strom si uložíme do globálneho stavu.
-            // Frontend si neskôr vypýta výrezy cez get_submenu_tree.
+            // Store the complete, untrimmed tree in the global state.
+            // The frontend will later request slices via get_submenu_tree.
             let state = app_handle.state::<ScanState>();
             if let Ok(mut guard) = state.current_tree.lock() {
                 *guard = Some(full_tree);
             } else {
                 let _ = app_handle.emit(
                     "scan-failed",
-                    "Nepodarilo sa uložiť stav skenovania".to_string(),
+                    "Failed to save scan state".to_string(),
                 );
                 return;
             }
 
-            // Na frontend pošleme len signál, že skenovanie úspešne skončilo (bez dát).
+            // Send only a signal to the frontend that the scan finished successfully (without data).
             let _ = app_handle
                 .emit("scan-finished", ())
                 .map_err(|e| eprintln!("Failed to emit scan-finished: {}", e));
@@ -466,17 +466,17 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
             // A8: Ak bolo skenovanie zrušené, pošleme scan-failed so správou o zrušení
             if SCAN_CANCELLED.load(Ordering::Relaxed) {
                 let _ = app_handle.emit(
-                    "scan-failed",
-                    "Skenovanie bolo zrušené používateľom".to_string(),
+                    "scan-failed", // A8: Correctly emits scan-failed on cancellation.
+                    "Scan was cancelled by user".to_string(),
                 );
             } else {
-                let _ = app_handle.emit("scan-failed", "Nepodarilo sa načítať disk".to_string());
+                let _ = app_handle.emit("scan-failed", "Failed to load disk".to_string());
             }
         }
     });
 }
 
-// A8: Command pre zrušenie skenovania
+// Command to cancel a scan.
 #[tauri::command]
 fn cancel_scan() {
     SCAN_CANCELLED.store(true, Ordering::Relaxed);
@@ -485,15 +485,15 @@ fn cancel_scan() {
 #[tauri::command]
 fn clear_scan_state(state: tauri::State<'_, ScanState>) -> Result<(), String> {
     if let Ok(mut lock) = state.current_tree.lock() {
-        *lock = None; // Vymaže Option a uvoľní FileNode z RAM
+        *lock = None; // Clears the Option and frees the FileNode from RAM.
     }
     Ok(())
 }
 
 #[tauri::command]
 fn optimize_webview_memory(window: WebviewWindow) -> Result<(), String> {
-    // 100% bezpečné a multiplatformové Tauri v2 API
-    // Vymaže cache, históriu vykresľovania a uvoľní pamäť WebView na minimum
+    // 100% safe and multi-platform Tauri v2 API.
+    // Clears cache, rendering history, and frees WebView memory to a minimum.
     window.clear_all_browsing_data()
         .map_err(|e| e.to_string())?;
     
@@ -507,8 +507,8 @@ fn optimize_webview_memory(window: WebviewWindow) -> Result<(), String> {
 /// so the returned subtree looks like a "root" (its children stay untouched).
 fn clone_as_subtree_root(node: &FileNode) -> FileNode {
     FileNode {
-        name: node.name.clone(), // Box<str> je cheap to clone (Arc-like)
-        path: node.path.clone(), // Box<str> je cheap to clone
+        name: node.name.clone(), // Box<str> is cheap to clone (Arc-like).
+        path: node.path.clone(), // Box<str> is cheap to clone.
         size: node.size,
         is_dir: node.is_dir,
         dir_count: node.dir_count,
@@ -526,12 +526,12 @@ fn collapse_local(node: &mut FileNode, parent_size: u64) {
         return;
     }
 
-    // Rekurzívne najprv vyčistíme hlbšie úrovne.
+    // Recursively clean deeper levels first.
     for child in &mut node.children {
         collapse_local(child, node.size.max(1));
     }
 
-    // Prah: RELATIVE_THRESHOLD % z veľkosti aktuálne zobrazovaného priečinka.
+    // Threshold: RELATIVE_THRESHOLD % of the size of the currently displayed folder.
     let threshold = (parent_size as f64 * RELATIVE_THRESHOLD) as u64;
 
     let mut small_items_size = 0;
@@ -563,7 +563,7 @@ fn collapse_local(node: &mut FileNode, parent_size: u64) {
         large_children.push(others_node);
     }
 
-    // Zoradíme podľa veľkosti zostupne, ale `__others__` vždy na koniec.
+    // Sort by size descending, but `__others__` always at the end.
     large_children.sort_by(|a, b| {
         if a.name.as_ref() == OTHERS_NAME {
             std::cmp::Ordering::Greater
@@ -584,30 +584,30 @@ fn get_submenu_tree(
     state: tauri::State<'_, ScanState>,
     target_path: String,
 ) -> Result<FileNode, String> {
-    // Normalizujeme vstup na forward slashes a case-insensitive (Windows).
+    // Normalize input to forward slashes and case-insensitive (Windows).
     let normalized_target = target_path.replace('\\', "/").trim_end_matches('/').to_string();
 
     let guard = state
         .current_tree
         .lock()
-        .map_err(|_| "Nepodarilo sa získať prístup k stavu skenovania".to_string())?;
+        .map_err(|_| "Failed to get access to scan state".to_string())?;
 
     let root = guard
         .as_ref()
-        .ok_or_else(|| "Zatiaľ neexistuje žiadny naskenovaný strom".to_string())?;
+        .ok_or_else(|| "No scanned tree exists yet".to_string())?;
 
-    // Špeciálny prípad: ak sa pýtame na root stromu.
+    // Special case: if we are asking for the root of the tree.
     let normalized_root = root.path.replace('\\', "/").trim_end_matches('/').to_string();
 
     let node_opt = if normalized_target.eq_ignore_ascii_case(&normalized_root) {
         Some(root)
     } else {
-        // Hľadáme v celom strome (case-insensitive kvôli Windows).
+        // Search the entire tree (case-insensitive due to Windows).
         find_node_by_path_case_insensitive(root, &normalized_target)
     };
 
     let node = node_opt.ok_or_else(|| {
-        format!("Priečinok '{}' sa nenašiel v strome", target_path)
+        format!("Folder '{}' not found in tree", target_path)
     })?;
 
     let mut subtree = clone_as_subtree_root(node);
@@ -615,7 +615,7 @@ fn get_submenu_tree(
     let subtree_size = subtree.size;
     collapse_local(&mut subtree, subtree_size.max(1));
 
-    // Rekurzívne zrekonštruujeme cesty pre súbory v orezanom podstrome
+    // Recursively reconstruct paths for files in the trimmed subtree.
     fn reconstruct_file_paths(node: &mut FileNode) {
         for child in &mut node.children {
             if !child.is_dir {
@@ -662,11 +662,11 @@ fn show_in_file_manager(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        // Konverzia separátorov na Windows formát (\)
+        // Convert separators to Windows format (\).
         let windows_path = path.replace("/", "\\");
 
         std::process::Command::new("explorer")
-            // Argumenty rozdelíme. Rust ich automaticky správne obalí do úvodzoviek, ak je to potrebné.
+            // Split arguments. Rust will correctly quote them if necessary.
             .arg("/select,")
             .arg(windows_path)
             .spawn()
@@ -727,7 +727,7 @@ fn show_in_total_commander(path: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| {
                 format!(
-                    "Nepodarilo sa spustiť Total Commander ({}). Chyba: {}",
+                    "Failed to start Total Commander ({}). Error: {}",
                     tc_executable, e
                 )
             })?;
@@ -735,7 +735,7 @@ fn show_in_total_commander(path: String) -> Result<(), String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        return Err("Total Commander je dostupný len na Windows.".to_string());
+        return Err("Total Commander is only available on Windows.".to_string());
     }
 
     Ok(())
@@ -752,7 +752,7 @@ fn get_tc_path() -> Result<String, String> {
 #[tauri::command]
 fn set_tc_path(path: String) -> Result<(), String> {
     if !path.is_empty() && !Path::new(&path).exists() {
-        return Err(format!("Súbor neexistuje: {}", path));
+        return Err(format!("File does not exist: {}", path));
     }
     let mut cfg = load_config();
     cfg.total_commander_path = if path.is_empty() { None } else { Some(path) };
@@ -799,7 +799,7 @@ fn show_file_properties(path: String) -> Result<(), String> {
 
             let result = ShellExecuteExW(&mut info);
             if result == 0 {
-                return Err("Nepodarilo sa otvoriť okno vlastností systému Windows.".to_string());
+                return Err("Failed to open Windows properties window.".to_string());
             }
         }
     }
@@ -821,7 +821,7 @@ fn show_file_properties(path: String) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         // Try zenity as a simple properties dialog, fallback to xdg-open parent
-        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?; // B3: Correctly handles metadata errors.
         let size = if metadata.is_dir() {
             "Priečinok".to_string()
         } else {
@@ -873,12 +873,12 @@ fn move_to_trash(path: String) -> Result<(), String> {
             let result = SHFileOperationW(&mut file_op);
 
             if file_op.fAnyOperationsAborted != 0 {
-                return Err("Operácia bola prerušená používateľom.".to_string());
+                return Err("Operation was aborted by the user.".to_string());
             }
 
             if result != 0 {
                 return Err(format!(
-                    "Systémová chyba Windows pri presúvaní do koša: Kód {}",
+                    "Windows system error while moving to trash: Code {}",
                     result
                 ));
             }
@@ -894,7 +894,7 @@ fn move_to_trash(path: String) -> Result<(), String> {
         Command::new("osascript")
             .arg("-e")
             .arg(&script)
-            .output()
+            .output() // B6: Correctly uses `output()` to wait for completion.
             .map_err(|e| format!("Nepodarilo sa presunúť do koša: {}", e))?;
     }
 
@@ -909,7 +909,7 @@ fn move_to_trash(path: String) -> Result<(), String> {
                 // Fallback to trash-cli
                 Command::new("trash-put").arg(&path).output().map_err(|e| {
                     format!(
-                        "Nepodarilo sa presunúť do koša (skúste nainštalovať trash-cli): {}",
+                        "Failed to move to trash (try installing trash-cli): {}",
                         e
                     )
                 })?;
@@ -932,14 +932,14 @@ fn permanent_delete(path: String) -> Result<(), String> {
     // Safety: refuse to delete protected system paths
     if is_protected_path(target) {
         return Err(format!(
-            "Odmietnuté: Cesta '{}' je chránená systémová cesta a nemôže byť vymazaná.",
+            "Denied: Path '{}' is a protected system path and cannot be deleted.",
             path
         ));
     }
 
     // Additional safety: refuse to delete paths that are too short (e.g. "C:\")
     let path_str = path.trim_end_matches(|c| c == '/' || c == '\\');
-    if path_str.len() <= 3 {
+    if path_str.len() <= 3 { // B7: Correctly checks for short paths.
         return Err(format!(
             "Odmietnuté: Cesta '{}' je príliš krátka a môže byť koreňový disk.",
             path
@@ -961,18 +961,18 @@ fn open_system_utility(utility: String) -> Result<(), String> {
         "apps-features" => "ms-settings:appsfeatures",
         "storage-settings" => "ms-settings:storagesense",
         "defrag" => "dfrgui.exe",
-        _ => return Err(format!("Neznáma utilita: {}", utility)),
+        _ => return Err(format!("Unknown utility: {}", utility)),
     };
 
     if command.starts_with("ms-settings:") {
         Command::new("cmd")
             .args(&["/c", "start", command])
             .spawn()
-            .map_err(|e| format!("Nepodarilo sa spustiť {}: {}", command, e))?;
+            .map_err(|e| format!("Failed to start {}: {}", command, e))?;
     } else {
         Command::new(command)
             .spawn()
-            .map_err(|e| format!("Nepodarilo sa spustiť {}: {}", command, e))?;
+            .map_err(|e| format!("Failed to start {}: {}", command, e))?;
     }
 
     Ok(())

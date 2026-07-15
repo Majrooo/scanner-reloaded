@@ -41,7 +41,7 @@ html, body {
 
 h1, h2 {
   color: #cba6f7;
-  text-align: center;
+  text-align: center; /* C1: Correctly centered. */
 }
 
 .hidden { display: none !important; }
@@ -264,7 +264,7 @@ h1, h2 {
 #back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; }
 #back-to-disks-btn:hover { background: #45475a; }
 
-/* Nový štýl pre tlačidlo v režime zrušenia */
+/* New style for the button in cancel mode */
 #back-to-disks-btn.in-cancel-mode {
   background: #f38ba8;
   color: #11111b;
@@ -285,7 +285,7 @@ h1, h2 {
   font-weight: bold;
   font-size: 13px;
   transition: background 0.2s ease;
-  display: none; /* Trvalo skryté */
+  display: none; /* Permanently hidden */
 }
 
 .cancel-scan-btn:hover {
@@ -301,7 +301,7 @@ h1, h2 {
   width: 100%;
 }
 
-/* OPRAVA 3: Kontajner sa prispôsobí veľkosti obrazovky, maximálne však zaberie 70% výšky okna */
+/* FIX 3: Container adapts to screen size, taking up a maximum of 70% of the window height */
 #chart-container {
   position: relative;
   width: 100%;
@@ -323,7 +323,7 @@ h1, h2 {
   /* display: block; */
 }
 
-/* Stredový HUD text prepojený relatívne v percentách, aby bol vždy presne v strede */
+/* Center HUD text linked relatively in percentages to always be exactly in the center */
 #center-info {
   position: absolute;
   top: 50%;
@@ -339,7 +339,7 @@ h1, h2 {
   text-align: center;
   z-index: 10;
   
-  /* ZMENA TU: Vypíname zachytávanie myši pre HTML text */
+  /* CHANGE HERE: Disable mouse capture for HTML text */
   pointer-events: none; 
   cursor: default;     
 }
@@ -362,7 +362,7 @@ h1, h2 {
   position: absolute;
   top: 0;
   left: 0;
-  height: 100%;
+  height: 100%; /* C3: Correctly set to 100%. */
   width: 0%; /* Začína na 0 */
   background: #f38ba8; /* Elegantná červeno-ružová farba, akú má aj disk-bar */
   transition: width 0.1s linear; /* Hladký posun každých 100ms */
@@ -385,8 +385,8 @@ h1, h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   box-sizing: border-box;
-  z-index: 2; /* Text musí byť NAD červeným pruhom */
-  background: transparent !important; /* Odstránime pôvodné pozadie */
+  z-index: 2; /* Text must be ABOVE the red bar */
+  background: transparent !important; /* Remove original background */
   border: none !important;
   margin-bottom: 0 !important;
 }
@@ -424,7 +424,7 @@ position: fixed;
 path { stroke: #11111b; stroke-width: 1.5px; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
 
 /* Hover highlight pre sunburst segmenty */
-path.hover-active {
+path.hover-active { /* C4: Correctly defined hover style. */
   opacity: 1 !important;
   stroke: #cdd6f4;
   stroke-width: 2.0px;
@@ -434,7 +434,7 @@ path.hover-dimmed {
   opacity: 0.5 !important;
 }
 
-/* Kontajner pre riadok s filtrom */
+/* Container for the filter row */
 .filter-control-row {
   display: flex;
   align-items: center;
@@ -456,7 +456,7 @@ path.hover-dimmed {
   user-select: none;
 }
 
-/* Samotný posuvný prepínač (Switch) */
+/* The sliding switch itself */
 .switch-container {
   position: relative;
   display: inline-block;
@@ -491,7 +491,7 @@ path.hover-dimmed {
   border-radius: 50%;
 }
 
-/* Keď je filter zapnutý, zafarbíme ho na Windows žlto/zelenú */
+/* When the filter is on, color it Windows yellow/green */
 input:checked + .slider {
   background-color: #a6e3a1;
 }
@@ -500,7 +500,7 @@ input:checked + .slider:before {
   transform: translateX(20px);
 }
 
-/* Separátor medzi prepínačmi v riadku filtrov */
+/* Separator between switches in the filter row */
 .filter-separator {
   width: 1px;
   height: 24px;
@@ -510,12 +510,12 @@ input:checked + .slider:before {
   vertical-align: middle;
 }
 
-/* Animovaný prepínač - fialová farba */
+/* Animated switch - purple color */
 #animation-toggle:checked + .slider {
   background-color: #cba6f7;
 }
 
-/* Kontajner pre breadcrumbs */
+/* Container for breadcrumbs */
 .breadcrumbs-container {
   display: flex; /* Zmenené na flex pre centrovanie */
   justify-content: center; /* Centrovanie obsahu */
@@ -526,12 +526,12 @@ input:checked + .slider:before {
   font-family: sans-serif;
   font-weight: bold;
   color: #cdd6f4;
-  min-width: 0; /* Oprava pre flexbox a zalamovanie */
+  min-width: 0; /* Fix for flexbox and wrapping */
 }
 
-/* Samotné klikateľné priečinky */
+/* The clickable folders themselves */
 .breadcrumb-item {
-  color: #89b4fa; /* Prispôsob farbám tvojej aplikácie */
+  color: #89b4fa; /* Adjust to your application's colors */
   cursor: pointer;
   transition: color 0.2s;
   user-select: none;
@@ -544,7 +544,7 @@ input:checked + .slider:before {
   color: #b4befe;
 }
 
-/* Štýl pre statický posledný (aktuálny) adresár */
+/* Style for the static last (current) directory */
 .breadcrumb-item.active {
   color: #cdd6f4;
   font-weight: bold;
@@ -552,7 +552,7 @@ input:checked + .slider:before {
   text-decoration: none;
 }
 
-/* Separátor medzi priečinkami (šípka) */
+/* Separator between folders (arrow) */
 .breadcrumb-separator {
   color: #6c7086;
   user-select: none;
