@@ -30,7 +30,6 @@ const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 // Cancel scan
 const cancelScanBtn = document.getElementById("cancel-scan-btn");
 let isScanning = false;
-let isFirstRenderAfterScan = false;
 
 // Globálna premenná, kde si uložíme celkovú kapacitu vybraného disku
 let selectedDiskTotalSpace = 0;
@@ -54,6 +53,9 @@ let currentFocus = null;
 
 // Animovaný graf
 let useAnimatedGraph = false;
+
+// Globálny stav pre úvodnú animáciu
+let isFirstRenderAfterScan = false;
 
 // Detekcia OS
 const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
@@ -111,7 +113,13 @@ async function loadTranslations() {
 const APP_CONFIG = {
   usePerformanceFilter: true,
   minSizeToRender: 1 * 1024 * 1024,
-  minAngleToRender: 0.01
+  minAngleToRender: 0.01,
+  // Nastavenia animácií:
+  introAnimationType: "random", // Možnosti: "none", "sweep", "grow", "staggered", "random"
+  transitionDuration: 600,      // Pre interaktívny zoom
+  introSweepDuration: 850,     // Trvanie pre vejár (sweep)
+  introGrowDuration: 400       // Spomalené trvanie pre grow expanziu, aby bola pekne viditeľná
+  
 };
 
 function formatBytes(bytes) {
@@ -522,8 +530,8 @@ function zoomTo(p) {
   const arc = d3.arc()
     .startAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
     .endAngle(d => Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI)
-    .innerRadius(d => getScaleY(d.depth - p.depth - 1))
-    .outerRadius(d => getScaleY(d.depth - p.depth) - 1)
+    .innerRadius(d => d.innerRadius !== undefined ? d.innerRadius : getScaleY(d.depth - p.depth - 1))
+    .outerRadius(d => d.outerRadius !== undefined ? d.outerRadius : getScaleY(d.depth - p.depth) - 1)
     .padAngle(d => {
       if (d.x1 - d.x0 >= 2 * Math.PI - 0.001) return 0.005;
       return 0.001;
@@ -605,52 +613,9 @@ function zoomTo(p) {
         }
       });
   }
-  if (useAnimatedGraph) {
-    // If it's the first render, use the intro animation.
-    if (isFirstRenderAfterScan) {
-        svg.selectAll("path").remove();
-        const paths = svg
-            .selectAll("path")
-            .data(visibleDescendants, d => d.data.path)
-            .join("path")
-            .attr("fill", d => getFillColor(d))
-            .style("cursor", "pointer");
-
-        // Disable interaction during the animation.
-        paths.style("pointer-events", "none");
-
-        paths.transition()
-            .duration(1200) // Duration of the intro animation in ms.
-            .ease(d3.easeCubicOut) // Nice deceleration at the end.
-            .delay(d => (d.depth - p.depth) * 80) // Each deeper level starts 80ms later.
-            .attrTween("d", introArcTween)
-            .on("end", function() {
-                // Re-enable interaction (hover, click) after the animation is complete.
-                d3.select(this).style("pointer-events", "auto");
-            });
-
-        // Reset the flag so subsequent interactions (drill-down) don't use the intro animation.
-        isFirstRenderAfterScan = false;
-        attachPathEvents(paths);
-        return;
-    }
-
-    const TRANSITION_DURATION = 750;
+  if (useAnimatedGraph && !isFirstRenderAfterScan) {
+    const TRANSITION_DURATION = APP_CONFIG.transitionDuration;
     const isFiniteNode = (n) => n && Number.isFinite(n.x0) && Number.isFinite(n.x1);
-
-    function arcTween(oldNode, newNode) {
-      const interpX0 = d3.interpolate(oldNode.x0, newNode.x0);
-      const interpX1 = d3.interpolate(oldNode.x1, newNode.x1);
-      return function (t) {
-        return arc({
-          x0: interpX0(t),
-          x1: interpX1(t),
-          depth: newNode.depth,
-          data: newNode.data,
-          value: newNode.value
-        });
-      };
-    }
 
     const existingPaths = svg.selectAll("path").data(visibleDescendants, d => d.data.path);
 
@@ -662,7 +627,7 @@ function zoomTo(p) {
         const oldNode = this.__arcData;
         if (!isFiniteNode(oldNode)) return () => this.getAttribute("d");
         const collapsedNode = { x0: oldNode.x0, x1: oldNode.x0, depth: 0, data: oldNode.data, value: 0 };
-        try { return arcTween(oldNode, collapsedNode); } catch (err) { return () => this.getAttribute("d"); }
+        try { return SunburstAnimations.arcTween(oldNode, collapsedNode, arc); } catch (err) { return () => this.getAttribute("d"); }
       })
       .remove();
 
@@ -674,7 +639,7 @@ function zoomTo(p) {
         .transition()
         .duration(TRANSITION_DURATION)
         .attrTween("d", function () {
-          try { return arcTween(oldNode, d); } catch (err) { return () => el.getAttribute("d"); }
+          try { return SunburstAnimations.arcTween(oldNode, d, arc); } catch (err) { return () => el.getAttribute("d"); }
         })
         .attr("fill", getFillColor(d))
         .on("end", function () { el.__arcData = d; });
@@ -703,14 +668,14 @@ function zoomTo(p) {
       .attrTween("d", function (d) {
         const oldNode = this.__arcData;
         if (!isFiniteNode(oldNode) || !isFiniteNode(d)) return () => this.getAttribute("d");
-        try { return arcTween(oldNode, d); } catch (err) { return () => this.getAttribute("d"); }
+        try { return SunburstAnimations.arcTween(oldNode, d, arc); } catch (err) { return () => this.getAttribute("d"); }
       })
       .on("end", function (d) { this.__arcData = d; });
 
     const allPaths = existingPaths.merge(newPaths);
     attachPathEvents(allPaths);
   } else {
-    // Standard static rendering or intro animation if it's the first render.
+    // Statický režim vykreslenia bez permanentných animácií
     svg.selectAll("path").remove();
     const paths = svg
       .selectAll("path")
@@ -719,26 +684,57 @@ function zoomTo(p) {
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer");
 
-    if (isFirstRenderAfterScan) {
-        // Disable interaction during the animation.
-        paths.style("pointer-events", "none");
+    // Kontrola, či ide o prvý úvodný render po dokončení skenu
+    if (isFirstRenderAfterScan && APP_CONFIG.introAnimationType !== "none") {
+      // Dočasne zablokujeme klikanie počas animácie
+      paths.style("pointer-events", "none");
 
-        paths.transition()
-            .duration(1200) // Duration of the intro animation in ms.
-            .ease(d3.easeCubicOut) // Nice deceleration at the end.
-            .delay(d => (d.depth - p.depth) * 80) // Each deeper level starts 80ms later.
-            .attrTween("d", introArcTween)
-            .on("end", function() {
-                // Re-enable interaction (hover, click) after the animation is complete.
-                d3.select(this).style("pointer-events", "auto");
-            });
+      // Výber animácie (podpora pre "random")
+      let activeAnimation = APP_CONFIG.introAnimationType;
+      if (activeAnimation === "random") {
+        const pool = ["sweep", "grow", "staggered"];
+        activeAnimation = pool[Math.floor(Math.random() * pool.length)];
+      }
 
-        // Reset the flag so subsequent interactions (drill-down) don't use the intro animation.
-        isFirstRenderAfterScan = false;
+      // Nastavenie špecifických parametrov pre typ animácie
+      let duration = APP_CONFIG.introSweepDuration;
+      let easing = d3.easeCubicOut;
+
+      if (activeAnimation === "grow") {
+        duration = APP_CONFIG.introGrowDuration; // Výrazne pomalšie pre lepší zážitok
+        easing = d3.easeCubicInOut; // Plynulý rozbeh aj dobeh
+      }
+
+      const introTransition = paths.transition()
+        .duration(duration)
+        .ease(easing);
+
+      // Ak je zvolený 'staggered' efekt, pridáme oneskorenie podľa hĺbky uzla
+      if (activeAnimation === "staggered") {
+        introTransition.delay(d => (d.depth - p.depth) * 100);
+      }
+
+      introTransition.attrTween("d", d => {
+        if (activeAnimation === "grow") {
+          // Vypočítame cieľové polomery a odovzdáme ich growTween funkcii
+          const targetInnerRadius = arc.innerRadius()(d);
+          const targetOuterRadius = arc.outerRadius()(d);
+          return SunburstAnimations.growTween(d, targetInnerRadius, targetOuterRadius, arc);
+        } else {
+          // Pre 'sweep' a 'staggered' použijeme vejarový efekt
+          return SunburstAnimations.sweepTween(d, p, arc);
+        }
+      })
+        .on("end", function () {
+          d3.select(this).style("pointer-events", "auto");
+        });
+
+      // Resetujeme vlajku prvého renderu
+      isFirstRenderAfterScan = false;
     } else {
-        paths.attr("d", arc);
+      // Bežné okamžité vykreslenie bez efektu
+      paths.attr("d", d => { try { return arc(d); } catch { return null; } });
     }
-
     attachPathEvents(paths);
   }
 }
