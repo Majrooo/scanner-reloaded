@@ -419,6 +419,20 @@ function drawSunburst(data) {
     });
 
   gPartition = d3.partition().size([2 * Math.PI, radius]);
+
+  // Calculate the total number of descendants for the new root.
+  const totalDescendants = rootNode.descendants().length;
+
+  // Automatically toggle the performance filter if enabled.
+  // This check is now performed only once when a new directory is loaded.
+  if (APP_CONFIG.autoTogglePerformanceFilter) {
+    if (totalDescendants >= APP_CONFIG.performanceThreshold) {
+      APP_CONFIG.usePerformanceFilter = true;
+    } else {
+      APP_CONFIG.usePerformanceFilter = false;
+    }
+    if (filterToggle) filterToggle.checked = APP_CONFIG.usePerformanceFilter;
+  }
   rootNode.each(d => { d.data.size = d.value; });
   gPartition(rootNode);
 
@@ -488,22 +502,7 @@ function zoomTo(p) {
     gPartition(rootNode);
   }
 
-  const descendants = p.descendants();
-  const childCount = descendants.length;
-
-  if (APP_CONFIG.autoTogglePerformanceFilter) {
-    if (childCount >= APP_CONFIG.performanceThreshold && !APP_CONFIG.usePerformanceFilter) {
-      APP_CONFIG.usePerformanceFilter = true;
-      if (filterToggle) filterToggle.checked = true;
-      showToast(getText("toast.autoFilterOn", { count: childCount }), "info");
-    } else if (childCount < APP_CONFIG.performanceThreshold && APP_CONFIG.usePerformanceFilter) {
-      APP_CONFIG.usePerformanceFilter = false;
-      if (filterToggle) filterToggle.checked = false;
-      showToast(getText("toast.autoFilterOff"), "info");
-    }
-  }
-
-  const visibleDescendants = descendants.filter(d => {
+  const visibleDescendants = p.descendants().filter(d => {
     const basicCheck = d.depth > p.depth &&
       d.depth <= p.depth + maxDepth &&
       d.value > 0 &&
