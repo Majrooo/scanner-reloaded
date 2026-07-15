@@ -2,15 +2,26 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
 use sysinfo::Disks;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
 use std::collections::HashMap;
 
 // A8: Globálny flag pre zrušenie skenovania
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
+
+// Globálny stav pre dynamické načítanie podstromov (Local Relative Throttling)
+#[derive(Default)]
+pub struct ScanState {
+    current_tree: Mutex<Option<FileNode>>,
+}
+
+const OTHERS_NAME: &str = "__others__";
+// Prah pre relatívne orezávanie: 0.1 % z veľkosti aktuálne zobrazeného priečinka
+const RELATIVE_THRESHOLD: f64 = 0.001;
 
 // ─── Disk Info ───────────────────────────────────────────────────────────────
 
@@ -24,7 +35,7 @@ struct DiskInfo {
 }
 
 #[derive(Serialize, Clone)]
-struct FileNode {
+pub(crate) struct FileNode {
     name: String,
     path: String,
     size: u64,
@@ -392,12 +403,21 @@ fn scan_directory(
     final_root_node
 }
 
+/// Normalize all paths in the tree to use forward slashes (matches frontend convention).
+fn normalize_paths(node: &mut FileNode) {
+    node.path = node.path.replace('\\', "/");
+    for child in &mut node.children {
+        normalize_paths(child);
+    }
+}
+
 #[tauri::command]
 fn start_async_scan(path: String, app_handle: AppHandle) {
     // A8: Reset flag zrušenia pred začiatkom nového skenu
     SCAN_CANCELLED.store(false, Ordering::Relaxed);
 
     thread::spawn(move || {
+        let _start_time = Instant::now();
         let target_path = Path::new(&path);
         if !target_path.exists() {
             let _ = app_handle.emit("scan-failed", format!("Cesta neexistuje: {}", path));
@@ -412,10 +432,29 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
         let mut running_total: u64 = 0;
 
         // Volanie upravenej funkcie scan_directory, ktorá prebehne celý disk lineárne pomocou WalkDir
-        if let Some(full_tree) =
+        if let Some(mut full_tree) =
             scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total)
         {
-            let _ = app_handle.emit("scan-finished-with-data", full_tree);
+            // Cesty normalizujeme na forward slashes, aby ich vedel frontend ľahko porovnať
+            normalize_paths(&mut full_tree);
+
+            // Kompletný neorezaný strom si uložíme do globálneho stavu.
+            // Frontend si neskôr vypýta výrezy cez get_submenu_tree.
+            let state = app_handle.state::<ScanState>();
+            if let Ok(mut guard) = state.current_tree.lock() {
+                *guard = Some(full_tree);
+            } else {
+                let _ = app_handle.emit(
+                    "scan-failed",
+                    "Nepodarilo sa uložiť stav skenovania".to_string(),
+                );
+                return;
+            }
+
+            // Na frontend pošleme len signál, že skenovanie úspešne skončilo (bez dát).
+            let _ = app_handle
+                .emit("scan-finished", ())
+                .map_err(|e| eprintln!("Failed to emit scan-finished: {}", e));
         } else {
             // A8: Ak bolo skenovanie zrušené, pošleme scan-failed so správou o zrušení
             if SCAN_CANCELLED.load(Ordering::Relaxed) {
@@ -434,6 +473,143 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
 #[tauri::command]
 fn cancel_scan() {
     SCAN_CANCELLED.store(true, Ordering::Relaxed);
+}
+
+// ── Dynamic sub-tree access (Local Relative Throttling) ──────────────────────
+
+
+/// Performs a deep clone of the node with the given `name` and `path` rewritten
+/// so the returned subtree looks like a "root" (its children stay untouched).
+fn clone_as_subtree_root(node: &FileNode) -> FileNode {
+    FileNode {
+        name: node.name.clone(),
+        path: node.path.clone(),
+        size: node.size,
+        is_dir: node.is_dir,
+        dir_count: node.dir_count,
+        file_count: node.file_count,
+        children: node.children.clone(),
+    }
+}
+
+/// Recursively collapses children whose size is below `RELATIVE_THRESHOLD`
+/// of the parent's size into a single `__others__` node. This is "Local
+/// Relative Throttling" - thresholds are computed relative to the currently
+/// focused folder instead of the whole disk.
+fn collapse_local(node: &mut FileNode, parent_size: u64) {
+    if !node.is_dir || node.children.is_empty() {
+        return;
+    }
+
+    // Rekurzívne najprv vyčistíme hlbšie úrovne.
+    for child in &mut node.children {
+        collapse_local(child, node.size.max(1));
+    }
+
+    // Prah: RELATIVE_THRESHOLD % z veľkosti aktuálne zobrazovaného priečinka.
+    let threshold = (parent_size as f64 * RELATIVE_THRESHOLD) as u64;
+
+    let mut small_items_size = 0;
+    let mut small_items_file_count = 0;
+    let mut small_items_dir_count = 0;
+
+    let mut large_children: Vec<FileNode> = Vec::new();
+
+    for child in node.children.drain(..) {
+        if child.size < threshold && child.name != OTHERS_NAME {
+            small_items_size += child.size;
+            small_items_file_count += child.file_count;
+            small_items_dir_count += child.dir_count;
+        } else {
+            large_children.push(child);
+        }
+    }
+
+    if small_items_size > 0 {
+        let others_node = FileNode {
+            name: OTHERS_NAME.to_string(),
+            path: format!("{}/{}", node.path, OTHERS_NAME),
+            size: small_items_size,
+            is_dir: false,
+            dir_count: small_items_dir_count,
+            file_count: small_items_file_count,
+            children: Vec::new(),
+        };
+        large_children.push(others_node);
+    }
+
+    // Zoradíme podľa veľkosti zostupne, ale `__others__` vždy na koniec.
+    large_children.sort_by(|a, b| {
+        if a.name == OTHERS_NAME {
+            std::cmp::Ordering::Greater
+        } else if b.name == OTHERS_NAME {
+            std::cmp::Ordering::Less
+        } else {
+            b.size.cmp(&a.size)
+        }
+    });
+
+    node.children = large_children;
+}
+
+/// Returns a copy of the subtree rooted at `target_path` with relative
+/// throttling applied. If the path is not found, an error is returned.
+#[tauri::command]
+fn get_submenu_tree(
+    state: tauri::State<'_, ScanState>,
+    target_path: String,
+) -> Result<FileNode, String> {
+    // Normalizujeme vstup na forward slashes a case-insensitive (Windows).
+    let normalized_target = target_path.replace('\\', "/").trim_end_matches('/').to_string();
+
+    let guard = state
+        .current_tree
+        .lock()
+        .map_err(|_| "Nepodarilo sa získať prístup k stavu skenovania".to_string())?;
+
+    let root = guard
+        .as_ref()
+        .ok_or_else(|| "Zatiaľ neexistuje žiadny naskenovaný strom".to_string())?;
+
+    // Špeciálny prípad: ak sa pýtame na root stromu.
+    let normalized_root = root.path.replace('\\', "/").trim_end_matches('/').to_string();
+
+    let node_opt = if normalized_target.eq_ignore_ascii_case(&normalized_root) {
+        Some(root)
+    } else {
+        // Hľadáme v celom strome (case-insensitive kvôli Windows).
+        find_node_by_path_case_insensitive(root, &normalized_target)
+    };
+
+    let node = node_opt.ok_or_else(|| {
+        format!("Priečinok '{}' sa nenašiel v strome", target_path)
+    })?;
+
+    let mut subtree = clone_as_subtree_root(node);
+    // Aplikujeme relatívne orezávanie (prah = subtree.size).
+    let subtree_size = subtree.size;
+    collapse_local(&mut subtree, subtree_size.max(1));
+
+    Ok(subtree)
+}
+
+/// Case-insensitive DFS vyhľadávanie uzla podľa cesty (v rámci Windows
+/// súborového systému, kde `C:\Users` a `c:\users` sú ekvivalentné).
+fn find_node_by_path_case_insensitive<'a>(
+    node: &'a FileNode,
+    target_path: &str,
+) -> Option<&'a FileNode> {
+    let path_replaced = node.path.replace('\\', "/");
+    let normalized_node_path = path_replaced.trim_end_matches('/');
+    if normalized_node_path.eq_ignore_ascii_case(target_path) {
+        return Some(node);
+    }
+    for child in &node.children {
+        if let Some(found) = find_node_by_path_case_insensitive(child, target_path) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 // ── Cross-platform: Show in File Manager ─────────────────────────────────────
@@ -770,10 +946,12 @@ pub fn main() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(ScanState::default())
         .invoke_handler(tauri::generate_handler![
             get_disks,
             start_async_scan,
             cancel_scan,
+            get_submenu_tree,
             show_in_file_manager,
             show_in_total_commander,
             show_file_properties,

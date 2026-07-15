@@ -55,7 +55,8 @@
         },
         "stats": {
           "contains": "Obsahuje: {dirCount} priečinkov, {fileCount} súborov",
-          "fileType": "Typ: Súbor"
+          "fileType": "Typ: Súbor",
+          "otherFiles": "{count} iných malých súborov"
         }
       },
       "contextMenu": {
@@ -153,7 +154,8 @@
         },
         "stats": {
           "contains": "Contains: {dirCount} folders, {fileCount} files",
-          "fileType": "Type: File"
+          "fileType": "Type: File",
+          "otherFiles": "{count} other small files"
         }
       },
       "contextMenu": {

@@ -40,6 +40,8 @@ let tickerHideTimeout = null;
 // Globálne premenné pre správnu synchronizáciu
 let memoryTree = {};
 let rootPath = "";
+// Aktuálne zobrazená cesta v rámci dynamického stromu (Local Relative Throttling)
+let currentViewPath = "";
 let unlistenProgress;
 let unlistenFinished;
 let unlistenFailed;
@@ -73,25 +75,19 @@ function interpolate(template, replacements = {}) {
 
 function getText(key, replacements = {}) {
   if (!translationsData) return key;
-
   const currentTranslations = translationsData.languages?.[currentLanguage];
   const fallbackTranslations = translationsData.languages?.[translationsData.defaultLanguage] || {};
   const value = getNestedValue(currentTranslations, key) ?? getNestedValue(fallbackTranslations, key) ?? key;
-
   return interpolate(value, replacements);
 }
 
 function applyTranslations() {
   if (!translationsData) return;
-
   document.documentElement.lang = currentLanguage;
   document.title = getText("appTitle");
-
   document.querySelectorAll("[data-i18n]").forEach((element) => {
     const key = element.getAttribute("data-i18n");
-    if (key) {
-      element.textContent = getText(key);
-    }
+    if (key) element.textContent = getText(key);
   });
 }
 
@@ -99,22 +95,18 @@ async function loadTranslations() {
   try {
     const response = await fetch("./translations.json");
     if (!response.ok) throw new Error("Failed to load translations");
-
     translationsData = await response.json();
     const languages = Object.keys(translationsData.languages || {});
-
     const storedLanguage = localStorage.getItem("disk-scanner-language");
     const browserLanguage = navigator.language?.split("-")[0];
     const preferredLanguage = storedLanguage || (languages.includes(browserLanguage) ? browserLanguage : translationsData.defaultLanguage || languages[0]);
     currentLanguage = languages.includes(preferredLanguage) ? preferredLanguage : translationsData.defaultLanguage || languages[0];
-
     applyTranslations();
   } catch (error) {
     console.error(error);
   }
 }
 
-// Globálna konfigurácia aplikácie
 const APP_CONFIG = {
   usePerformanceFilter: true,
   minSizeToRender: 1 * 1024 * 1024,
@@ -131,13 +123,10 @@ function formatBytes(bytes) {
 
 function showToast(message, type = "info", duration = 4000) {
   if (!toastContainer) return;
-
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
-
   toastContainer.appendChild(toast);
-
   setTimeout(() => {
     toast.classList.add("toast-fading");
     setTimeout(() => toast.remove(), 300);
@@ -150,26 +139,16 @@ function showConfirm(message, isDanger = false) {
       resolve(window.confirm(message));
       return;
     }
-
     confirmMessage.textContent = message;
     confirmOkBtn.classList.toggle("danger", isDanger);
     confirmModal.classList.remove("hidden");
-
     function cleanup() {
       confirmModal.classList.add("hidden");
       confirmOkBtn.onclick = null;
       confirmCancelBtn.onclick = null;
     }
-
-    confirmOkBtn.onclick = () => {
-      cleanup();
-      resolve(true);
-    };
-
-    confirmCancelBtn.onclick = () => {
-      cleanup();
-      resolve(false);
-    };
+    confirmOkBtn.onclick = () => { cleanup(); resolve(true); };
+    confirmCancelBtn.onclick = () => { cleanup(); resolve(false); };
   });
 }
 
@@ -178,7 +157,6 @@ async function startDiskScan(path, totalSpace) {
     clearTimeout(tickerHideTimeout);
     tickerHideTimeout = null;
   }
-
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
 
@@ -205,7 +183,9 @@ async function startDiskScan(path, totalSpace) {
 
   d3.select("#sunburst-chart").selectAll("*").remove();
 
+  // Cestu vždy držíme s forward-slash, aby sa dala ľahko porovnávať s cestami vrátenými z Rustu.
   rootPath = path.replace(/\\/g, "/");
+  currentViewPath = rootPath;
   selectedDiskTotalSpace = totalSpace;
   totalScannedBytes = 0;
   lastUpdateTime = 0;
@@ -215,32 +195,28 @@ async function startDiskScan(path, totalSpace) {
   unlistenProgress = await listen("scan-live-folder", (event) => {
     let currentPath = "";
     let currentSize = 0;
-
     if (typeof event.payload === "object" && event.payload !== null) {
       currentPath = event.payload.path || "";
       currentSize = event.payload.size || 0;
     } else {
       currentPath = event.payload;
     }
-
     totalScannedBytes = currentSize;
-
     const now = performance.now();
     if (now - lastUpdateTime >= 100) {
       lastUpdateTime = now;
-
       liveTicker.textContent = getText("scanScreen.statuses.current", { path: currentPath });
-
       if (selectedDiskTotalSpace > 0) {
         const progressPct = Math.min(100, (totalScannedBytes / selectedDiskTotalSpace) * 100);
         document.getElementById("live-ticker-bar").style.width = `${progressPct}%`;
       }
-
       updateCenterHUD("⏳", rootPath, formatBytes(totalScannedBytes));
     }
   });
 
-  unlistenFinished = await listen("scan-finished-with-data", (event) => {
+  // Po skončení skenu si od Rustu pýtame podstrom pre rootPath.
+  // Rust nám vráti orezaný strom, v ktorom sa drobné súbory zgrupujú do __others__.
+  unlistenFinished = await listen("scan-finished", async () => {
     isScanning = false;
     backBtn.textContent = getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
@@ -253,30 +229,28 @@ async function startDiskScan(path, totalSpace) {
 
     tickerHideTimeout = setTimeout(() => {
       const tickerContainer = document.getElementById("live-ticker-container");
-      if (tickerContainer) {
-        tickerContainer.classList.add("hidden");
-      }
+      if (tickerContainer) tickerContainer.classList.add("hidden");
     }, 4000);
 
-    const fullTree = event.payload;
+    try {
+      const rootData = await invoke("get_submenu_tree", { targetPath: rootPath });
+      memoryTree = rootData;
+      currentViewPath = rootData.path || rootPath;
+      drawSunburst(rootData);
 
-    const normalizePaths = (node) => {
-      node.path = node.path.replace(/\\/g, "/");
-      if (node.children) node.children.forEach(normalizePaths);
-    };
-    normalizePaths(fullTree);
-
-    const statsBar = document.getElementById("scan-stats-bar");
-    if (statsBar && fullTree) {
-      statsBar.textContent = getText("scanScreen.statsBar", {
-        files: fullTree.file_count || 0,
-        dirs: fullTree.dir_count || 0,
-        size: formatBytes(fullTree.size || 0)
-      });
-      statsBar.classList.remove("hidden");
+      const statsBar = document.getElementById("scan-stats-bar");
+      if (statsBar && rootData) {
+        statsBar.textContent = getText("scanScreen.statsBar", {
+          files: rootData.file_count || 0,
+          dirs: rootData.dir_count || 0,
+          size: formatBytes(rootData.size || 0)
+        });
+        statsBar.classList.remove("hidden");
+      }
+    } catch (err) {
+      console.error("Failed to fetch subtree:", err);
+      showToast(typeof err === "string" ? err : "Nepodarilo sa načítať strom.", "error");
     }
-
-    drawSunburst(fullTree);
 
     if (unlistenProgress) unlistenProgress();
     if (unlistenFinished) unlistenFinished();
@@ -287,10 +261,8 @@ async function startDiskScan(path, totalSpace) {
     isScanning = false;
     backBtn.textContent = getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
-
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
-
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
     document.getElementById("live-ticker-bar").style.width = "0%";
     if (unlistenProgress) unlistenProgress();
@@ -301,37 +273,28 @@ async function startDiskScan(path, totalSpace) {
 }
 
 async function goBackToMenu() {
-  // 1. Zrušenie bežiaceho skenu v Ruste (ak beží)
   if (isScanning) {
     await invoke("cancel_scan").catch(console.error);
   }
-
-  // 2. Odhlásenie eventov z Tauri (uvoľnenie handlerov)
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
   if (unlistenFailed) unlistenFailed();
-
-  // 3. KOMPLETNÉ VYMAZANIE D3.JS STROMU Z DOM
-  // Ak D3 drží referencie na elementy, pamäť sa neuvoľní.
   d3.select("#sunburst-chart").selectAll("*").remove();
-
-  // 4. MANUÁLNE ANULOVANIE VŠETKÝCH GLOBÁLNYCH STRUKTÚR
-  // Musíme prepísať pamäťové stromy na prázdne objekty
   rootNode = null;
   gPartition = null;
   currentFocus = null;
-  memoryTree = null; // alebo {}
+  memoryTree = null;
+  currentViewPath = "";
+  rootPath = "";
 
-  // 5. Vynútenie premazania DOM kontajnerov
   const mainContainers = ["sunburst-chart", "current-folder-title", "live-ticker"];
   mainContainers.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = "";
   });
 
-  // 6. Krátka pauza pre prehliadač na spracovanie vymazania a následný odchod
   setTimeout(() => {
-    window.location.replace("index.html"); // .replace nenecháva stopu v histórii window, čo pomáha uvoľneniu
+    window.location.replace("index.html");
   }, 100);
 }
 
@@ -345,21 +308,20 @@ function updateBreadcrumbs(p) {
   const container = document.getElementById("current-folder-title");
   if (!container) return;
   container.innerHTML = "";
-
   const ancestors = p.ancestors().reverse();
-
   ancestors.forEach((node, index) => {
     const isLast = index === ancestors.length - 1;
     const item = document.createElement("span");
     item.className = `breadcrumb-item ${isLast ? "active" : ""}`;
     item.textContent = node.data.name;
-
     if (!isLast) {
-      item.onclick = () => zoomTo(node);
+      // Klik na breadcrumb ide cez Rust - dynamicky načítame podstrom pre danú cestu.
+      const target = node.data.path;
+      item.onclick = () => {
+        if (target) navigateToPath(target);
+      };
     }
-
     container.appendChild(item);
-
     if (!isLast) {
       const separator = document.createElement("span");
       separator.className = "breadcrumb-separator";
@@ -369,12 +331,44 @@ function updateBreadcrumbs(p) {
   });
 }
 
+async function navigateToPath(targetPath) {
+  if (!targetPath || targetPath === currentViewPath) return;
+  try {
+    const data = await invoke("get_submenu_tree", { targetPath });
+    currentViewPath = data.path || targetPath;
+    drawSunburst(data);
+  } catch (err) {
+    console.error("navigateToPath failed:", err);
+    showToast(typeof err === "string" ? err : "Nepodarilo sa načítať priečinok.", "error");
+  }
+}
+
+/** Vypýta si od Rustu nový podstrom pre daný priečinok a prekreslí D3 graf. */
+async function updateSunburstForFolder(folderPath) {
+  if (!folderPath) return;
+  try {
+    const newData = await invoke("get_submenu_tree", { targetPath: folderPath });
+    currentViewPath = newData.path || folderPath;
+    drawSunburst(newData);
+  } catch (err) {
+    console.error("updateSunburstForFolder failed:", err);
+    showToast(typeof err === "string" ? err : "Nepodarilo sa načítať priečinok.", "error");
+  }
+}
+
+function getParentPath(path) {
+  if (!path) return null;
+  const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  const idx = normalized.lastIndexOf("/");
+  if (idx <= 0) return null;
+  return normalized.substring(0, idx);
+}
+
 function drawSunburst(data) {
   const emptyFolderMsg = document.getElementById("empty-folder-message");
-
   if (!data || !data.children || data.children.length === 0) {
     if (emptyFolderMsg) emptyFolderMsg.classList.remove("hidden");
-    updateCenterHUD("🤷", data.name, getText("scanScreen.emptyFolder"));
+    updateCenterHUD("🤷", data ? data.name : "?", getText("scanScreen.emptyFolder"));
     return;
   }
   if (emptyFolderMsg) emptyFolderMsg.classList.add("hidden");
@@ -406,15 +400,16 @@ function drawSunburst(data) {
     .attr("id", "d3-center-click-zone")
     .style("cursor", "default")
     .on("click", () => {
-      if (currentFocus && currentFocus.parent) {
-        zoomTo(currentFocus.parent);
+      // Namiesto D3 zoomu ideme hore cez Rust - dynamicky načítame podstrom rodiča.
+      const parentPath = getParentPath(currentViewPath);
+      if (parentPath && parentPath !== currentViewPath) {
+        updateSunburstForFolder(parentPath);
       }
     })
     .on("contextmenu", (event) => {
       event.preventDefault();
       if (currentFocus) {
         menuTargetNode = currentFocus;
-
         if (contextMenu) {
           contextMenu.style.top = `${event.pageY}px`;
           contextMenu.style.left = `${event.pageX}px`;
@@ -436,7 +431,9 @@ function zoomTo(p) {
     d3Center.style("cursor", p.parent ? "pointer" : "default");
   }
 
-  updateCenterHUD(p.parent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
+  // Zobrazenie "Hore" ikony v strede, ak existuje rodič (t. j. nie sme na root úrovni).
+  const hasParent = !!getParentPath(currentViewPath);
+  updateCenterHUD(hasParent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
   updateBreadcrumbs(p);
 
   const statsBar = document.getElementById("scan-stats-bar");
@@ -459,34 +456,27 @@ function zoomTo(p) {
       d.depth <= p.depth + maxDepth &&
       d.value > 0 &&
       d.x1 > p.x0 && d.x0 < p.x1;
-
     if (!basicCheck) return false;
-
     if (APP_CONFIG.usePerformanceFilter) {
       const sizeCheck = d.value >= APP_CONFIG.minSizeToRender;
       const relativeAngle = ((d.x1 - d.x0) / (p.x1 - p.x0)) * 2 * Math.PI;
       const angleCheck = relativeAngle >= APP_CONFIG.minAngleToRender;
       return sizeCheck && angleCheck;
     }
-
     return true;
   });
 
   let realMaxDepth = 0;
   visibleDescendants.forEach(d => {
     const currentRelativeDepth = d.depth - p.depth;
-    if (currentRelativeDepth > realMaxDepth) {
-      realMaxDepth = currentRelativeDepth;
-    }
+    if (currentRelativeDepth > realMaxDepth) realMaxDepth = currentRelativeDepth;
   });
-
   if (realMaxDepth === 0) realMaxDepth = 1;
 
   function getScaleY(depth) {
     if (depth <= 0) return innerHoleRadius;
     const availableRadius = radius - innerHoleRadius;
     const factor = realMaxDepth > 5 ? 0.90 : 0.95;
-
     let totalUnits = 0;
     for (let i = 0; i < realMaxDepth; i++) {
       totalUnits += Math.pow(factor, i);
@@ -515,6 +505,10 @@ function zoomTo(p) {
     });
 
   function getFillColor(d) {
+    // A9: VlastnĂˇ farba pre uzol "__others__"
+    if (d.data.name === "__others__") {
+      return "#a6a6a6";
+    }
     if (d.data.is_dir) {
       const localYellowScale = d3.scaleLinear()
         .domain([0, realMaxDepth])
@@ -533,6 +527,9 @@ function zoomTo(p) {
       hoverStats.textContent = d.data.is_dir
         ? getText("scanScreen.stats.contains", { dirCount, fileCount })
         : getText("scanScreen.stats.fileType");
+      if (d.data.name === "__others__") {
+        hoverStats.textContent = getText("scanScreen.stats.otherFiles", { count: fileCount });
+      }
 
       d3.select("#sunburst-group").selectAll("path")
         .classed("hover-active", false)
@@ -541,24 +538,23 @@ function zoomTo(p) {
         .classed("hover-active", true)
         .classed("hover-dimmed", false);
     })
-      .on("mouseout", (event) => {
+      .on("mouseout", () => {
         hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
         hoverSize.textContent = "";
         hoverStats.textContent = "";
-
         d3.select("#sunburst-group").selectAll("path")
           .classed("hover-active", false)
           .classed("hover-dimmed", false);
       })
       .on("click", (event, d) => {
-        if (d.children && d.children.length > 0) {
-          zoomTo(d);
+        // Namiesto D3 zoomu ideme do podprieÄŤinka cez Rust - dynamicky naÄŤĂ­tame novĂ˝ podstrom.
+        if (d.data.is_dir && d.data.name !== "__others__" && d.data.path) {
+          updateSunburstForFolder(d.data.path);
         }
       })
       .on("contextmenu", (event, d) => {
         event.preventDefault();
         menuTargetNode = d;
-
         if (contextMenu) {
           contextMenu.style.top = `${event.pageY}px`;
           contextMenu.style.left = `${event.pageX}px`;
@@ -566,7 +562,6 @@ function zoomTo(p) {
         }
       });
   }
-
   if (useAnimatedGraph) {
     const TRANSITION_DURATION = 600;
     const isFiniteNode = (n) => n && Number.isFinite(n.x0) && Number.isFinite(n.x1);
@@ -594,18 +589,8 @@ function zoomTo(p) {
       .attrTween("d", function (d) {
         const oldNode = this.__arcData;
         if (!isFiniteNode(oldNode)) return () => this.getAttribute("d");
-        const collapsedNode = {
-          x0: oldNode.x0,
-          x1: oldNode.x0,
-          depth: 0,
-          data: oldNode.data,
-          value: 0
-        };
-        try {
-          return arcTween(oldNode, collapsedNode);
-        } catch (err) {
-          return () => this.getAttribute("d");
-        }
+        const collapsedNode = { x0: oldNode.x0, x1: oldNode.x0, depth: 0, data: oldNode.data, value: 0 };
+        try { return arcTween(oldNode, collapsedNode); } catch (err) { return () => this.getAttribute("d"); }
       })
       .remove();
 
@@ -613,21 +598,14 @@ function zoomTo(p) {
       const el = this;
       const oldNode = el.__arcData;
       if (!isFiniteNode(oldNode) || !isFiniteNode(d)) return;
-
       d3.select(el)
         .transition()
         .duration(TRANSITION_DURATION)
         .attrTween("d", function () {
-          try {
-            return arcTween(oldNode, d);
-          } catch (err) {
-            return () => el.getAttribute("d");
-          }
+          try { return arcTween(oldNode, d); } catch (err) { return () => el.getAttribute("d"); }
         })
         .attr("fill", getFillColor(d))
-        .on("end", function () {
-          el.__arcData = d;
-        });
+        .on("end", function () { el.__arcData = d; });
     });
 
     const newPaths = existingPaths.enter()
@@ -652,25 +630,15 @@ function zoomTo(p) {
       .style("opacity", 1)
       .attrTween("d", function (d) {
         const oldNode = this.__arcData;
-        if (!isFiniteNode(oldNode) || !isFiniteNode(d)) {
-          return () => this.getAttribute("d");
-        }
-        try {
-          return arcTween(oldNode, d);
-        } catch (err) {
-          return () => this.getAttribute("d");
-        }
+        if (!isFiniteNode(oldNode) || !isFiniteNode(d)) return () => this.getAttribute("d");
+        try { return arcTween(oldNode, d); } catch (err) { return () => this.getAttribute("d"); }
       })
-      .on("end", function (d) {
-        this.__arcData = d;
-      });
+      .on("end", function (d) { this.__arcData = d; });
 
     const allPaths = existingPaths.merge(newPaths);
     attachPathEvents(allPaths);
-
   } else {
     svg.selectAll("path").remove();
-
     const paths = svg
       .selectAll("path")
       .data(visibleDescendants, d => d.data.path)
@@ -679,15 +647,12 @@ function zoomTo(p) {
       .attr("d", d => { try { return arc(d); } catch { return null; } })
       .attr("d", arc)
       .style("cursor", "pointer");
-
     attachPathEvents(paths);
   }
 }
 
 window.addEventListener("click", () => {
-  if (contextMenu) {
-    contextMenu.classList.add("hidden");
-  }
+  if (contextMenu) contextMenu.classList.add("hidden");
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -707,9 +672,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (filterToggle) {
     filterToggle.addEventListener("change", (event) => {
       APP_CONFIG.usePerformanceFilter = event.target.checked;
-      if (currentFocus) {
-        zoomTo(currentFocus);
-      }
+      if (currentFocus) zoomTo(currentFocus);
     });
   }
 
@@ -720,18 +683,14 @@ window.addEventListener("DOMContentLoaded", async () => {
       animationToggle.checked = true;
       useAnimatedGraph = true;
     }
-
     animationToggle.addEventListener("change", (event) => {
       useAnimatedGraph = event.target.checked;
       localStorage.setItem("disk-scanner-animation", useAnimatedGraph);
-      if (currentFocus) {
-        zoomTo(currentFocus);
-      }
+      if (currentFocus) zoomTo(currentFocus);
     });
   }
 
   backBtn.addEventListener("click", goBackToMenu);
-
   if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
 
   window.addEventListener("click", (event) => {
@@ -753,11 +712,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmOpenTc) {
     cmOpenTc.onclick = async () => {
       if (menuTargetNode) {
-        try {
-          await invoke("show_in_total_commander", { path: menuTargetNode.data.path });
-        } catch (err) {
-          showToast(err, "error");
-        }
+        try { await invoke("show_in_total_commander", { path: menuTargetNode.data.path }); }
+        catch (err) { showToast(err, "error"); }
       }
     };
   }
@@ -773,12 +729,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmCopyPath) {
     cmCopyPath.onclick = async () => {
       if (menuTargetNode) {
-        try {
-          await navigator.clipboard.writeText(menuTargetNode.data.path);
-          showToast(getText("toast.pathCopied"), "success");
-        } catch (err) {
-          showToast(getText("toast.copyFailed"), "error");
-        }
+        try { await navigator.clipboard.writeText(menuTargetNode.data.path); showToast(getText("toast.pathCopied"), "success"); }
+        catch (err) { showToast(getText("toast.copyFailed"), "error"); }
       }
     };
   }
@@ -787,45 +739,26 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmTrash) {
     cmTrash.onclick = async () => {
       if (menuTargetNode) {
-        const confirmed = await showConfirm(
-          getText("confirmations.trash", { name: menuTargetNode.data.name }),
-          false
-        );
+        const confirmed = await showConfirm(getText("confirmations.trash", { name: menuTargetNode.data.name }), false);
         if (confirmed) {
           try {
             await invoke("move_to_trash", { path: menuTargetNode.data.path });
             showToast(getText("toast.trashed", { name: menuTargetNode.data.name }), "success");
-
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
-
               if (parentNode.data.children) {
-                parentNode.data.children = parentNode.data.children.filter(
-                  child => child.path !== menuTargetNode.data.path
-                );
+                parentNode.data.children = parentNode.data.children.filter(c => c.path !== menuTargetNode.data.path);
               }
-
               if (parentNode.children) {
-                parentNode.children = parentNode.children.filter(
-                  child => child.data.path !== menuTargetNode.data.path
-                );
+                parentNode.children = parentNode.children.filter(c => c.data.path !== menuTargetNode.data.path);
               }
-
-              rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
-                .sort((a, b) => b.value - a.value);
-
-              if (gPartition) {
-                gPartition(rootNode);
-              }
-
+              rootNode.sum(d => d.is_dir ? 0 : (d.size || 0)).sort((a, b) => b.value - a.value);
+              if (gPartition) gPartition(rootNode);
               zoomTo(parentNode);
             } else {
               goBackToMenu();
             }
-
-          } catch (err) {
-            showToast(err, "error");
-          }
+          } catch (err) { showToast(err, "error"); }
         }
       }
     };
@@ -835,45 +768,26 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmDelete) {
     cmDelete.onclick = async () => {
       if (menuTargetNode) {
-        const confirmed = await showConfirm(
-          getText("confirmations.delete", { name: menuTargetNode.data.name }),
-          true
-        );
+        const confirmed = await showConfirm(getText("confirmations.delete", { name: menuTargetNode.data.name }), true);
         if (confirmed) {
           try {
             await invoke("permanent_delete", { path: menuTargetNode.data.path });
             showToast(getText("toast.deleted", { name: menuTargetNode.data.name }), "success");
-
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
-
               if (parentNode.data.children) {
-                parentNode.data.children = parentNode.data.children.filter(
-                  child => child.path !== menuTargetNode.data.path
-                );
+                parentNode.data.children = parentNode.data.children.filter(c => c.path !== menuTargetNode.data.path);
               }
-
               if (parentNode.children) {
-                parentNode.children = parentNode.children.filter(
-                  child => child.data.path !== menuTargetNode.data.path
-                );
+                parentNode.children = parentNode.children.filter(c => c.data.path !== menuTargetNode.data.path);
               }
-
-              rootNode.sum(d => d.is_dir ? 0 : (d.size || 0))
-                .sort((a, b) => b.value - a.value);
-
-              if (gPartition) {
-                gPartition(rootNode);
-              }
-
+              rootNode.sum(d => d.is_dir ? 0 : (d.size || 0)).sort((a, b) => b.value - a.value);
+              if (gPartition) gPartition(rootNode);
               zoomTo(parentNode);
             } else {
               goBackToMenu();
             }
-
-          } catch (err) {
-            showToast(err, "error");
-          }
+          } catch (err) { showToast(err, "error"); }
         }
       }
     };
@@ -885,20 +799,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     cmSetTcPath.id = "cm-set-tc-path";
     cmSetTcPath.setAttribute("data-i18n", "contextMenu.setTCPath");
     cmSetTcPath.textContent = getText("contextMenu.setTCPath");
-    cmSetTcPath.onclick = () => {
-        // This should open a modal, but the modal is in index.html.
-        // For now, we can just show a toast that this needs to be configured from the main menu.
-        showToast(getText("tcModal.configureFromMenu"), "info");
-    };
-
+    cmSetTcPath.onclick = () => { showToast(getText("tcModal.configureFromMenu"), "info"); };
     const cmDivider = contextMenu?.querySelector(".divider");
-    if (cmDivider && contextMenu) {
-      contextMenu.insertBefore(cmSetTcPath, cmDivider);
-    }
+    if (cmDivider && contextMenu) contextMenu.insertBefore(cmSetTcPath, cmDivider);
   } else {
     const cmOpenTcItem = document.getElementById("cm-open-tc");
-    if (cmOpenTcItem) {
-      cmOpenTcItem.style.display = "none";
-    }
+    if (cmOpenTcItem) cmOpenTcItem.style.display = "none";
   }
 });
