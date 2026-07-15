@@ -1,5 +1,6 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
+const { open } = window.__TAURI__.dialog;
 
 let scanScreen = document.getElementById("scan-screen");
 let currentFolderTitle = document.getElementById("current-folder-title");
@@ -115,9 +116,6 @@ let rootNode = null;
 let gPartition = null;
 let currentFocus = null;
 
-// Animovaný graf
-let useAnimatedGraph = false;
-
 // Globálny stav pre úvodnú animáciu
 let isFirstRenderAfterScan = false;
 
@@ -174,18 +172,42 @@ async function loadTranslations() {
   }
 }
 
+async function loadSettings() {
+  try {
+    const savedSettings = localStorage.getItem("scanner_settings");
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      Object.assign(APP_CONFIG, parsed);
+    }
+  } catch (error) {
+    console.error("Failed to load settings from localStorage", error);
+  }
+}
+
+async function saveSettings() {
+  try {
+    localStorage.setItem("scanner_settings", JSON.stringify(APP_CONFIG));
+    showToast(getText("toast.success", { message: "Nastavenia uložené." }), "success");
+  } catch (error) {
+    console.error("Failed to save settings to localStorage", error);
+    showToast(getText("toast.error", { message: "Nepodarilo sa uložiť nastavenia." }), "error");
+  }
+}
+
 const APP_CONFIG = {
-  usePerformanceFilter: true,
-  autoTogglePerformanceFilter: true, // Whether to toggle the filter automatically based on the number of items
-  performanceThreshold: 500,  // The threshold for automatically enabling the filter
-  minSizeToRender: 1 * 1024 * 1024,
-  minAngleToRender: 0.01,
+  usePerformanceFilter: true, // Použiť výkonnostný filter
+  autoTogglePerformanceFilter: true, // Automatické zapnutie filtra pri veľkom počte položiek
+  performanceThreshold: 500,         // Prahový počet položiek pre automatický filter
+  minSizeToRender: 1 * 1024 * 1024,  // Minimálna veľkosť na vykreslenie (predvolene 1 MB)
+  minAngleToRender: 0.01,            // Minimálny uhol oblúka v radiánoch
+  totalCommanderPath: "",
+
   // Nastavenia animácií:
-  introAnimationType: "random", // Možnosti: "none", "sweep", "grow", "staggered", "random"
-  transitionDuration: 600,      // Pre interaktívny zoom
-  introSweepDuration: 850,     // Trvanie pre vejár (sweep)
-  introGrowDuration: 400       // Spomalené trvanie pre grow expanziu, aby bola pekne viditeľná
-  
+  useInteractiveAnimations: true,    // Plynulé prechody pri kliknutí (zoom)
+  introAnimationType: "sweep",       // Možnosti: "none", "sweep", "grow"
+  transitionDuration: 450,           // Pre interaktívny zoom (kliknutie)
+  introSweepDuration: 850,           // Trvanie pre počiatočný vejár (sweep)
+  introGrowDuration: 400             // Trvanie pre počiatočnú expanziu (grow)
 };
 
 function formatBytes(bytes) {
@@ -671,6 +693,10 @@ function zoomTo(p) {
     if (APP_CONFIG.usePerformanceFilter) {
       const sizeCheck = d.value >= APP_CONFIG.minSizeToRender;
       const relativeAngle = ((d.x1 - d.x0) / (p.x1 - p.x0)) * 2 * Math.PI;
+      // Fallback for minAngleToRender in case it's not in older localStorage configs
+      if (APP_CONFIG.minAngleToRender === undefined) {
+        APP_CONFIG.minAngleToRender = 0.01;
+      }
       const angleCheck = relativeAngle >= APP_CONFIG.minAngleToRender;
       return sizeCheck && angleCheck;
     }
@@ -793,7 +819,7 @@ function zoomTo(p) {
         }
       });
   }
-  if (useAnimatedGraph && !isFirstRenderAfterScan) {
+  if (APP_CONFIG.useInteractiveAnimations && !isFirstRenderAfterScan) {
     const TRANSITION_DURATION = APP_CONFIG.transitionDuration;
 
     // Ulozime stare __arcData pred odstranenim elementov
@@ -874,7 +900,7 @@ function zoomTo(p) {
       let easing = d3.easeCubicOut;
 
       if (activeAnimation === "grow") {
-        duration = APP_CONFIG.introGrowDuration; // Výrazne pomalšie pre lepší zážitok
+        duration = APP_CONFIG.introGrowDuration;
         easing = d3.easeCubicInOut; // Plynulý rozbeh aj dobeh
       }
 
@@ -917,6 +943,7 @@ window.addEventListener("click", () => {
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
+  await loadSettings();
   await loadTranslations();
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -937,22 +964,117 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  const animationToggle = document.getElementById("animation-toggle");
-  if (animationToggle) {
-    const savedAnimationState = localStorage.getItem("disk-scanner-animation");
-    if (savedAnimationState === "true") {
-      animationToggle.checked = true;
-      useAnimatedGraph = true;
-    }
-    animationToggle.addEventListener("change", (event) => {
-      useAnimatedGraph = event.target.checked;
-      localStorage.setItem("disk-scanner-animation", useAnimatedGraph);
-      if (currentFocus) zoomTo(currentFocus);
-    });
-  }
-
   backBtn.addEventListener("click", goBackToMenu);
   if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+
+  // Settings Modal Logic
+  const settingsModal = document.getElementById("settings-modal");
+  const settingsBtn = document.getElementById("settings-btn");
+  const settingsCloseBtn = document.getElementById("settings-close-btn");
+  const settingsCancelBtn = document.getElementById("settings-cancel-btn");
+  const settingsSaveBtn = document.getElementById("settings-save-btn");
+
+  // --- Settings UI Elements ---
+  const useInteractiveAnimationsCheckbox = document.getElementById("use-interactive-animations");
+  const introAnimationTypeSelect = document.getElementById("intro-animation-type");
+  const transitionDurationSlider = document.getElementById("transition-duration");
+  const transitionDurationValue = document.getElementById("transition-duration-value");
+  const introSweepDurationSlider = document.getElementById("intro-sweep-duration");
+  const introSweepDurationValue = document.getElementById("intro-sweep-duration-value");
+  const introGrowDurationSlider = document.getElementById("intro-grow-duration");
+  const introGrowDurationValue = document.getElementById("intro-grow-duration-value");
+
+  const autoToggleFilterCheckbox = document.getElementById("auto-toggle-filter");
+  const performanceThresholdInput = document.getElementById("performance-threshold");
+  const minSizeToRenderInput = document.getElementById("min-size-to-render");
+
+  const tcPathInput = document.getElementById("tc-path-input");
+  const browseTcPathBtn = document.getElementById("browse-tc-path-btn");
+
+  // --- Conditional UI Rows ---
+  const introSweepRow = document.getElementById("intro-sweep-duration-row");
+  const introGrowRow = document.getElementById("intro-grow-duration-row");
+
+  function updateConditionalSettingsUI() {
+    const animType = introAnimationTypeSelect.value;
+    introSweepRow.style.display = animType === 'sweep' ? 'flex' : 'none';
+    introGrowRow.style.display = animType === 'grow' ? 'flex' : 'none';
+  }
+
+  function openSettingsModal() {
+    // Load current config into UI
+    useInteractiveAnimationsCheckbox.checked = APP_CONFIG.useInteractiveAnimations;
+    introAnimationTypeSelect.value = APP_CONFIG.introAnimationType;
+    transitionDurationSlider.value = APP_CONFIG.transitionDuration;
+    transitionDurationValue.textContent = `${APP_CONFIG.transitionDuration}ms`;
+    introSweepDurationSlider.value = APP_CONFIG.introSweepDuration;
+    introSweepDurationValue.textContent = `${APP_CONFIG.introSweepDuration}ms`;
+    introGrowDurationSlider.value = APP_CONFIG.introGrowDuration;
+    introGrowDurationValue.textContent = `${APP_CONFIG.introGrowDuration}ms`;
+
+    autoToggleFilterCheckbox.checked = APP_CONFIG.autoTogglePerformanceFilter;
+    performanceThresholdInput.value = APP_CONFIG.performanceThreshold;
+    minSizeToRenderInput.value = (APP_CONFIG.minSizeToRender / (1024 * 1024)).toFixed(1);
+
+    tcPathInput.value = APP_CONFIG.totalCommanderPath || "";
+
+    updateConditionalSettingsUI();
+    settingsModal.classList.remove("hidden");
+  }
+
+  function closeSettingsModal() {
+    settingsModal.classList.add("hidden");
+  }
+
+  settingsBtn.addEventListener("click", openSettingsModal);
+  settingsCloseBtn.addEventListener("click", closeSettingsModal);
+  settingsCancelBtn.addEventListener("click", closeSettingsModal);
+  settingsModal.addEventListener("click", (event) => {
+    if (event.target === settingsModal) {
+      closeSettingsModal();
+    }
+  });
+
+  // --- Live value updates and conditional UI ---
+  transitionDurationSlider.addEventListener("input", (event) => {
+    transitionDurationValue.textContent = `${event.target.value}ms`;
+  });
+  introSweepDurationSlider.addEventListener("input", (event) => {
+    introSweepDurationValue.textContent = `${event.target.value}ms`;
+  });
+  introGrowDurationSlider.addEventListener("input", (event) => {
+    introGrowDurationValue.textContent = `${event.target.value}ms`;
+  });
+
+  introAnimationTypeSelect.addEventListener("change", updateConditionalSettingsUI);
+
+  browseTcPathBtn.addEventListener("click", async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: 'Executable', extensions: ['exe'] }]
+    });
+    if (typeof selected === 'string') {
+      tcPathInput.value = selected;
+    }
+  });
+
+  settingsSaveBtn.addEventListener("click", async () => {
+    APP_CONFIG.useInteractiveAnimations = useInteractiveAnimationsCheckbox.checked;
+    APP_CONFIG.introAnimationType = introAnimationTypeSelect.value;
+    APP_CONFIG.transitionDuration = parseInt(transitionDurationSlider.value, 10);
+    APP_CONFIG.introSweepDuration = parseInt(introSweepDurationSlider.value, 10);
+    APP_CONFIG.introGrowDuration = parseInt(introGrowDurationSlider.value, 10);
+
+    APP_CONFIG.autoTogglePerformanceFilter = autoToggleFilterCheckbox.checked;
+    APP_CONFIG.performanceThreshold = parseInt(performanceThresholdInput.value, 10);
+    APP_CONFIG.minSizeToRender = parseFloat(minSizeToRenderInput.value) * 1024 * 1024;
+
+    APP_CONFIG.totalCommanderPath = tcPathInput.value;
+
+    await invoke("set_tc_path", { path: tcPathInput.value || "" });
+    await saveSettings();
+    closeSettingsModal();
+  });
 
   window.addEventListener("click", (event) => {
     if (event.target === confirmModal) {

@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="scanner-settings.css" />
   <title>Scanner Reloaded - Scan</title>
 </head>
 
@@ -13,6 +14,7 @@
       <div class="header-row">
         <button id="back-to-disks-btn" data-i18n="scanScreen.backButton">⬅ Späť na disky</button>
         <div id="current-folder-title" class="breadcrumbs-container"></div>
+        <button id="settings-btn" class="icon-btn" data-i18n-title="settingsModal.buttonTooltip">⚙️</button>
         <button id="cancel-scan-btn" class="cancel-scan-btn hidden" data-i18n="scanScreen.cancelScan">✖ Zrušiť skenovanie</button>
       </div>
 
@@ -33,14 +35,6 @@
         </label>
         <span class="filter-label-text" data-i18n="scanScreen.filterLabel">Skryť drobné súbory a zložky (Rýchly
           režim)</span>
-
-        <span class="filter-separator"></span>
-
-        <label class="switch-container">
-          <input type="checkbox" id="animation-toggle" />
-          <span class="slider"></span>
-        </label>
-        <span class="filter-label-text" data-i18n="scanScreen.animationLabel">Animovaný graf</span>
       </div>
 
       <div id="chart-layout">
@@ -84,6 +78,86 @@
       <div class="confirm-buttons">
         <button id="confirm-cancel-btn" class="confirm-cancel-btn" data-i18n="confirmations.cancel">Zrušiť</button>
         <button id="confirm-ok-btn" class="confirm-ok-btn" data-i18n="confirmations.confirm">Potvrdiť</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content settings-modal-content">
+      <button id="settings-close-btn" class="close-btn">&times;</button>
+      <h2 data-i18n="settingsModal.title">Nastavenia</h2>
+      <div class="modal-body">
+        <!-- A. Vizualizácia a Animácie -->
+        <div class="settings-section">
+          <h3 data-i18n="settingsModal.animations.title">Vizualizácia a Animácie</h3>
+          <div class="setting-row">
+            <label for="use-interactive-animations" data-i18n="settingsModal.animations.useInteractiveAnimations">Použiť interaktívne animácie (zoom)</label>
+            <input type="checkbox" id="use-interactive-animations" class="settings-toggle">
+          </div>
+          <div class="setting-row">
+            <label for="intro-animation-type" data-i18n="settingsModal.animations.introAnimationType">Typ úvodnej animácie</label>
+            <select id="intro-animation-type">
+              <option value="sweep" data-i18n="settingsModal.animations.options.sweep">Vejár</option>
+              <option value="grow" data-i18n="settingsModal.animations.options.grow">Expanzia</option>
+              <option value="none" data-i18n="settingsModal.animations.options.none">Žiadna</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label for="transition-duration" data-i18n="settingsModal.animations.transitionDuration">Trvanie zoomu</label>
+            <div class="slider-container">
+              <input type="range" id="transition-duration" min="100" max="1000" step="50">
+              <span id="transition-duration-value">450ms</span>
+            </div>
+          </div>
+          <div class="setting-row conditional" id="intro-sweep-duration-row">
+            <label for="intro-sweep-duration" data-i18n="settingsModal.animations.introSweepDuration">Trvanie vejára</label>
+            <div class="slider-container">
+              <input type="range" id="intro-sweep-duration" min="200" max="1500" step="50">
+              <span id="intro-sweep-duration-value">850ms</span>
+            </div>
+          </div>
+          <div class="setting-row conditional" id="intro-grow-duration-row">
+            <label for="intro-grow-duration" data-i18n="settingsModal.animations.introGrowDuration">Trvanie expanzie</label>
+            <div class="slider-container">
+              <input type="range" id="intro-grow-duration" min="200" max="1000" step="50">
+              <span id="intro-grow-duration-value">400ms</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- B. Výkon a Filtre -->
+        <div class="settings-section">
+          <h3 data-i18n="settingsModal.performance.title">Výkon a Filtrovanie</h3>
+          <div class="setting-row" id="auto-toggle-row">
+            <label for="auto-toggle-filter" data-i18n="settingsModal.performance.autoTogglePerformanceFilter">Automaticky aktivovať filter</label>
+            <input type="checkbox" id="auto-toggle-filter" class="settings-toggle">
+          </div>
+          <div class="setting-row" id="threshold-row">
+            <label for="performance-threshold" data-i18n="settingsModal.performance.performanceThreshold">Prahový počet položiek</label>
+            <input type="number" id="performance-threshold" class="settings-number-input" min="100" step="50">
+          </div>
+          <div class="setting-row" id="min-size-row">
+            <label for="min-size-to-render" data-i18n="settingsModal.performance.minSizeToRender">Minimálna veľkosť (MB)</label>
+            <input type="number" id="min-size-to-render" class="settings-number-input" min="0" step="0.1">
+          </div>
+        </div>
+
+        <!-- C. Systém a Integrácie -->
+        <div class="settings-section">
+          <h3 data-i18n="settingsModal.integrations.title">Systém a Integrácie</h3>
+          <div class="setting-row">
+            <label for="tc-path-input" data-i18n="settingsModal.integrations.tcPath">Cesta k Total Commanderu</label>
+            <div class="input-with-button">
+              <input type="text" id="tc-path-input" data-i18n-placeholder="settingsModal.integrations.tcPathPlaceholder">
+              <button id="browse-tc-path-btn" data-i18n="settingsModal.integrations.browse">Prehľadávať...</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-buttons">
+        <button id="settings-cancel-btn" class="settings-cancel-btn" data-i18n="settingsModal.buttons.cancel">Zrušiť</button>
+        <button id="settings-save-btn" class="settings-save-btn" data-i18n="settingsModal.buttons.save">Uložiť a použiť</button>
       </div>
     </div>
   </div>

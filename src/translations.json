@@ -100,6 +100,40 @@
         "autoFilterOff": "Rýchly režim bol automaticky vypnutý.",
         "disksLoading": "Obnovujem zoznam diskov...",
         "disksLoaded": "Zoznam diskov bol úspešne obnovený."
+      },
+      "settingsModal": {
+        "title": "Nastavenia",
+        "buttonTooltip": "Otvoriť nastavenia",
+        "animations": {
+          "title": "Vizualizácia a Animácie",
+          "useInteractiveAnimations": "Použiť interaktívne animácie (zoom)",
+          "introAnimationType": "Typ úvodnej animácie",
+          "options": {
+            "sweep": "Vejár",
+            "grow": "Expanzia",
+            "none": "Žiadna"
+          },
+          "transitionDuration": "Trvanie zoomu (klik)",
+          "introSweepDuration": "Trvanie vejára",
+          "introGrowDuration": "Trvanie expanzie"
+        },
+        "performance": {
+          "title": "Výkon a Filtrovanie",
+          "usePerformanceFilter": "Použiť výkonnostný filter",
+          "autoTogglePerformanceFilter": "Automaticky aktivovať filter",
+          "performanceThreshold": "Prahový počet položiek",
+          "minSizeToRender": "Minimálna veľkosť (MB)"
+        },
+        "integrations": {
+          "title": "Systém a Integrácie",
+          "tcPath": "Cesta k Total Commanderu",
+          "tcPathPlaceholder": "Automatická detekcia alebo zadajte cestu...",
+          "browse": "Prehľadávať..."
+        },
+        "buttons": {
+          "save": "Uložiť a použiť",
+          "cancel": "Zrušiť"
+        }
       }
     },
     "en": {
@@ -201,6 +235,40 @@
         "autoFilterOff": "Fast mode has been automatically disabled.",
         "disksLoading": "Refreshing disk list...",
         "disksLoaded": "Disk list has been successfully refreshed."
+      },
+      "settingsModal": {
+        "title": "Settings",
+        "buttonTooltip": "Open settings",
+        "animations": {
+          "title": "Visualization & Animations",
+          "useInteractiveAnimations": "Use interactive animations (zoom)",
+          "introAnimationType": "Intro Animation Type",
+          "options": {
+            "sweep": "Sweep",
+            "grow": "Grow",
+            "none": "None"
+          },
+          "transitionDuration": "Zoom Duration (click)",
+          "introSweepDuration": "Sweep Duration",
+          "introGrowDuration": "Grow Duration"
+        },
+        "performance": {
+          "title": "Performance & Filtering",
+          "usePerformanceFilter": "Use performance filter",
+          "autoTogglePerformanceFilter": "Auto-toggle filter",
+          "performanceThreshold": "Item count threshold",
+          "minSizeToRender": "Minimum size to render (MB)"
+        },
+        "integrations": {
+          "title": "System & Integrations",
+          "tcPath": "Total Commander Path",
+          "tcPathPlaceholder": "Auto-detect or enter path...",
+          "browse": "Browse..."
+        },
+        "buttons": {
+          "save": "Save and Apply",
+          "cancel": "Cancel"
+        }
       }
     }
   }

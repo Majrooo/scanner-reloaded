@@ -1,0 +1,188 @@
+/* --- Globálna štruktúra modálneho okna --- */
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(17, 17, 27, 0.65); /* Tmavšie pozadie */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px); /* Fallback pre Safari */
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 12px;
+  border: 1px solid #45475a;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; /* Zabraňuje pretekaniu na výšku */
+}
+
+.settings-modal-content {
+  width: 550px; /* Pevná šírka pre lepší layout */
+  max-width: 95vw;
+}
+
+/* --- Hlavička, Telo, Päta --- */
+.modal-content h2 {
+  padding: 16px 24px;
+  margin: 0;
+  font-size: 18px;
+  color: #cba6f7;
+  border-bottom: 1px solid #313244;
+  text-align: left;
+}
+
+.modal-body {
+  flex: 1; /* Telo sa roztiahne */
+  overflow-y: auto; /* Iba telo sa skroluje */
+  padding: 8px 24px;
+  margin-right: -8px;
+  padding-right: 16px; /* Priestor pre scrollbar */
+}
+
+.settings-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #313244;
+}
+
+/* --- Sekcie a riadky nastavení --- */
+.settings-section {
+  margin-top: 16px;
+}
+
+.settings-section:first-child {
+  margin-top: 8px;
+}
+
+.settings-section h3 {
+  color: #cba6f7;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* Jemný oddeľovač */
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-row label {
+  font-size: 14px;
+  color: #a6adc8;
+  flex-shrink: 0; /* Zabraňuje zmenšovaniu labelu */
+}
+
+.setting-row.conditional {
+  padding-left: 28px;
+  display: none; /* Skryté defaultne, JS ich zobrazí */
+}
+
+/* --- Ovládacie prvky --- */
+.setting-row select,
+.setting-row input[type="text"],
+.setting-row .settings-number-input {
+  background: #313244;
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  width: 180px; /* Jednotná šírka */
+}
+
+.setting-row select {
+  flex-grow: 0; /* Aby sa nerozťahoval */
+}
+
+.input-with-button {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+}
+
+.input-with-button input {
+  flex-grow: 1;
+}
+
+/* --- Slidery a prepínače --- */
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 240px; /* Pevná šírka pre slider + hodnotu */
+}
+
+.slider-container input[type="range"] {
+  flex-grow: 1;
+  width: 180px;
+  accent-color: #89b4fa; /* Moderná farba pre slider */
+}
+
+.slider-container span {
+  font-size: 13px;
+  color: #f9e2af;
+  min-width: 50px; /* Pevná minimálna šírka */
+  text-align: right;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.setting-row .settings-toggle {
+  width: 44px; /* Rovnaká šírka ako .switch-container */
+  height: 24px;
+  accent-color: #a6e3a1; /* Zelená pre toggle */
+}
+
+/* --- Tlačidlá --- */
+.settings-save-btn, .settings-cancel-btn, .input-with-button button {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 13px;
+  transition: background-color 0.2s ease;
+}
+
+.settings-save-btn { background: #a6e3a1; color: #11111b; }
+.settings-save-btn:hover { background: #94d68b; }
+.settings-cancel-btn, .input-with-button button { background: #45475a; color: #cdd6f4; }
+.settings-cancel-btn:hover, .input-with-button button:hover { background: #585b70; }
+
+.close-btn {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  font-size: 24px;
+  cursor: pointer;
+  color: #a6adc8;
+  background: none;
+  border: none;
+}
+
+.close-btn:hover {
+  color: #f38ba8;
+}
