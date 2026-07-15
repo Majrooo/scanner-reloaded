@@ -410,7 +410,11 @@ function drawSunburst(data) {
 
   rootNode = d3.hierarchy(data)
     .sum(d => d.is_dir ? 0 : (d.size || 0))
-    .sort((a, b) => b.value - a.value);
+    .sort((a, b) => {
+        if (a.data.name === "__others__") return 1;
+        if (b.data.name === "__others__") return -1;
+        return b.value - a.value;
+    });
 
   gPartition = d3.partition().size([2 * Math.PI, radius]);
   rootNode.each(d => { d.data.size = d.value; });
