@@ -4,7 +4,6 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="stylesheet" href="styles.css" />
-  <title>Scanner Reloaded</title>
 </head>
 
 <body>
@@ -67,67 +66,6 @@
       <div class="drag-drop-content" data-i18n="scanScreen.dragDropHint">📁 Pretiahnite priečinok sem pre skenovanie</div>
     </div>
 
-    <div id="scan-screen" class="hidden">
-      <div class="header-row">
-        <button id="back-to-disks-btn" data-i18n="scanScreen.backButton">⬅ Späť na disky</button>
-        <div id="current-folder-title" class="breadcrumbs-container"></div>
-        <button id="cancel-scan-btn" class="cancel-scan-btn hidden" data-i18n="scanScreen.cancelScan">✖ Zrušiť skenovanie</button>
-      </div>
-
-      <div id="live-ticker-container">
-        <div id="live-ticker-bar"></div>
-        <div id="live-ticker" data-i18n="scanScreen.initializing">Pripravujem skenovanie...</div>
-        <div id="scan-spinner" class="scan-spinner"></div>
-      </div>
-
-      <div id="scan-stats-bar" class="scan-stats-bar hidden"></div>
-
-      <div id="empty-folder-message" class="empty-state hidden" data-i18n="scanScreen.emptyFolder">Tento priečinok je prázdny</div>
-
-      <div class="filter-control-row">
-        <label class="switch-container">
-          <input type="checkbox" id="filter-toggle" checked />
-          <span class="slider"></span>
-        </label>
-        <span class="filter-label-text" data-i18n="scanScreen.filterLabel">Skryť drobné súbory a zložky (Rýchly
-          režim)</span>
-
-        <span class="filter-separator"></span>
-
-        <label class="switch-container">
-          <input type="checkbox" id="animation-toggle" />
-          <span class="slider"></span>
-        </label>
-        <span class="filter-label-text" data-i18n="scanScreen.animationLabel">Animovaný graf</span>
-      </div>
-
-      <div id="chart-layout">
-        <div id="chart-container">
-          <svg id="sunburst-chart"></svg>
-          <div id="center-info">
-            <div id="center-icon">📁</div>
-            <div id="center-name">..</div>
-            <div id="center-size">0 MB</div>
-          </div>
-        </div>
-
-        <div id="hover-panel">
-          <div id="hover-path" data-i18n="scanScreen.hoverPlaceholder">Ukaž myšou na priečinok...</div>
-          <div id="hover-size"></div>
-          <div id="hover-stats"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="custom-context-menu" class="context-menu hidden">
-    <div class="menu-item" id="cm-open-explorer" data-i18n="contextMenu.openExplorer">📁 Otvoriť v prieskumníkovi</div>
-    <div class="menu-item" id="cm-open-tc" data-i18n="contextMenu.openTC">💾 Otvoriť v Total Commander</div>
-    <div class="menu-item" id="cm-properties" data-i18n="contextMenu.properties">ℹ️ Vlastnosti</div>
-    <div class="menu-item" id="cm-copy-path" data-i18n="contextMenu.copyPath">📋 Kopírovať cestu</div>
-    <div class="divider"></div>
-    <div class="menu-item text-warning" id="cm-trash" data-i18n="contextMenu.trash">🗑️ Presunúť do koša</div>
-    <div class="menu-item text-danger" id="cm-delete" data-i18n="contextMenu.delete">❌ Vymazať navždy</div>
   </div>
 
   <!-- Modal for setting Total Commander path -->
@@ -151,20 +89,7 @@
   <!-- Toast notification container -->
   <div id="toast-container"></div>
 
-  <!-- Custom confirm dialog -->
-  <div id="confirm-modal" class="modal hidden">
-    <div class="modal-content confirm-modal-content">
-      <h2 data-i18n="confirmations.title">Potvrdenie akcie</h2>
-      <p id="confirm-message"></p>
-      <div class="confirm-buttons">
-        <button id="confirm-cancel-btn" class="confirm-cancel-btn" data-i18n="confirmations.cancel">Zrušiť</button>
-        <button id="confirm-ok-btn" class="confirm-ok-btn" data-i18n="confirmations.confirm">Potvrdiť</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="/d3.min.js"></script>
-  <script src="/main.js"></script>
+  <script src="/menu.js"></script>
 </body>
 
 </html>
