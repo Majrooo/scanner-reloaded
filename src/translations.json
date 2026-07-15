@@ -96,6 +96,8 @@
         "deleted": "\"{name}\" bola trvalo vymazaná",
         "scanCancelled": "Skenovanie bolo zrušené",
         "copyFailed": "Nepodarilo sa skopírovať cestu",
+        "autoFilterOn": "Rýchly režim bol zapnutý pre plynulosť ({count} položiek).",
+        "autoFilterOff": "Rýchly režim bol automaticky vypnutý.",
         "disksLoading": "Obnovujem zoznam diskov...",
         "disksLoaded": "Zoznam diskov bol úspešne obnovený."
       }
@@ -195,6 +197,8 @@
         "deleted": "\"{name}\" has been permanently deleted",
         "scanCancelled": "Scan has been cancelled",
         "copyFailed": "Failed to copy path",
+        "autoFilterOn": "Fast mode enabled for performance ({count} items).",
+        "autoFilterOff": "Fast mode has been automatically disabled.",
         "disksLoading": "Refreshing disk list...",
         "disksLoaded": "Disk list has been successfully refreshed."
       }

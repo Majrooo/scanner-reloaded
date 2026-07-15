@@ -112,6 +112,8 @@ async function loadTranslations() {
 
 const APP_CONFIG = {
   usePerformanceFilter: true,
+  autoTogglePerformanceFilter: true, // Whether to toggle the filter automatically based on the number of items
+  performanceThreshold: 500,  // The threshold for automatically enabling the filter
   minSizeToRender: 1 * 1024 * 1024,
   minAngleToRender: 0.01,
   // Nastavenia animácií:
@@ -487,6 +489,19 @@ function zoomTo(p) {
   }
 
   const descendants = p.descendants();
+  const childCount = descendants.length;
+
+  if (APP_CONFIG.autoTogglePerformanceFilter) {
+    if (childCount >= APP_CONFIG.performanceThreshold && !APP_CONFIG.usePerformanceFilter) {
+      APP_CONFIG.usePerformanceFilter = true;
+      if (filterToggle) filterToggle.checked = true;
+      showToast(getText("toast.autoFilterOn", { count: childCount }), "info");
+    } else if (childCount < APP_CONFIG.performanceThreshold && APP_CONFIG.usePerformanceFilter) {
+      APP_CONFIG.usePerformanceFilter = false;
+      if (filterToggle) filterToggle.checked = false;
+      showToast(getText("toast.autoFilterOff"), "info");
+    }
+  }
 
   const visibleDescendants = descendants.filter(d => {
     const basicCheck = d.depth > p.depth &&
