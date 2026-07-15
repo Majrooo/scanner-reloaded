@@ -17,6 +17,7 @@ You can find more about the original author and his work here: [www.steffengerla
 - **Cross-Platform**: Built with Tauri to run on Windows, macOS, and Linux.
 - **Modern UI**: A clean, responsive, and lightweight user interface made with vanilla HTML, CSS, and JavaScript.
 - **Performance Filtering**: Smooth 60 FPS rendering by automatically filtering out microscopic files during zoom.
+- **Internationalization (i18n)**: Supports multiple languages (English and Slovak) with settings persisted locally.
 
 ## Tech Stack
 
