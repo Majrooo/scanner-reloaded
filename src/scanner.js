@@ -289,8 +289,7 @@ async function startDiskScan(path, totalSpace) {
     }
   });
 
-  // Po skončení skenu si od Rustu pýtame podstrom pre rootPath.
-  // Rust nám vráti orezaný strom, v ktorom sa drobné súbory zgrupujú do __others__.
+  // Po skončení skenu si od Rustu pýtame celý strom binárne a aplikujeme collapse lokalne.
   unlistenFinished = await listen("scan-finished", async () => {
     isScanning = false;
     backBtn.textContent = getText("scanScreen.backButton");
@@ -308,9 +307,8 @@ async function startDiskScan(path, totalSpace) {
     }, 4000);
 
     try {
-      // Nacitame CELY strom (bez orezania) pre lokalnu navigaciu
-      const rootData = await invoke("get_full_tree");
-      memoryTree = rootData;
+      // Nacitame CELY strom binarne (efektivnejsie ako JSON)
+      memoryTree = deserializeBinaryTree(await invoke("get_binary_tree"));
       // Pre prvy render aplikujeme collapse lokalne
       const renderData = deepCloneNode(memoryTree);
       collapseLocalJS(renderData, Math.max(renderData.size, 1));

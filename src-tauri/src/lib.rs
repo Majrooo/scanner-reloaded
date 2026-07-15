@@ -488,7 +488,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
             normalize_paths(&mut full_tree);
 
             // Store the complete, untrimmed tree in the global state.
-            // The frontend will later request slices via get_submenu_tree.
+            // The frontend will later fetch it binary via get_binary_tree and handle navigation locally.
             let state = app_handle.state::<ScanState>();
             if let Ok(mut guard) = state.current_tree.lock() {
                 *guard = Some(full_tree);
@@ -542,29 +542,15 @@ fn optimize_webview_memory(window: WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
-// ── Dynamic sub-tree access (Local Relative Throttling) ──────────────────────
-
-
-/// Performs a deep clone of the node with the given `name` and `path` rewritten
-/// so the returned subtree looks like a "root" (its children stay untouched).
-fn clone_as_subtree_root(node: &FileNode) -> FileNode {
-    FileNode {
-        name: node.name.clone(), // Box<str> is cheap to clone (Arc-like).
-        path: node.path.clone(), // Box<str> is cheap to clone.
-        size: node.size,
-        is_dir: node.is_dir,
-        dir_count: node.dir_count,
-        file_count: node.file_count,
-        children: node.children.clone(),
-    }
-}
+// ── Binary Data Transfer ─────────────────────────────────────────────────────
 
 /// Returns the entire tree serialized into compact binary format.
-/// The frontend will deserialize and perform local navigation + collapse.
+/// Uses Tauri IPC Response for native binary transfer (no JSON serialization).
+/// The frontend deserializes and performs local collapse/navigation on the full tree.
 #[tauri::command]
 fn get_binary_tree(
     state: tauri::State<'_, ScanState>,
-) -> Result<Vec<u8>, String> {
+) -> Result<tauri::ipc::Response, String> {
     let guard = state
         .current_tree
         .lock()
@@ -576,26 +562,7 @@ fn get_binary_tree(
 
     let mut buf = Vec::with_capacity(10 * 1024 * 1024); // pre-allocate 10 MB
     root.serialize_to_binary(&mut buf);
-    Ok(buf)
-}
-
-/// Returns the FULL tree as JSON (without collapsing) for local navigation.
-/// The frontend stores this in memory and performs all navigation locally.
-#[tauri::command]
-fn get_full_tree(
-    state: tauri::State<'_, ScanState>,
-) -> Result<FileNode, String> {
-    let guard = state
-        .current_tree
-        .lock()
-        .map_err(|_| "Failed to get access to scan state".to_string())?;
-
-    let root = guard
-        .as_ref()
-        .ok_or_else(|| "No scanned tree exists yet".to_string())?;
-
-    // Clone the root without any collapsing - frontend does it locally
-    Ok(clone_as_subtree_root(root))
+    Ok(tauri::ipc::Response::new(buf))
 }
 
 // ── Cross-platform: Show in File Manager ─────────────────────────────────────
@@ -940,7 +907,6 @@ pub fn main() {
             clear_scan_state,
             optimize_webview_memory,
             get_binary_tree,
-            get_full_tree,
             show_in_file_manager,
             show_in_total_commander,
             show_file_properties,
