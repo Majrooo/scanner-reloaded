@@ -14,20 +14,6 @@
       <button id="about-btn" title="O aplikácii">ℹ</button>
     </div>
 
-    <div id="about-modal" class="modal hidden">
-      <div class="modal-content">
-        <span id="close-about-btn" class="close-btn">&times;</span>
-        <h2 data-i18n="about.title">O aplikácii</h2>
-        <p><strong>Scanner Reloaded</strong></p>
-        <p><span data-i18n="about.version">Verzia</span>: <span id="app-version">0.1.0</span></p>
-        <p><span data-i18n="about.developer">Vývojár</span>: <strong>majrooo</strong></p>
-        <p>
-          <a href="https://github.com/majrooo/scanner-reloaded" target="_blank" id="github-link"
-            data-i18n="about.githubLink">🐈 GitHub Repozitár</a>
-        </p>
-      </div>
-    </div>
-
     <div id="disk-screen">
       <div class="disk-screen-header">
         <h1 id="disk-screen-title" data-i18n="diskScreen.title">Vyberte disk na analýzu</h1>
@@ -59,13 +45,29 @@
           </button>
         </div>
       </div>
-    </div>
 
-    <!-- C2: Drag & drop overlay -->
-    <div id="drag-drop-overlay" class="drag-drop-overlay hidden">
-      <div class="drag-drop-content" data-i18n="scanScreen.dragDropHint">📁 Pretiahnite priečinok sem pre skenovanie</div>
+      <!-- C2: Drag & drop overlay -->
+      <div id="drag-drop-overlay" class="drag-drop-overlay hidden">
+        <div class="drag-drop-content" data-i18n="scanScreen.dragDropHint">📁 Pretiahnite priečinok sem pre skenovanie</div>
+      </div>
     </div>
+  </div>
 
+  <!-- About Modal -->
+  <div id="about-modal" class="modal hidden">
+    <div class="modal-content">
+      <span id="close-about-btn" class="close-btn">&times;</span>
+      <h2 data-i18n="about.title">O aplikácii</h2>
+      <div class="modal-body">
+        <p><strong>Scanner Reloaded</strong></p>
+        <p><span data-i18n="about.version">Verzia</span>: <span id="app-version">0.1.0</span></p>
+        <p><span data-i18n="about.developer">Vývojár</span>: <strong>majrooo</strong></p>
+        <p>
+          <a href="https://github.com/majrooo/scanner-reloaded" target="_blank" id="github-link"
+            data-i18n="about.githubLink">🐈 GitHub Repozitár</a>
+        </p>
+      </div>
+    </div>
   </div>
 
   <!-- Modal for setting Total Commander path -->
