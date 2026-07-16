@@ -892,31 +892,48 @@ fn open_system_utility(utility: String) -> Result<(), String> {
     Ok(())
 }
 
+// ─── Directory Validation for Drag & Drop ─────────────────────────────────────
+
+/// Validates that a path exists and is a directory.
+/// Used by drag-drop handler to verify dropped paths before scanning.
+#[tauri::command]
+fn validate_directory(path: String) -> Result<bool, String> {
+    let target = Path::new(&path);
+    if !target.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    if !target.is_dir() {
+        return Err(format!("Not a directory: {}", path));
+    }
+    Ok(true)
+}
+
 // ─── App Entry Point ─────────────────────────────────────────────────────────
 
 pub fn main() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        .manage(ScanState::default())
-        .invoke_handler(tauri::generate_handler![
-            get_disks,
-            start_async_scan,
-            cancel_scan,
-            clear_scan_state,
-            optimize_webview_memory,
-            get_binary_tree,
-            show_in_file_manager,
-            show_in_total_commander,
-            show_file_properties,
-            move_to_trash,
-            permanent_delete,
-            get_tc_path,
-            set_tc_path,
-            #[cfg(target_os = "windows")]
-            open_system_utility,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+  tauri::Builder::default()
+    .plugin(tauri_plugin_window_state::Builder::default().build())
+    .plugin(tauri_plugin_opener::init())
+    .plugin(tauri_plugin_dialog::init())
+    .manage(ScanState::default())
+    .invoke_handler(tauri::generate_handler![
+      get_disks,
+      start_async_scan,
+      cancel_scan,
+      clear_scan_state,
+      optimize_webview_memory,
+      get_binary_tree,
+      show_in_file_manager,
+      show_in_total_commander,
+      show_file_properties,
+      move_to_trash,
+      permanent_delete,
+      get_tc_path,
+      set_tc_path,
+      validate_directory,
+      #[cfg(target_os = "windows")]
+      open_system_utility,
+    ])
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
 }

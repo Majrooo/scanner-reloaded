@@ -1,5 +1,5 @@
 const { invoke } = window.__TAURI__.core;
-const { listen } = window.__TAURI__.event;
+const { getCurrentWindow } = window.__TAURI__.window;
 
 let aboutBtn = document.getElementById("about-btn");
 let aboutModal = document.getElementById("about-modal");
@@ -11,6 +11,9 @@ let diskList = document.getElementById("disk-list");
 
 // Toast
 const toastContainer = document.getElementById("toast-container");
+
+// Drag & Drop overlay
+const dragDropOverlay = document.getElementById("drag-drop-overlay");
 
 // TC Path Modal
 const tcPathModal = document.getElementById("tc-path-modal");
@@ -173,6 +176,42 @@ function startDiskScan(path, totalSpace) {
   window.location.href = `scanner.html?path=${encodedPath}&totalSpace=${encodedTotalSpace}`;
 }
 
+function handleDragDropHover() {
+  if (dragDropOverlay) {
+    dragDropOverlay.classList.add("drag-over");
+    dragDropOverlay.classList.remove("hidden");
+  }
+}
+
+function handleDragDropCancel() {
+  if (dragDropOverlay) {
+    dragDropOverlay.classList.remove("drag-over");
+    dragDropOverlay.classList.add("hidden");
+  }
+}
+
+async function handleDragDrop(paths) {
+  if (dragDropOverlay) {
+    dragDropOverlay.classList.remove("drag-over");
+    dragDropOverlay.classList.add("hidden");
+  }
+
+  if (!paths || paths.length === 0) {
+    showToast(getText("dragDrop.noPaths"), "error");
+    return;
+  }
+
+  const path = paths[0]; // Take the first path
+
+  try {
+    // Validate path is a directory using Rust backend
+    await invoke("validate_directory", { path: path });
+    startDiskScan(path, 0);
+  } catch (err) {
+    showToast(getText("dragDrop.notDirectory"), "error");
+  }
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   await loadTranslations();
   loadDisks();
@@ -273,6 +312,21 @@ window.addEventListener("DOMContentLoaded", async () => {
       } else {
         tcPathModal.classList.add("hidden");
       }
+    }
+  });
+
+  // Register drag-drop event listeners using Window API
+  const appWindow = getCurrentWindow();
+  await appWindow.onDragDropEvent((event) => {
+    const eventType = event.type || event.payload?.type;
+    const paths = event.paths || event.payload?.paths || [];
+    
+    if (eventType === 'hover') {
+      handleDragDropHover();
+    } else if (eventType === 'drop') {
+      handleDragDrop(paths);
+    } else if (eventType === 'cancelled') {
+      handleDragDropCancel();
     }
   });
 });
