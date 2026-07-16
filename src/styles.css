@@ -16,6 +16,10 @@ html, body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px 20px 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 .top-bar {
@@ -256,6 +260,13 @@ h1, h2 {
 }
 
 /* Skenovacia obrazovka */
+#scan-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .header-row {
   display: grid;
   grid-template-columns: auto 1fr auto; /* Tlačidlo | Breadcrumbs (flexibilné) | Prázdny priestor */
@@ -315,28 +326,30 @@ h1, h2 {
   align-items: center;
   justify-content: center;
   width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
-/* FIX 3: Container adapts to screen size, taking up a maximum of 70% of the window height */
+/* Container fills available space; SVG's preserveAspectRatio keeps the chart square */
 #chart-container {
   position: relative;
   width: 100%;
-  height: 70vh;
   max-width: 1200px;
-  max-height: 1200px;
+  max-height: 100%;
   min-width: 150px;
   min-height: 150px;
   margin: 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
+  flex: 1;
+  min-height: 0;
 }
 
 #sunburst-chart {
   width: 100%;
-  height: auto;
-  max-height: 100%;
-  /* display: block; */
+  height: 100%;
+  display: block;
 }
 
 /* Center HUD text linked relatively in percentages to always be exactly in the center */
@@ -378,26 +391,22 @@ h1, h2 {
 }
 
 #hover-panel {
-position: fixed;
-  bottom: 15px;
-  /* 1. Definuj pevné bočné odstupy pre malé okná */
-  left: 15px;
-  right: 15px;
-  
-  /* 2. Na veľkých monitoroch sa uplatní max-width */
+  width: 100%;
   max-width: 1200px;
-  /* 3. Vycentrovanie elementu, keď narazí na max-width */
-  margin-left: auto;
-  margin-right: auto;
-
+  margin: 15px auto 20px;
   background: #1e1e2e;
   padding: 15px;
   border-radius: 8px;
   text-align: center;
   box-sizing: border-box;
-  min-height: 65px;
+  height: 85px; /* Fixná výška — žiadne skákanie grafu */
   border: 1px solid #313244;
   overflow: hidden; /* Dôležité, aby progress bar nepretekal cez zaoblené rohy */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Progress bar ako linka na spodnom okraji panelu */
@@ -409,6 +418,12 @@ position: fixed;
   background: #f38ba8;
   width: 0%;
   transition: width 0.1s linear;
+}
+
+/* Inner content containers must fill full width inside the flex panel */
+#scan-progress-content,
+#hover-details-content {
+  width: 100%;
 }
 
 #scan-progress-flex {

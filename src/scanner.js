@@ -106,9 +106,30 @@ let isFirstRenderAfterScan = false;
 // OS detection
 const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
 
-const radius = 320;
-const innerHoleRadius = 80;
+let radius = 320;
+let innerHoleRadius = 80;
 const maxDepth = 24;
+let chartResizeObserver = null;
+let isResizeScheduled = false;
+
+/**
+ * Schedule a chart redraw on the next animation frame (debounced).
+ * D3 radius/viewBox stays fixed (640x640) — SVG preserveAspectRatio
+ * handles actual pixel scaling. This just re-runs the D3 layout
+ * to ensure proper arc positioning after container size changes.
+ */
+function scheduleChartResize() {
+  if (isResizeScheduled) return;
+  isResizeScheduled = true;
+  requestAnimationFrame(() => {
+    isResizeScheduled = false;
+    if (currentViewPath && memoryTree) {
+      navigateToPath(currentViewPath);
+    } else if (currentFocus) {
+      zoomTo(currentFocus);
+    }
+  });
+}
 
 let translationsData = null;
 let currentLanguage = "sk";
@@ -892,6 +913,15 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
       goBackToMenu();
     });
+  }
+
+  // Initialize ResizeObserver for chart responsive sizing
+  const chartContainer = document.getElementById("chart-container");
+  if (chartContainer && window.ResizeObserver) {
+    chartResizeObserver = new ResizeObserver(() => {
+      scheduleChartResize();
+    });
+    chartResizeObserver.observe(chartContainer);
   }
 
   // Settings Modal Logic
