@@ -40,6 +40,5 @@ Thumbs.db
 # AI Agent (Cline / Roo Code) Memory Banks
 .cline/
 clinerules-data/
-.clinerules/
 *.clinedata
 memory-bank/
