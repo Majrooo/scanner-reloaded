@@ -82,29 +82,28 @@ function deserializeBinaryTree(arrayBuffer) {
   return readNode();
 }
 
-// Globálna premenná, kde si uložíme celkovú kapacitu vybraného disku
+// Global variable for total disk capacity
 let selectedDiskTotalSpace = 0;
 let totalScannedBytes = 0;
 let lastUpdateTime = 0;
 
-// Globálne premenné pre správnu synchronizáciu
+// Global variables for proper synchronization
 let memoryTree = {};
 let rootPath = "";
-// Aktuálne zobrazená cesta v rámci dynamického stromu (Local Relative Throttling)
 let currentViewPath = "";
 let unlistenProgress;
 let unlistenFinished;
 let unlistenFailed;
 
-// Globálne referencie pre D3 uzly (Dôležité pre živý filter)
+// Global references for D3 nodes
 let rootNode = null;
 let gPartition = null;
 let currentFocus = null;
 
-// Globálny stav pre úvodnú animáciu
+// Global state for intro animation
 let isFirstRenderAfterScan = false;
 
-// Detekcia OS
+// OS detection
 const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
 
 const radius = 320;
@@ -139,7 +138,6 @@ function applyTranslations() {
     const key = element.getAttribute("data-i18n");
     if (key) element.textContent = getText(key);
   });
-  // Apply aria-labels for elements with data-i18n-title
   document.querySelectorAll("[data-i18n-title]").forEach((element) => {
     const key = element.getAttribute("data-i18n-title");
     if (key) element.setAttribute("aria-label", getText(key));
@@ -185,23 +183,21 @@ async function saveSettings() {
 }
 
 const APP_CONFIG = {
-  usePerformanceFilter: true, // Použiť výkonnostný filter
-  autoTogglePerformanceFilter: true, // Automatické zapnutie filtra pri veľkom počte položiek
-  performanceThreshold: 500,         // Prahový počet položiek pre automatický filter
-  minSizeToRender: 1 * 1024 * 1024,  // Minimálna veľkosť na vykreslenie (predvolene 1 MB)
-  minAngleToRender: 0.01,            // Minimálny uhol oblúka v radiánoch
+  usePerformanceFilter: true,
+  autoTogglePerformanceFilter: true,
+  performanceThreshold: 500,
+  minSizeToRender: 1 * 1024 * 1024,
+  minAngleToRender: 0.01,
   totalCommanderPath: "",
-
-  // Nastavenia animácií:
-  useInteractiveAnimations: true,    // Plynulé prechody pri kliknutí (zoom)
-  introAnimationType: "sweep",       // Možnosti: "none", "sweep", "grow", "spiral", "sequential", "random"
-  transitionDuration: 450,           // Pre interaktívny zoom (kliknutie)
-  introSweepDuration: 850,           // Trvanie pre počiatočný vejár (sweep)
-  introGrowDuration: 400,            // Trvanie pre počiatočnú expanziu (grow)
-  introSpiralDuration: 900,          // Trvanie pre spirálovú animáciu
-  introSequentialDuration: 1000,     // Trvanie pre sekvenčnú animáciu
-  introStaggeredDuration: 950,       // Trvanie pre staggered animáciu
-  relativeThreshold: 0.0015,          // Prah relatívneho zlučovania do __others__ (0.0015 = 0.15%)
+  useInteractiveAnimations: true,
+  introAnimationType: "sweep",
+  transitionDuration: 450,
+  introSweepDuration: 850,
+  introGrowDuration: 400,
+  introSpiralDuration: 900,
+  introSequentialDuration: 1000,
+  introStaggeredDuration: 950,
+  relativeThreshold: 0.0015,
 };
 
 function formatBytes(bytes) {
@@ -210,6 +206,51 @@ function formatBytes(bytes) {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Middle-truncate a file path: keep the beginning (drive/root) and end (filename),
+ * replace the middle with a highlighted "...".
+ * Returns an HTML string. If the path is not truncated, returns plain text (safe for textContent).
+ */
+function middleTruncatePath(path, maxLen = 80) {
+  if (!path || path.length <= maxLen) return path;
+  const separator = path.includes('\\') ? '\\' : '/';
+  const parts = path.split(separator);
+  if (parts.length <= 2) {
+    return escapeHtml(path.slice(0, Math.max(20, maxLen - 3))) + '<span class="truncation-marker">...</span>';
+  }
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const availableForMiddle = maxLen - first.length - last.length - 5; // 5 = "..." + 2 separators
+  if (availableForMiddle <= 0) {
+    return escapeHtml(first) + '<span class="truncation-marker">...</span>' + escapeHtml(last);
+  }
+  let middleParts = [];
+  let middleLen = 0;
+  for (let i = 1; i < parts.length - 1; i++) {
+    const part = parts[i];
+    const extra = middleLen === 0 ? part.length : part.length + 1;
+    if (middleLen + extra <= availableForMiddle) {
+      middleParts.push(part);
+      middleLen += extra;
+    } else {
+      break;
+    }
+  }
+  if (middleParts.length === 0) {
+    return escapeHtml(first) + separator + '<span class="truncation-marker">...</span>' + separator + escapeHtml(last);
+  }
+  return escapeHtml(first) + separator + escapeHtml(middleParts.join(separator)) + separator + '<span class="truncation-marker">...</span>' + separator + escapeHtml(last);
+}
+
+/**
+ * Simple HTML escape to prevent XSS in path strings.
+ */
+function escapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  var a = String.fromCharCode(38);
+  return str.replace(/&/g, a + 'amp;').replace(/</g, a + 'lt;').replace(/>/g, a + 'gt;').replace(/"/g, a + 'quot;');
 }
 
 function showToast(message, type = "info", duration = 4000) {
@@ -232,11 +273,8 @@ function showConfirm(message, isDanger = false) {
     }
     confirmMessage.textContent = message;
     confirmOkBtn.classList.toggle("danger", isDanger);
-    
-    // Remove any existing click listeners to avoid duplicates
     confirmOkBtn.onclick = null;
     confirmCancelBtn.onclick = null;
-    
     function cleanup() {
       if (confirmModal.close) {
         confirmModal.close();
@@ -246,7 +284,6 @@ function showConfirm(message, isDanger = false) {
     }
     confirmOkBtn.onclick = () => { cleanup(); resolve(true); };
     confirmCancelBtn.onclick = () => { cleanup(); resolve(false); };
-    
     confirmModal.showModal();
   });
 }
@@ -254,43 +291,29 @@ function showConfirm(message, isDanger = false) {
 async function startDiskScan(path, totalSpace) {
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
-
-  // Switch to scan progress view
   document.getElementById("scan-progress-content").classList.remove("hidden");
   document.getElementById("hover-details-content").classList.add("hidden");
-
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
-
   const breadcrumbsContainer = document.getElementById("current-folder-title");
   if (breadcrumbsContainer) {
     breadcrumbsContainer.innerHTML = `<span class="breadcrumb-item active">${path}</span>`;
   }
-
-  // Reset progress bar
   document.getElementById("live-ticker-bar").style.width = "0%";
-
   isScanning = true;
   backBtn.textContent = getText("scanScreen.cancelScan");
   backBtn.classList.add("in-cancel-mode");
   if (cancelScanBtn) cancelScanBtn.classList.remove("hidden");
-
   const spinner = document.getElementById("scan-spinner");
   if (spinner) spinner.classList.remove("hidden");
-
   const statsBar = document.getElementById("scan-stats-bar");
   if (statsBar) statsBar.classList.add("hidden");
-
   d3.select("#sunburst-chart").selectAll("*").remove();
-
-  // Cestu vždy držíme s forward-slash, aby sa dala ľahko porovnávať s cestami vrátenými z Rustu.
   rootPath = path.replace(/\\/g, "/");
   currentViewPath = rootPath;
   selectedDiskTotalSpace = totalSpace;
   totalScannedBytes = 0;
   lastUpdateTime = 0;
-
   updateCenterHUD("📁", path, "0 Bytes");
-
   unlistenProgress = await listen("scan-live-folder", (event) => {
     let currentPath = "";
     let currentSize = 0;
@@ -312,33 +335,24 @@ async function startDiskScan(path, totalSpace) {
       updateCenterHUD("⏳", rootPath, formatBytes(totalScannedBytes));
     }
   });
-
-  // Po skončení skenu si od Rustu pýtame celý strom binárne a aplikujeme collapse lokalne.
   unlistenFinished = await listen("scan-finished", async () => {
     isScanning = false;
     backBtn.textContent = getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
-    // Hide cancel button when scan finishes
     if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
-    
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
-
     document.getElementById("live-ticker-bar").style.width = "100%";
     showToast(getText("scanScreen.statuses.finished"), "success");
     document.getElementById("scan-progress-content").classList.add("hidden");
     document.getElementById("hover-details-content").classList.remove("hidden");
-
     try {
-      // Nacitame CELY strom binarne (efektivnejsie ako JSON)
       memoryTree = deserializeBinaryTree(await invoke("get_binary_tree"));
-      // Pre prvy render aplikujeme collapse lokalne
       const renderData = deepCloneNode(memoryTree);
       collapseLocalJS(renderData, Math.max(renderData.size, 1));
       isFirstRenderAfterScan = true;
       currentViewPath = renderData.path || rootPath;
       drawSunburst(renderData);
-
       const statsBar = document.getElementById("scan-stats-bar");
       if (statsBar && memoryTree) {
         statsBar.textContent = getText("scanScreen.statsBar", {
@@ -353,17 +367,14 @@ async function startDiskScan(path, totalSpace) {
       const errorMsg = (typeof err === "string" ? err : (err?.message || err?.toString() || "Nepodarilo sa načítať strom."));
       showToast(errorMsg, "error");
     }
-
     if (unlistenProgress) unlistenProgress();
     if (unlistenFinished) unlistenFinished();
     if (unlistenFailed) unlistenFailed();
   });
-
   unlistenFailed = await listen("scan-failed", (event) => {
     isScanning = false;
     backBtn.textContent = getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
-    // Hide cancel button when scan fails
     if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
@@ -372,7 +383,6 @@ async function startDiskScan(path, totalSpace) {
     if (unlistenProgress) unlistenProgress();
     if (unlistenFailed) unlistenFailed();
   });
-
   invoke("start_async_scan", { path });
 }
 
@@ -390,22 +400,12 @@ async function goBackToMenu() {
   memoryTree = null;
   currentViewPath = "";
   rootPath = "";
-
   const mainContainers = ["sunburst-chart", "current-folder-title", "live-ticker"];
   mainContainers.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = "";
   });
-
-  // 1. Vyčistíme backend pamäť (Rust)
   await invoke("clear_scan_state").catch(console.error);
-
-  // NOTE: We intentionally do NOT call optimize_webview_memory here because it clears localStorage,
-  // which would reset all our saved settings. The settings are small and don't need optimization.
-  // 2. Prikážeme WebView uvoľniť systémovú cache a pamäť
-  // await invoke("optimize_webview_memory").catch(console.error);
-
-
   setTimeout(() => {
     window.location.replace("index.html");
   }, 100);
@@ -421,14 +421,10 @@ function updateBreadcrumbs(currentPath) {
   const container = document.getElementById("current-folder-title");
   if (!container) return;
   container.innerHTML = "";
-
   if (!currentPath) return;
-
   const separator = currentPath.includes('\\') ? '\\' : '/';
   const segments = currentPath.split(separator).filter(s => s);
-
   let builtPath = "";
-
   segments.forEach((segment, index) => {
     if (index === 0 && segments.length > 1) {
       builtPath = segment.endsWith(':') ? segment + separator : segment;
@@ -437,20 +433,15 @@ function updateBreadcrumbs(currentPath) {
     } else {
       builtPath = segment;
     }
-
     const pathForAction = builtPath;
     const isLast = index === segments.length - 1;
-
     const item = document.createElement("span");
     item.className = `breadcrumb-item ${isLast ? "active" : ""}`;
     item.textContent = segment.endsWith(separator) ? segment.slice(0, -1) : segment;
-
     if (!isLast) {
       item.onclick = () => navigateToPath(pathForAction);
     }
-
     container.appendChild(item);
-
     if (!isLast) {
       const separatorEl = document.createElement("span");
       separatorEl.className = "breadcrumb-separator";
@@ -462,48 +453,34 @@ function updateBreadcrumbs(currentPath) {
 
 function navigateToPath(targetPath) {
   if (!targetPath) return;
-
   const found = findNodeByPath(memoryTree, targetPath);
   if (!found) {
     showToast("Priečinok '" + targetPath + "' sa nenašiel v strome.", "error");
     return;
   }
-
-  // Deep clone + apply local collapse
   const cloned = deepCloneNode(found);
   collapseLocalJS(cloned, Math.max(cloned.size, 1));
-
   currentViewPath = cloned.path || targetPath;
   drawSunburst(cloned);
 }
 
 function updateSunburstForFolder(folderPath) {
   if (!folderPath) return;
-
   const found = findNodeByPath(memoryTree, folderPath);
   if (!found) {
     showToast("Priečinok '" + folderPath + "' sa nenašiel v strome.", "error");
     return;
   }
-
-  // Deep clone + apply local collapse
   const cloned = deepCloneNode(found);
   collapseLocalJS(cloned, Math.max(cloned.size, 1));
-
   currentViewPath = cloned.path || folderPath;
   drawSunburst(cloned);
 }
 
-/**
- * Deep clone a node (simple JSON-safe clone, but handles the tree structure).
- */
 function deepCloneNode(node) {
   return JSON.parse(JSON.stringify(node));
 }
 
-/**
- * Find a node by its path in the tree (case-insensitive, forward-slash paths).
- */
 function findNodeByPath(node, targetPath) {
   if (!node || !targetPath) return null;
   const normalizedTarget = targetPath.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -518,30 +495,18 @@ function findNodeByPath(node, targetPath) {
   return null;
 }
 
-/**
- * JS equivalent of Rust's collapse_local.
- * Recursively collapses children whose size is below RELATIVE_THRESHOLD
- * of the parent's size into a single __others__ node.
- */
 const OTHERS_NAME = "__others__";
 
 function collapseLocalJS(node, parentSize) {
-  if (!node.is_dir || !node.children || node.children.length === 0) {
-    return;
-  }
-
-  // Recursively clean deeper levels first
+  if (!node.is_dir || !node.children || node.children.length === 0) return;
   for (const child of node.children) {
     collapseLocalJS(child, Math.max(node.size, 1));
   }
-
   const threshold = Math.max(1, parentSize * APP_CONFIG.relativeThreshold);
-
   let smallItemsSize = 0;
   let smallItemsFileCount = 0;
   let smallItemsDirCount = 0;
   const largeChildren = [];
-
   for (const child of node.children) {
     if (child.size < threshold && child.name !== OTHERS_NAME) {
       smallItemsSize += child.size;
@@ -551,7 +516,6 @@ function collapseLocalJS(node, parentSize) {
       largeChildren.push(child);
     }
   }
-
   if (smallItemsSize > 0) {
     largeChildren.push({
       name: OTHERS_NAME,
@@ -563,14 +527,11 @@ function collapseLocalJS(node, parentSize) {
       children: []
     });
   }
-
-  // Sort by size descending, __others__ always at the end
   largeChildren.sort((a, b) => {
     if (a.name === OTHERS_NAME) return 1;
     if (b.name === OTHERS_NAME) return -1;
     return b.size - a.size;
   });
-
   node.children = largeChildren;
 }
 
@@ -591,9 +552,7 @@ function drawSunburst(data) {
     return;
   }
   if (emptyFolderMsg) emptyFolderMsg.classList.add("hidden");
-
   const baseSize = 640;
-
   rootNode = d3.hierarchy(data)
     .sum(d => d.is_dir ? 0 : (d.size || 0))
     .sort((a, b) => {
@@ -601,14 +560,8 @@ function drawSunburst(data) {
       if (b.data.name === "__others__") return -1;
       return b.value - a.value;
     });
-
   gPartition = d3.partition().size([2 * Math.PI, radius]);
-
-  // Calculate the total number of descendants for the new root.
   const totalDescendants = rootNode.descendants().length;
-
-  // Automatically toggle the performance filter if enabled.
-  // This check is now performed only once when a new directory is loaded.
   if (APP_CONFIG.autoTogglePerformanceFilter) {
     if (totalDescendants >= APP_CONFIG.performanceThreshold) {
       APP_CONFIG.usePerformanceFilter = true;
@@ -619,13 +572,9 @@ function drawSunburst(data) {
   }
   rootNode.each(d => { d.data.size = d.value; });
   gPartition(rootNode);
-
   currentFocus = rootNode;
-
-  // Nemažeme všetky elementy - používame enter-update-exit pre plynulé animácie
   let svg;
   if (d3.select("#sunburst-chart").select("#sunburst-group").empty()) {
-    // Prvý krát vytvoríme celé SVG
     d3.select("#sunburst-chart")
       .attr("viewBox", `0 0 ${baseSize} ${baseSize}`)
       .attr("width", "100%")
@@ -657,7 +606,6 @@ function drawSunburst(data) {
       });
   }
   svg = d3.select("#sunburst-group");
-
   zoomTo(rootNode);
   updateBreadcrumbs(data.path);
 }
@@ -666,16 +614,12 @@ function zoomTo(p) {
   currentFocus = p;
   const svg = d3.select("#sunburst-group");
   if (svg.empty()) return;
-
   const d3Center = d3.select("#d3-center-click-zone");
   if (!d3Center.empty()) {
     d3Center.style("cursor", p.parent ? "pointer" : "default");
   }
-
-  // Zobrazenie "Hore" ikony v strede, ak existuje rodič (t. j. nie sme na root úrovni).
   const hasParent = !!getParentPath(currentViewPath);
-  updateCenterHUD(hasParent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value)); // Breadcrumbs are updated from drawSunburst
-
+  updateCenterHUD(hasParent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
   const statsBar = document.getElementById("scan-stats-bar");
   if (statsBar && p.data) {
     statsBar.textContent = getText("scanScreen.statsBar", {
@@ -684,11 +628,9 @@ function zoomTo(p) {
       size: formatBytes(p.value || 0)
     });
   }
-
   if (gPartition && rootNode) {
     gPartition(rootNode);
   }
-
   const visibleDescendants = p.descendants().filter(d => {
     const basicCheck = d.depth > p.depth &&
       d.depth <= p.depth + maxDepth &&
@@ -698,7 +640,6 @@ function zoomTo(p) {
     if (APP_CONFIG.usePerformanceFilter) {
       const sizeCheck = d.value >= APP_CONFIG.minSizeToRender;
       const relativeAngle = ((d.x1 - d.x0) / (p.x1 - p.x0)) * 2 * Math.PI;
-      // Fallback for minAngleToRender in case it's not in older localStorage configs
       if (APP_CONFIG.minAngleToRender === undefined) {
         APP_CONFIG.minAngleToRender = 0.01;
       }
@@ -707,7 +648,6 @@ function zoomTo(p) {
     }
     return true;
   });
-
   let realMaxDepth = 0;
   visibleDescendants.forEach(d => {
     const currentRelativeDepth = d.depth - p.depth;
@@ -723,15 +663,12 @@ function zoomTo(p) {
     for (let i = 0; i < realMaxDepth; i++) {
       totalUnits += Math.pow(factor, i);
     }
-
     const baseStep = availableRadius / totalUnits;
-
     let currentRadius = innerHoleRadius;
     for (let i = 0; i < depth; i++) {
       if (i >= realMaxDepth) return radius;
       currentRadius += baseStep * Math.pow(factor, i);
     }
-
     if (depth >= realMaxDepth) return radius;
     return currentRadius;
   }
@@ -747,15 +684,10 @@ function zoomTo(p) {
     });
 
   function introArcTween(d) {
-    // We are animating the end angle from the start angle to its final value.
     const targetEndAngle = Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
     const startAngleValue = Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
-
-    // Interpolate from startAngle to targetEndAngle.
     const interpolateEndAngle = d3.interpolate(startAngleValue, targetEndAngle);
-
     return function (t) {
-      // In each step t (from 0 to 1), return the modified object for the arc generator.
       return arc({
         ...d,
         x1: p.x0 + (interpolateEndAngle(t) / (2 * Math.PI)) * (p.x1 - p.x0),
@@ -763,9 +695,7 @@ function zoomTo(p) {
     };
   }
 
-
   function getFillColor(d) {
-    // A9: Vlastná farba pre uzol "__others__"
     if (d.data.name === "__others__") {
       return "#a6a6a6";
     }
@@ -780,7 +710,12 @@ function zoomTo(p) {
 
   function attachPathEvents(paths) {
     paths.on("mouseover", (event, d) => {
-      hoverPath.textContent = d.data.path;
+      const truncated = middleTruncatePath(d.data.path);
+      if (truncated.includes('<span')) {
+        hoverPath.innerHTML = truncated;
+      } else {
+        hoverPath.textContent = truncated;
+      }
       hoverSize.textContent = formatBytes(d.value);
       const dirCount = d.data.dir_count || 0;
       const fileCount = d.data.file_count || 0;
@@ -790,12 +725,8 @@ function zoomTo(p) {
       if (d.data.name === "__others__") {
         hoverStats.textContent = getText("scanScreen.stats.otherFiles", { count: fileCount });
       }
-
-      // Get the ancestors of the hovered node, which form the hierarchical branch.
       const ancestors = d.ancestors();
       const ancestorPaths = new Set(ancestors.map(node => node.data.path));
-
-      // Dim all segments except the current branch, and highlight only the hovered segment.
       d3.select("#sunburst-group").selectAll("path")
         .classed("hover-dimmed", node => !ancestorPaths.has(node.data.path))
         .classed("hover-active", node => node === d);
@@ -809,7 +740,6 @@ function zoomTo(p) {
           .classed("hover-dimmed", false);
       })
       .on("click", (event, d) => {
-        // Namiesto D3 zoomu ideme do podpriečinka cez Rust - dynamicky načítame nový podstrom.
         if (d.data.is_dir && d.data.name !== "__others__" && d.data.path) {
           updateSunburstForFolder(d.data.path);
         }
@@ -824,21 +754,16 @@ function zoomTo(p) {
         }
       });
   }
+
   if (APP_CONFIG.useInteractiveAnimations && !isFirstRenderAfterScan) {
     const TRANSITION_DURATION = APP_CONFIG.transitionDuration;
-
-    // Ulozime stare __arcData pred odstranenim elementov
     const oldArcData = new Map();
     svg.selectAll("path").each(function () {
       if (this.__arcData?.data?.path) {
         oldArcData.set(this.__arcData.data.path, this.__arcData);
       }
     });
-
-    // Odstranime vsetky existujuce path elementy
     svg.selectAll("path").remove();
-
-    // Vytvorime nove path elementy
     const paths = svg
       .selectAll("path")
       .data(visibleDescendants, d => d.data.path)
@@ -846,13 +771,10 @@ function zoomTo(p) {
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
       .each(function (d) { this.__arcData = { ...d }; });
-
-    // Pre kazdy uzol, ktory existoval aj predtym, spustime arcTween animaciu
     paths.each(function (d) {
       const el = this;
       const oldNode = oldArcData.get(d.data.path);
       if (oldNode) {
-        // Animujeme z oldNode do d pomocou arcTween
         d3.select(el)
           .transition()
           .duration(TRANSITION_DURATION)
@@ -861,23 +783,19 @@ function zoomTo(p) {
           })
           .attr("fill", getFillColor(d));
       } else {
-        // Novy uzol: fade in
         d3.select(el)
           .style("opacity", 0)
           .transition()
           .duration(TRANSITION_DURATION)
           .style("opacity", 1)
           .attrTween("d", function () {
-            // Animujeme od nuly (x1 = x0) do finalneho tvaru
             const startNode = { ...d, x1: d.x0 };
             try { return SunburstAnimations.arcTween(startNode, d, arc); } catch { return () => arc(d); }
           });
       }
     });
-
     attachPathEvents(paths);
   } else {
-    // Statický režim vykreslenia
     svg.selectAll("path").remove();
     const paths = svg
       .selectAll("path")
@@ -885,28 +803,19 @@ function zoomTo(p) {
       .join("path")
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
-      // Vždy ukladáme __arcData pre prípad, že sa neskôr zapnú animácie
       .each(function (d) { this.__arcData = { ...d }; });
-
-    // Kontrola, či ide o prvý úvodný render po dokončení skenu
     if (isFirstRenderAfterScan && APP_CONFIG.introAnimationType !== "none") {
-      // Dočasne zablokujeme klikanie počas animácie
       paths.style("pointer-events", "none");
-
-      // Výber animácie (podpora pre "random")
       let activeAnimation = APP_CONFIG.introAnimationType;
       if (activeAnimation === "random") {
         const pool = ["sweep", "grow", "staggered", "spiral", "sequential"];
         activeAnimation = pool[Math.floor(Math.random() * pool.length)];
       }
-
-      // Nastavenie špecifických parametrov pre typ animácie
       let duration = APP_CONFIG.introSweepDuration;
       let easing = d3.easeCubicOut;
-
       if (activeAnimation === "grow") {
         duration = APP_CONFIG.introGrowDuration;
-        easing = d3.easeCubicInOut; // Plynulý rozbeh aj dobeh
+        easing = d3.easeCubicInOut;
       } else if (activeAnimation === "spiral") {
         duration = APP_CONFIG.introSpiralDuration;
         easing = d3.easeCubicIn;
@@ -917,46 +826,33 @@ function zoomTo(p) {
         duration = APP_CONFIG.introStaggeredDuration;
         easing = d3.easeCubicOut;
       }
-
       const introTransition = paths.transition()
         .duration(duration)
         .ease(easing);
-
-      // Ak je zvolený 'staggered' efekt, pridáme oneskorenie podľa hĺbky uzla
       if (activeAnimation === "staggered") {
         introTransition.delay(d => (d.depth - p.depth) * 100);
       }
-
-      // Pre sequential animáciu potrebujeme indexed array
       const indexedDescendants = visibleDescendants.map((d, i) => ({ node: d, index: i }));
       const totalNodes = visibleDescendants.length;
-
       introTransition.attrTween("d", (d, i, nodes) => {
         if (activeAnimation === "grow") {
-          // Vypočítame cieľové polomery a odovzdáme ich growTween funkcii
           const targetInnerRadius = arc.innerRadius()(d);
           const targetOuterRadius = arc.outerRadius()(d);
           return SunburstAnimations.growTween(d, targetInnerRadius, targetOuterRadius, arc);
         } else if (activeAnimation === "spiral") {
-          // Spiráľová animácia podľa úhlovej pozície
           return SunburstAnimations.spiralTween(d, p, arc);
         } else if (activeAnimation === "sequential") {
-          // Sekvenčná animácia podľa veľkosti (potrebujeme prečítať index z rady)
           const nodeIndex = nodes.indexOf(d);
           return SunburstAnimations.sequentialTween(d, p, arc, nodeIndex, totalNodes);
         } else {
-          // Pre 'sweep' a 'staggered' použijeme vejarový efekt
           return SunburstAnimations.sweepTween(d, p, arc);
         }
       })
         .on("end", function () {
           d3.select(this).style("pointer-events", "auto");
         });
-
-      // Resetujeme vlajku prvého renderu
       isFirstRenderAfterScan = false;
     } else {
-      // Bežné okamžité vykreslenie bez efektu
       paths.attr("d", d => { try { return arc(d); } catch { return null; } });
     }
     attachPathEvents(paths);
@@ -970,25 +866,21 @@ window.addEventListener("click", () => {
 window.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
   await loadTranslations();
-
   const urlParams = new URLSearchParams(window.location.search);
   const pathToScan = urlParams.get('path');
   const totalSpace = urlParams.get('totalSpace') || 0;
-
   if (pathToScan) {
     startDiskScan(pathToScan, parseInt(totalSpace, 10));
   } else {
     console.error("No path to scan provided in URL.");
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: "No path specified." });
   }
-
   if (filterToggle) {
     filterToggle.addEventListener("change", (event) => {
       APP_CONFIG.usePerformanceFilter = event.target.checked;
       if (currentFocus) zoomTo(currentFocus);
     });
   }
-
   backBtn.addEventListener("click", goBackToMenu);
   if (cancelScanBtn) {
     cancelScanBtn.classList.add("hidden");
@@ -1007,8 +899,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   const settingsCloseBtn = document.getElementById("settings-close-btn");
   const settingsCancelBtn = document.getElementById("settings-cancel-btn");
   const settingsSaveBtn = document.getElementById("settings-save-btn");
-
-  // --- Settings UI Elements ---
   const useInteractiveAnimationsCheckbox = document.getElementById("use-interactive-animations");
   const introAnimationTypeSelect = document.getElementById("intro-animation-type");
   const transitionDurationSlider = document.getElementById("transition-duration");
@@ -1023,7 +913,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   const introSequentialDurationValue = document.getElementById("intro-sequential-duration-value");
   const introStaggeredDurationSlider = document.getElementById("intro-staggered-duration");
   const introStaggeredDurationValue = document.getElementById("intro-staggered-duration-value");
-
   const autoToggleFilterCheckbox = document.getElementById("auto-toggle-filter");
   const performanceThresholdInput = document.getElementById("performance-threshold");
   const minSizeToRenderInput = document.getElementById("min-size-to-render");
@@ -1031,11 +920,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const minAngleValue = document.getElementById("min-angle-value");
   const relativeThresholdSlider = document.getElementById("setting-relative-threshold");
   const relativeThresholdValue = document.getElementById("relative-threshold-value");
-
   const tcPathInput = document.getElementById("tc-path-input");
   const browseTcPathBtn = document.getElementById("browse-tc-path-btn");
-
-  // --- Conditional UI Rows ---
   const introSweepRow = document.getElementById("intro-sweep-duration-row");
   const introGrowRow = document.getElementById("intro-grow-duration-row");
   const introSpiralRow = document.getElementById("intro-spiral-duration-row");
@@ -1052,7 +938,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   function openSettingsModal() {
-    // Load current config into UI
     useInteractiveAnimationsCheckbox.checked = APP_CONFIG.useInteractiveAnimations;
     introAnimationTypeSelect.value = APP_CONFIG.introAnimationType;
     transitionDurationSlider.value = APP_CONFIG.transitionDuration;
@@ -1067,7 +952,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     introSpiralDurationValue.textContent = `${APP_CONFIG.introSpiralDuration}ms`;
     introSequentialDurationSlider.value = APP_CONFIG.introSequentialDuration;
     introSequentialDurationValue.textContent = `${APP_CONFIG.introSequentialDuration}ms`;
-
     autoToggleFilterCheckbox.checked = APP_CONFIG.autoTogglePerformanceFilter;
     performanceThresholdInput.value = APP_CONFIG.performanceThreshold;
     minSizeToRenderInput.value = (APP_CONFIG.minSizeToRender / (1024 * 1024)).toFixed(1);
@@ -1075,9 +959,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     updateMinAngleLabel(APP_CONFIG.minAngleToRender);
     relativeThresholdSlider.value = APP_CONFIG.relativeThreshold;
     updateRelativeThresholdLabel(APP_CONFIG.relativeThreshold);
-
     tcPathInput.value = APP_CONFIG.totalCommanderPath || "";
-
     updateConditionalSettingsUI();
     if (settingsModal.showModal) {
       settingsModal.showModal();
@@ -1087,7 +969,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   function resetSettingsToDefaults() {
-    // Reset animation settings
     useInteractiveAnimationsCheckbox.checked = true;
     introAnimationTypeSelect.value = "sweep";
     transitionDurationSlider.value = 450;
@@ -1102,8 +983,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     introSequentialDurationValue.textContent = "1000ms";
     introStaggeredDurationSlider.value = 950;
     introStaggeredDurationValue.textContent = "950ms";
-
-    // Reset performance settings
     autoToggleFilterCheckbox.checked = true;
     performanceThresholdInput.value = 500;
     minSizeToRenderInput.value = "1.0";
@@ -1111,14 +990,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     updateMinAngleLabel(0.01);
     relativeThresholdSlider.value = 0.0015;
     updateRelativeThresholdLabel(0.0015);
-
-    // Reset integrations
     tcPathInput.value = "";
-
-    // Update conditional UI
     updateConditionalSettingsUI();
-
-    // Show toast notification
     showToast(getText("settingsModal.reset.success"), "info");
   }
 
@@ -1133,8 +1006,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   settingsBtn.addEventListener("click", openSettingsModal);
   settingsCloseBtn.addEventListener("click", closeSettingsModal);
   settingsCancelBtn.addEventListener("click", closeSettingsModal);
-
-  // Reset button functionality
   const resetSettingsBtn = document.getElementById("reset-settings-btn");
   if (resetSettingsBtn) {
     resetSettingsBtn.addEventListener("click", resetSettingsToDefaults);
@@ -1144,8 +1015,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       closeSettingsModal();
     }
   });
-
-  // --- Live value updates and conditional UI ---
   transitionDurationSlider.addEventListener("input", (event) => {
     transitionDurationValue.textContent = `${event.target.value}ms`;
   });
@@ -1184,7 +1053,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   minAngleSlider.addEventListener("input", (event) => updateMinAngleLabel(event.target.value));
   relativeThresholdSlider.addEventListener("input", (event) => updateRelativeThresholdLabel(event.target.value));
-
   introAnimationTypeSelect.addEventListener("change", updateConditionalSettingsUI);
 
   browseTcPathBtn.addEventListener("click", async () => {
@@ -1206,20 +1074,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.introSpiralDuration = parseInt(introSpiralDurationSlider.value, 10);
     APP_CONFIG.introSequentialDuration = parseInt(introSequentialDurationSlider.value, 10);
     APP_CONFIG.introStaggeredDuration = parseInt(introStaggeredDurationSlider.value, 10);
-
     APP_CONFIG.autoTogglePerformanceFilter = autoToggleFilterCheckbox.checked;
     APP_CONFIG.performanceThreshold = parseInt(performanceThresholdInput.value, 10);
     APP_CONFIG.minSizeToRender = parseFloat(minSizeToRenderInput.value) * 1024 * 1024;
     APP_CONFIG.minAngleToRender = parseFloat(minAngleSlider.value);
     APP_CONFIG.relativeThreshold = parseFloat(relativeThresholdSlider.value);
-
     APP_CONFIG.totalCommanderPath = tcPathInput.value;
-
     await invoke("set_tc_path", { path: tcPathInput.value || "" });
     await saveSettings();
     closeSettingsModal();
-
-    // Re-render the chart with new settings (force re-render even if same path)
     if (currentViewPath && memoryTree) {
       navigateToPath(currentViewPath);
     }
@@ -1231,7 +1094,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (menuTargetNode) await invoke("show_in_file_manager", { path: menuTargetNode.data.path });
     };
   }
-
   const cmOpenTc = document.getElementById("cm-open-tc");
   if (cmOpenTc) {
     cmOpenTc.onclick = async () => {
@@ -1241,14 +1103,12 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     };
   }
-
   const cmProperties = document.getElementById("cm-properties");
   if (cmProperties) {
     cmProperties.onclick = async () => {
       if (menuTargetNode) await invoke("show_file_properties", { path: menuTargetNode.data.path });
     };
   }
-
   const cmCopyPath = document.getElementById("cm-copy-path");
   if (cmCopyPath) {
     cmCopyPath.onclick = async () => {
@@ -1258,7 +1118,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     };
   }
-
   const cmTrash = document.getElementById("cm-trash");
   if (cmTrash) {
     cmTrash.onclick = async () => {
@@ -1287,7 +1146,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     };
   }
-
   const cmDelete = document.getElementById("cm-delete");
   if (cmDelete) {
     cmDelete.onclick = async () => {
@@ -1316,7 +1174,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     };
   }
-
   if (isWindows) {
     const cmSetTcPath = document.createElement("div");
     cmSetTcPath.className = "menu-item";

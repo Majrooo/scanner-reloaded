@@ -422,10 +422,11 @@ position: fixed;
   flex: 1;
 }
 
-#hover-path { color: #bac2de; font-size: 14px; word-break: break-all; }
+#hover-path { color: #bac2de; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.truncation-marker { color: #f9e2af; font-weight: bold; }
 #hover-size { color: #f9e2af; font-weight: bold; margin-top: 5px; }
 
-path { stroke: #11111b; stroke-width: 1.5px; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
+path { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1.0px; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
 
 /* Hover highlight pre sunburst segmenty */
 path.hover-active { /* C4: Correctly defined hover style. */
