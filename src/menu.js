@@ -321,11 +321,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     const eventType = event.type || event.payload?.type;
     const paths = event.paths || event.payload?.paths || [];
     
-    if (eventType === 'hover') {
+    if (eventType === 'enter' || eventType === 'over') {
       handleDragDropHover();
     } else if (eventType === 'drop') {
       handleDragDrop(paths);
-    } else if (eventType === 'cancelled') {
+    } else if (eventType === 'leave') {
       handleDragDropCancel();
     }
   });
