@@ -710,11 +710,12 @@ function zoomTo(p) {
 
   function attachPathEvents(paths) {
     paths.on("mouseover", (event, d) => {
-      const truncated = middleTruncatePath(d.data.path);
-      if (truncated.includes('<span')) {
-        hoverPath.innerHTML = truncated;
-      } else {
-        hoverPath.textContent = truncated;
+      const fullPath = d.data.path;
+      // First set the full path via textContent (safe)
+      hoverPath.textContent = fullPath;
+      // Then check if it overflows the container; if so, replace with truncated HTML
+      if (hoverPath.scrollWidth > hoverPath.clientWidth) {
+        hoverPath.innerHTML = middleTruncatePath(fullPath);
       }
       hoverSize.textContent = formatBytes(d.value);
       const dirCount = d.data.dir_count || 0;
