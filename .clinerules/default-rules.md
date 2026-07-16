@@ -13,4 +13,4 @@ To conserve tokens, use search tools (e.g., `grep`, `search`) instead of reading
 - **Keep documentation in sync.** If you add or change a feature, update the relevant documentation (e.g., `README.md`).
 - **Use English for all comments** and adhere to the project's established coding style.
 - **Write clear commit messages** following the conventional commit format (e.g., `feat: ...`, `fix: ...`).
-- **`.clinerules/`**: This directory contains the Memory Bank documentation system. See `memory-bank/` subdirectory for project documentation including projectbrief.md, productContext.md, activeContext.md, systemPatterns.md, techContext.md, and progress.md.
+- **`.clinerules/memory-bank.md`**: This file contains the Memory Bank documentation system.
