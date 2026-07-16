@@ -194,7 +194,7 @@ const APP_CONFIG = {
   transitionDuration: 450,           // Pre interaktívny zoom (kliknutie)
   introSweepDuration: 850,           // Trvanie pre počiatočný vejár (sweep)
   introGrowDuration: 400,            // Trvanie pre počiatočnú expanziu (grow)
-  relativeThreshold: 0.0015,          // Prah relatívneho zlučovania do __others__ (0.001 = 0.1%)
+  relativeThreshold: 0.0015,          // Prah relatívneho zlučovania do __others__ (0.0015 = 0.15%)
 };
 
 function formatBytes(bytes) {
@@ -442,7 +442,7 @@ function updateBreadcrumbs(currentPath) {
 }
 
 function navigateToPath(targetPath) {
-  if (!targetPath || targetPath === currentViewPath) return;
+  if (!targetPath) return;
   
   const found = findNodeByPath(memoryTree, targetPath);
   if (!found) {
@@ -1127,8 +1127,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     await saveSettings();
     closeSettingsModal();
 
-    // Re-render the chart with new settings
-    if (currentViewPath) {
+    // Re-render the chart with new settings (force re-render even if same path)
+    if (currentViewPath && memoryTree) {
       navigateToPath(currentViewPath);
     }
   });
