@@ -140,6 +140,11 @@ function applyTranslations() {
     const key = element.getAttribute("data-i18n");
     if (key) element.textContent = getText(key);
   });
+  // Apply aria-labels for elements with data-i18n-title
+  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+    const key = element.getAttribute("data-i18n-title");
+    if (key) element.setAttribute("aria-label", getText(key));
+  });
 }
 
 async function loadTranslations() {
@@ -228,14 +233,22 @@ function showConfirm(message, isDanger = false) {
     }
     confirmMessage.textContent = message;
     confirmOkBtn.classList.toggle("danger", isDanger);
-    confirmModal.classList.remove("hidden");
+    
+    // Remove any existing click listeners to avoid duplicates
+    confirmOkBtn.onclick = null;
+    confirmCancelBtn.onclick = null;
+    
     function cleanup() {
-      confirmModal.classList.add("hidden");
+      if (confirmModal.close) {
+        confirmModal.close();
+      }
       confirmOkBtn.onclick = null;
       confirmCancelBtn.onclick = null;
     }
     confirmOkBtn.onclick = () => { cleanup(); resolve(true); };
     confirmCancelBtn.onclick = () => { cleanup(); resolve(false); };
+    
+    confirmModal.showModal();
   });
 }
 
@@ -262,9 +275,9 @@ async function startDiskScan(path, totalSpace) {
   document.getElementById("live-ticker-bar").style.width = "0%";
 
   isScanning = true;
-  backBtn.textContent = getText("scanScreen.cancelScan");
-  backBtn.classList.add("in-cancel-mode");
-  if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+  // UX improvement: Keep back button text unchanged, show cancel button separately
+  backBtn.classList.remove("in-cancel-mode");
+  if (cancelScanBtn) cancelScanBtn.classList.remove("hidden");
 
   const spinner = document.getElementById("scan-spinner");
   if (spinner) spinner.classList.remove("hidden");
@@ -308,9 +321,9 @@ async function startDiskScan(path, totalSpace) {
   // Po skončení skenu si od Rustu pýtame celý strom binárne a aplikujeme collapse lokalne.
   unlistenFinished = await listen("scan-finished", async () => {
     isScanning = false;
-    backBtn.textContent = getText("scanScreen.backButton");
-    backBtn.classList.remove("in-cancel-mode");
-
+    // Hide cancel button when scan finishes
+    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+    
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
 
@@ -354,8 +367,8 @@ async function startDiskScan(path, totalSpace) {
 
   unlistenFailed = await listen("scan-failed", (event) => {
     isScanning = false;
-    backBtn.textContent = getText("scanScreen.backButton");
-    backBtn.classList.remove("in-cancel-mode");
+    // Hide cancel button when scan fails
+    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
@@ -756,7 +769,7 @@ function zoomTo(p) {
 
 
   function getFillColor(d) {
-    // A9: VlastnĂˇ farba pre uzol "__others__"
+    // A9: Vlastná farba pre uzol "__others__"
     if (d.data.name === "__others__") {
       return "#a6a6a6";
     }
@@ -800,7 +813,7 @@ function zoomTo(p) {
           .classed("hover-dimmed", false);
       })
       .on("click", (event, d) => {
-        // Namiesto D3 zoomu ideme do podprieÄŤinka cez Rust - dynamicky naÄŤĂ­tame novĂ˝ podstrom.
+        // Namiesto D3 zoomu ideme do podpriečinka cez Rust - dynamicky načítame nový podstrom.
         if (d.data.is_dir && d.data.name !== "__others__" && d.data.path) {
           updateSunburstForFolder(d.data.path);
         }
@@ -981,7 +994,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   backBtn.addEventListener("click", goBackToMenu);
-  if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
+  if (cancelScanBtn) {
+    cancelScanBtn.classList.add("hidden");
+    cancelScanBtn.addEventListener("click", () => {
+      if (isScanning) {
+        invoke("cancel_scan").catch(console.error);
+        showToast(getText("toast.scanCancelled"), "info");
+      }
+      goBackToMenu();
+    });
+  }
 
   // Settings Modal Logic
   const settingsModal = document.getElementById("settings-modal");
@@ -1061,7 +1083,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     tcPathInput.value = APP_CONFIG.totalCommanderPath || "";
 
     updateConditionalSettingsUI();
-    settingsModal.classList.remove("hidden");
+    if (settingsModal.showModal) {
+      settingsModal.showModal();
+    } else {
+      settingsModal.classList.remove("hidden");
+    }
   }
 
   function resetSettingsToDefaults() {
@@ -1101,7 +1127,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   function closeSettingsModal() {
-    settingsModal.classList.add("hidden");
+    if (settingsModal.close) {
+      settingsModal.close();
+    } else {
+      settingsModal.classList.add("hidden");
+    }
   }
 
   settingsBtn.addEventListener("click", openSettingsModal);
@@ -1196,14 +1226,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Re-render the chart with new settings (force re-render even if same path)
     if (currentViewPath && memoryTree) {
       navigateToPath(currentViewPath);
-    }
-  });
-
-  window.addEventListener("click", (event) => {
-    if (event.target === confirmModal) {
-      confirmModal.classList.add("hidden");
-      if (confirmOkBtn) confirmOkBtn.onclick = null;
-      if (confirmCancelBtn) confirmCancelBtn.onclick = null;
     }
   });
 

@@ -1,21 +1,15 @@
-/* --- Globálna štruktúra modálneho okna --- */
-.modal {
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(17, 17, 27, 0.65); /* Tmavšie pozadie */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px); /* Fallback pre Safari */
+/* --- Globálna štruktúra modálneho okna (pre <dialog> elementy) --- */
+dialog.modal {
+  margin: auto;
+  border: none;
+  padding: 0;
+  background: transparent;
 }
 
-.modal.hidden {
-  display: none;
+dialog.modal::backdrop {
+  background-color: rgba(17, 17, 27, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px); /* Fallback pre Safari */
 }
 
 .modal-content {

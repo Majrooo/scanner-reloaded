@@ -9,14 +9,14 @@
 </head>
 
 <body>
-  <div class="container">
+  <main class="container" aria-label="Scanner Workspace">
     <div id="scan-screen">
-      <div class="header-row">
+      <header class="header-row">
         <button id="back-to-disks-btn" data-i18n="scanScreen.backButton">⬅ Späť na disky</button>
-        <div id="current-folder-title" class="breadcrumbs-container"></div>
-        <button id="settings-btn" class="icon-btn" data-i18n-title="settingsModal.buttonTooltip">⚙️</button>
+        <div id="current-folder-title" class="breadcrumbs-container" role="navigation" aria-label="Drobková navigácia"></div>
+        <button id="settings-btn" class="icon-btn" data-i18n-title="settingsModal.buttonTooltip"><span aria-hidden="true">⚙️</span></button>
         <button id="cancel-scan-btn" class="cancel-scan-btn hidden" data-i18n="scanScreen.cancelScan">✖ Zrušiť skenovanie</button>
-      </div>
+      </header>
 
       <div id="scan-stats-bar" class="scan-stats-bar hidden"></div>
 
@@ -33,7 +33,7 @@
 
       <div id="chart-layout">
         <div id="chart-container">
-          <svg id="sunburst-chart"></svg>
+          <svg id="sunburst-chart" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet"></svg>
           <div id="center-info">
             <div id="center-icon">📁</div>
             <div id="center-name">..</div>
@@ -41,7 +41,7 @@
           </div>
         </div>
 
-        <div id="hover-panel">
+        <aside id="hover-panel" aria-live="polite">
           <div id="scan-progress-content">
             <div id="live-ticker-bar"></div>
             <div id="scan-progress-flex">
@@ -54,10 +54,10 @@
             <div id="hover-size"></div>
             <div id="hover-stats"></div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
-  </div>
+  </main>
 
   <div id="custom-context-menu" class="context-menu hidden">
     <div class="menu-item" id="cm-open-explorer" data-i18n="contextMenu.openExplorer">📁 Otvoriť v prieskumníkovi</div>
@@ -74,7 +74,7 @@
   <div id="toast-container"></div>
 
   <!-- Custom confirm dialog -->
-  <div id="confirm-modal" class="modal hidden">
+  <dialog id="confirm-modal" class="modal">
     <div class="modal-content confirm-modal-content">
       <h2 data-i18n="confirmations.title">Potvrdenie akcie</h2>
       <p id="confirm-message"></p>
@@ -83,12 +83,12 @@
         <button id="confirm-ok-btn" class="confirm-ok-btn" data-i18n="confirmations.confirm">Potvrdiť</button>
       </div>
     </div>
-  </div>
+  </dialog>
 
   <!-- Settings Modal -->
-  <div id="settings-modal" class="modal hidden">
+  <dialog id="settings-modal" class="modal">
     <div class="modal-content settings-modal-content">
-      <button id="settings-close-btn" class="close-btn">&times;</button>
+      <button id="settings-close-btn" class="close-btn" data-i18n-title="common.close">&times;</button>
       <h2 data-i18n="settingsModal.title">Nastavenia</h2>
       <div class="modal-body">
         <!-- A. Vizualizácia a Animácie -->
@@ -204,14 +204,14 @@
         <div class="footer-actions">
           <button id="settings-cancel-btn" class="secondary-btn" data-i18n="settingsModal.buttons.cancel">Zrušiť</button>
           <button id="settings-save-btn" class="primary-btn" data-i18n="settingsModal.buttons.save">Uložiť a použiť</button>
-        </div>
+          </div>
       </div>
     </div>
-  </div>
+  </dialog>
 
-  <script src="/d3.min.js"></script>
-  <script src="/animations.js"></script>
-  <script src="/scanner.js"></script>
+  <script src="d3.min.js"></script>
+  <script src="animations.js"></script>
+  <script src="scanner.js"></script>
 </body>
 
 </html>
