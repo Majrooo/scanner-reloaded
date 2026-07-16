@@ -247,7 +247,10 @@ async function startDiskScan(path, totalSpace) {
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
 
-  document.getElementById("live-ticker-container").classList.remove("hidden");
+  // Switch to scan progress view
+  document.getElementById("scan-progress-content").classList.remove("hidden");
+  document.getElementById("hover-details-content").classList.add("hidden");
+
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
 
   const breadcrumbsContainer = document.getElementById("current-folder-title");
@@ -255,6 +258,7 @@ async function startDiskScan(path, totalSpace) {
     breadcrumbsContainer.innerHTML = `<span class="breadcrumb-item active">${path}</span>`;
   }
 
+  // Reset progress bar
   document.getElementById("live-ticker-bar").style.width = "0%";
 
   isScanning = true;
@@ -314,9 +318,9 @@ async function startDiskScan(path, totalSpace) {
     document.getElementById("live-ticker-bar").style.width = "100%";
 
     tickerHideTimeout = setTimeout(() => {
-      const tickerContainer = document.getElementById("live-ticker-container");
-      if (tickerContainer) tickerContainer.classList.add("hidden");
-    }, 4000);
+      document.getElementById("scan-progress-content").classList.add("hidden");
+      document.getElementById("hover-details-content").classList.remove("hidden");
+    }, 3000);
 
     try {
       // Nacitame CELY strom binarne (efektivnejsie ako JSON)

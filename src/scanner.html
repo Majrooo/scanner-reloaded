@@ -18,12 +18,6 @@
         <button id="cancel-scan-btn" class="cancel-scan-btn hidden" data-i18n="scanScreen.cancelScan">✖ Zrušiť skenovanie</button>
       </div>
 
-      <div id="live-ticker-container">
-        <div id="live-ticker-bar"></div>
-        <div id="live-ticker" data-i18n="scanScreen.initializing">Pripravujem skenovanie...</div>
-        <div id="scan-spinner" class="scan-spinner"></div>
-      </div>
-
       <div id="scan-stats-bar" class="scan-stats-bar hidden"></div>
 
       <div id="empty-folder-message" class="empty-state hidden" data-i18n="scanScreen.emptyFolder">Tento priečinok je prázdny</div>
@@ -48,9 +42,18 @@
         </div>
 
         <div id="hover-panel">
-          <div id="hover-path" data-i18n="scanScreen.hoverPlaceholder">Ukaž myšou na priečinok...</div>
-          <div id="hover-size"></div>
-          <div id="hover-stats"></div>
+          <div id="scan-progress-content">
+            <div id="live-ticker-bar"></div>
+            <div id="scan-progress-flex">
+              <div id="live-ticker" data-i18n="scanScreen.initializing">Pripravujem skenovanie...</div>
+              <div id="scan-spinner" class="scan-spinner"></div>
+            </div>
+          </div>
+          <div id="hover-details-content" class="hidden">
+            <div id="hover-path" data-i18n="scanScreen.hoverPlaceholder">Ukaž myšou na priečinok...</div>
+            <div id="hover-size"></div>
+            <div id="hover-stats"></div>
+          </div>
         </div>
       </div>
     </div>
