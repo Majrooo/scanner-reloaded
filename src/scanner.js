@@ -387,8 +387,11 @@ async function goBackToMenu() {
   // 1. Vyčistíme backend pamäť (Rust)
   await invoke("clear_scan_state").catch(console.error);
 
+  // NOTE: We intentionally do NOT call optimize_webview_memory here because it clears localStorage,
+  // which would reset all our saved settings. The settings are small and don't need optimization.
   // 2. Prikážeme WebView uvoľniť systémovú cache a pamäť
-  await invoke("optimize_webview_memory").catch(console.error);
+  // await invoke("optimize_webview_memory").catch(console.error);
+
 
   setTimeout(() => {
     window.location.replace("index.html");
@@ -446,7 +449,7 @@ function updateBreadcrumbs(currentPath) {
 
 function navigateToPath(targetPath) {
   if (!targetPath) return;
-  
+
   const found = findNodeByPath(memoryTree, targetPath);
   if (!found) {
     showToast("Priečinok '" + targetPath + "' sa nenašiel v strome.", "error");
@@ -463,7 +466,7 @@ function navigateToPath(targetPath) {
 
 function updateSunburstForFolder(folderPath) {
   if (!folderPath) return;
-  
+
   const found = findNodeByPath(memoryTree, folderPath);
   if (!found) {
     showToast("Priečinok '" + folderPath + "' sa nenašiel v strome.", "error");
@@ -581,9 +584,9 @@ function drawSunburst(data) {
   rootNode = d3.hierarchy(data)
     .sum(d => d.is_dir ? 0 : (d.size || 0))
     .sort((a, b) => {
-        if (a.data.name === "__others__") return 1;
-        if (b.data.name === "__others__") return -1;
-        return b.value - a.value;
+      if (a.data.name === "__others__") return 1;
+      if (b.data.name === "__others__") return -1;
+      return b.value - a.value;
     });
 
   gPartition = d3.partition().size([2 * Math.PI, radius]);
@@ -738,7 +741,7 @@ function zoomTo(p) {
     // Interpolate from startAngle to targetEndAngle.
     const interpolateEndAngle = d3.interpolate(startAngleValue, targetEndAngle);
 
-    return function(t) {
+    return function (t) {
       // In each step t (from 0 to 1), return the modified object for the arc generator.
       return arc({
         ...d,
@@ -813,7 +816,7 @@ function zoomTo(p) {
 
     // Ulozime stare __arcData pred odstranenim elementov
     const oldArcData = new Map();
-    svg.selectAll("path").each(function() {
+    svg.selectAll("path").each(function () {
       if (this.__arcData?.data?.path) {
         oldArcData.set(this.__arcData.data.path, this.__arcData);
       }
@@ -829,10 +832,10 @@ function zoomTo(p) {
       .join("path")
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
-      .each(function(d) { this.__arcData = { ...d }; });
+      .each(function (d) { this.__arcData = { ...d }; });
 
     // Pre kazdy uzol, ktory existoval aj predtym, spustime arcTween animaciu
-    paths.each(function(d) {
+    paths.each(function (d) {
       const el = this;
       const oldNode = oldArcData.get(d.data.path);
       if (oldNode) {
@@ -840,7 +843,7 @@ function zoomTo(p) {
         d3.select(el)
           .transition()
           .duration(TRANSITION_DURATION)
-          .attrTween("d", function() {
+          .attrTween("d", function () {
             try { return SunburstAnimations.arcTween(oldNode, d, arc); } catch { return () => arc(d); }
           })
           .attr("fill", getFillColor(d));
@@ -851,7 +854,7 @@ function zoomTo(p) {
           .transition()
           .duration(TRANSITION_DURATION)
           .style("opacity", 1)
-          .attrTween("d", function() {
+          .attrTween("d", function () {
             // Animujeme od nuly (x1 = x0) do finalneho tvaru
             const startNode = { ...d, x1: d.x0 };
             try { return SunburstAnimations.arcTween(startNode, d, arc); } catch { return () => arc(d); }
@@ -870,7 +873,7 @@ function zoomTo(p) {
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
       // Vždy ukladáme __arcData pre prípad, že sa neskôr zapnú animácie
-      .each(function(d) { this.__arcData = { ...d }; });
+      .each(function (d) { this.__arcData = { ...d }; });
 
     // Kontrola, či ide o prvý úvodný render po dokončení skenu
     if (isFirstRenderAfterScan && APP_CONFIG.introAnimationType !== "none") {
@@ -1038,6 +1041,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     introGrowDurationValue.textContent = `${APP_CONFIG.introGrowDuration}ms`;
     introStaggeredDurationSlider.value = APP_CONFIG.introStaggeredDuration;
     introStaggeredDurationValue.textContent = `${APP_CONFIG.introStaggeredDuration}ms`;
+    introSpiralDurationSlider.value = APP_CONFIG.introSpiralDuration;
+    introSpiralDurationValue.textContent = `${APP_CONFIG.introSpiralDuration}ms`;
+    introSequentialDurationSlider.value = APP_CONFIG.introSequentialDuration;
+    introSequentialDurationValue.textContent = `${APP_CONFIG.introSequentialDuration}ms`;
 
     autoToggleFilterCheckbox.checked = APP_CONFIG.autoTogglePerformanceFilter;
     performanceThresholdInput.value = APP_CONFIG.performanceThreshold;
@@ -1063,6 +1070,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     introSweepDurationValue.textContent = "850ms";
     introGrowDurationSlider.value = 400;
     introGrowDurationValue.textContent = "400ms";
+    introSpiralDurationSlider.value = 900;
+    introSpiralDurationValue.textContent = "900ms";
+    introSequentialDurationSlider.value = 1000;
+    introSequentialDurationValue.textContent = "1000ms";
+    introStaggeredDurationSlider.value = 950;
+    introStaggeredDurationValue.textContent = "950ms";
 
     // Reset performance settings
     autoToggleFilterCheckbox.checked = true;
@@ -1160,6 +1173,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.transitionDuration = parseInt(transitionDurationSlider.value, 10);
     APP_CONFIG.introSweepDuration = parseInt(introSweepDurationSlider.value, 10);
     APP_CONFIG.introGrowDuration = parseInt(introGrowDurationSlider.value, 10);
+    APP_CONFIG.introSpiralDuration = parseInt(introSpiralDurationSlider.value, 10);
+    APP_CONFIG.introSequentialDuration = parseInt(introSequentialDurationSlider.value, 10);
+    APP_CONFIG.introStaggeredDuration = parseInt(introStaggeredDurationSlider.value, 10);
 
     APP_CONFIG.autoTogglePerformanceFilter = autoToggleFilterCheckbox.checked;
     APP_CONFIG.performanceThreshold = parseInt(performanceThresholdInput.value, 10);
