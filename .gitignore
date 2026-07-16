@@ -36,3 +36,11 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# AI Agent (Cline / Roo Code) Memory Banks
+.cline/
+clinerules-data/
+.clinerules/
+*.clinedata
+# Ak ti ukladá dynamické markdowny kontextu do špecifického priečinka, pridaj ho sem:
+memory-bank/
