@@ -59,6 +59,14 @@ function applyTranslations() {
     }
   });
 
+  // Apply aria-labels for elements with data-i18n-title
+  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+    const key = element.getAttribute("data-i18n-title");
+    if (key) {
+      element.setAttribute("aria-label", getText(key));
+    }
+  });
+
   const languageSelect = document.getElementById("language-select");
   if (languageSelect) {
     languageSelect.value = currentLanguage;
@@ -202,18 +210,69 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("util-defrag")?.addEventListener("click", () => invoke("open_system_utility", { utility: "defrag" }));
   }
 
+  // About Modal - using native dialog API
   aboutBtn.onclick = async () => {
     applyTranslations();
-    aboutModal.classList.remove("hidden");
+    if (aboutModal.showModal) {
+      aboutModal.showModal();
+    } else {
+      aboutModal.classList.remove("hidden");
+    }
   };
 
   closeAboutBtn.onclick = () => {
-    aboutModal.classList.add("hidden");
+    if (aboutModal.close) {
+      aboutModal.close();
+    } else {
+      aboutModal.classList.add("hidden");
+    }
   };
 
+  // TC Path Modal - using native dialog API
+  tcCloseBtn.onclick = () => {
+    if (tcPathModal.close) {
+      tcPathModal.close();
+    } else {
+      tcPathModal.classList.add("hidden");
+    }
+  };
+
+  tcSaveBtn.onclick = async () => {
+    if (tcPathInput.value) {
+      await invoke("set_tc_path", { path: tcPathInput.value || "" });
+    }
+    if (tcPathModal.close) {
+      tcPathModal.close();
+    } else {
+      tcPathModal.classList.add("hidden");
+    }
+  };
+
+  tcClearBtn.onclick = async () => {
+    tcPathInput.value = "";
+    await invoke("set_tc_path", { path: "" });
+    if (tcPathModal.close) {
+      tcPathModal.close();
+    } else {
+      tcPathModal.classList.add("hidden");
+    }
+  };
+
+  // Click on backdrop closes dialogs (native dialogs handle this automatically, but we keep fallback)
   window.addEventListener("click", (event) => {
     if (event.target === aboutModal) {
-      aboutModal.classList.add("hidden");
+      if (aboutModal.close) {
+        aboutModal.close();
+      } else {
+        aboutModal.classList.add("hidden");
+      }
+    }
+    if (event.target === tcPathModal) {
+      if (tcPathModal.close) {
+        tcPathModal.close();
+      } else {
+        tcPathModal.classList.add("hidden");
+      }
     }
   });
 });

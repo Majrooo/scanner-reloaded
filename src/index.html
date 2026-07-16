@@ -4,24 +4,29 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="stylesheet" href="styles.css" />
+  <title>Scanner Reloaded - Disks</title>
 </head>
 
 <body>
-  <div class="container">
-    <div class="top-bar">
+  <main class="container" aria-label="Disk Selection Workspace">
+    <header class="top-bar">
       <label for="language-select" class="language-label" data-i18n="common.languageLabel">Jazyk</label>
       <select id="language-select"></select>
-      <button id="about-btn" title="O aplikácii">ℹ</button>
-    </div>
+      <button id="about-btn" class="icon-btn" data-i18n-title="about.title"><span aria-hidden="true">ℹ</span></button>
+    </header>
 
     <div id="disk-screen">
       <div class="disk-screen-header">
         <h1 id="disk-screen-title" data-i18n="diskScreen.title">Vyberte disk na analýzu</h1>
-        <button id="refresh-disks-btn" class="refresh-btn" data-i18n="diskScreen.refresh">🔄 Obnoviť</button>
-        <button id="scan-folder-btn" class="scan-folder-btn" data-i18n="diskScreen.scanFolder">📁 Skenovať priečinok</button>
       </div>
       <div id="disk-list"></div>
       <div id="no-disks-message" class="empty-state hidden" data-i18n="diskScreen.noDisks">Nenašli sa žiadne disky.</div>
+
+      <!-- Action buttons -->
+      <div class="header-row" style="justify-content: center; margin-top: 20px;">
+        <button id="refresh-disks-btn" class="refresh-btn" data-i18n="diskScreen.refresh">🔄 Obnoviť</button>
+        <button id="scan-folder-btn" class="scan-folder-btn" data-i18n="diskScreen.scanFolder">📁 Skenovať priečinok</button>
+      </div>
 
       <!-- System Utilities Section (Windows only) -->
       <div id="system-utilities-section" class="hidden">
@@ -51,12 +56,12 @@
         <div class="drag-drop-content" data-i18n="scanScreen.dragDropHint">📁 Pretiahnite priečinok sem pre skenovanie</div>
       </div>
     </div>
-  </div>
+  </main>
 
   <!-- About Modal -->
-  <div id="about-modal" class="modal hidden">
-    <div class="modal-content">
-      <span id="close-about-btn" class="close-btn">&times;</span>
+  <dialog id="about-modal" class="modal">
+    <div class="modal-content about-modal-content">
+      <button id="close-about-btn" class="close-btn" data-i18n-title="common.close">&times;</button>
       <h2 data-i18n="about.title">O aplikácii</h2>
       <div class="modal-body">
         <p><strong>Scanner Reloaded</strong></p>
@@ -68,12 +73,12 @@
         </p>
       </div>
     </div>
-  </div>
+  </dialog>
 
   <!-- Modal for setting Total Commander path -->
-  <div id="tc-path-modal" class="modal hidden">
+  <dialog id="tc-path-modal" class="modal">
     <div class="modal-content tc-modal-content">
-      <span id="close-tc-modal-btn" class="close-btn">&times;</span>
+      <button id="close-tc-modal-btn" class="close-btn" data-i18n-title="common.close">&times;</button>
       <h2 data-i18n="tcModal.title">Nastavenie cesty Total Commander</h2>
       <p class="tc-modal-desc" data-i18n="tcModal.description">Zadajte cestu k spustiteľnému súboru Total Commander (napr. C:\totalcmd\TOTALCMD64.EXE)</p>
       <div class="tc-input-row">
@@ -86,12 +91,12 @@
         <button id="tc-clear-btn" class="tc-clear-btn" data-i18n="tcModal.clear">Vymazať (auto-detekcia)</button>
       </div>
     </div>
-  </div>
+  </dialog>
 
   <!-- Toast notification container -->
   <div id="toast-container"></div>
 
-  <script src="/menu.js"></script>
+  <script src="menu.js"></script>
 </body>
 
 </html>
