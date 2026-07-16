@@ -99,7 +99,11 @@
             <label for="intro-animation-type" data-i18n="settingsModal.animations.introAnimationType">Typ úvodnej animácie</label>
             <select id="intro-animation-type">
               <option value="sweep" data-i18n="settingsModal.animations.options.sweep">Vejár</option>
+              <option value="staggered" data-i18n="settingsModal.animations.options.staggered">Staggered (podľa hĺbky)</option>
+              <option value="spiral" data-i18n="settingsModal.animations.options.spiral">Spiráľa</option>
+              <option value="sequential" data-i18n="settingsModal.animations.options.sequential">Sekvenčné (podľa veľkosti)</option>
               <option value="grow" data-i18n="settingsModal.animations.options.grow">Expanzia</option>
+              <option value="random" data-i18n="settingsModal.animations.options.random">Náhodná</option>
               <option value="none" data-i18n="settingsModal.animations.options.none">Žiadna</option>
             </select>
           </div>
@@ -122,6 +126,27 @@
             <div class="slider-container">
               <input type="range" id="intro-grow-duration" min="200" max="1000" step="50">
               <span id="intro-grow-duration-value">400ms</span>
+            </div>
+          </div>
+          <div class="setting-row conditional" id="intro-spiral-duration-row">
+            <label for="intro-spiral-duration" data-i18n="settingsModal.animations.introSpiralDuration">Trvanie spirály</label>
+            <div class="slider-container">
+              <input type="range" id="intro-spiral-duration" min="200" max="1500" step="50">
+              <span id="intro-spiral-duration-value">900ms</span>
+            </div>
+          </div>
+          <div class="setting-row conditional" id="intro-sequential-duration-row">
+            <label for="intro-sequential-duration" data-i18n="settingsModal.animations.introSequentialDuration">Trvanie sekvenčnej animácie</label>
+            <div class="slider-container">
+              <input type="range" id="intro-sequential-duration" min="200" max="1500" step="50">
+              <span id="intro-sequential-duration-value">1000ms</span>
+            </div>
+          </div>
+          <div class="setting-row conditional" id="intro-staggered-duration-row">
+            <label for="intro-staggered-duration" data-i18n="settingsModal.animations.introStaggeredDuration">Trvanie staggered animácie</label>
+            <div class="slider-container">
+              <input type="range" id="intro-staggered-duration" min="200" max="1500" step="50">
+              <span id="intro-staggered-duration-value">950ms</span>
             </div>
           </div>
         </div>

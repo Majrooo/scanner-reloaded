@@ -62,6 +62,59 @@ const SunburstAnimations = {
         value: d.value
       });
     };
+  },
+
+  /**
+   * Intro animácia: "Spiráľa" (Spiral)
+   * Segmenty sa objavujú podľa ich úhlovej pozície vo vodorovnej osi grafu.
+   */
+  spiralTween(d, p, arcGenerator) {
+    // Počiatočný koncový úhol je rovnaký ako počiatočný (žiadny segment)
+    const targetEndAngle = Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
+    const startAngleValue = Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
+    
+    // Oneskorenie závisí od počiatočného uhlu: čím je segment "vľavo" (menší úhol), tým skôr sa objaví
+    const delay = (startAngleValue / (2 * Math.PI)) * 0.5; // maximálne 50% oneskorenia
+    
+    const interpolateEnd = d3.interpolate(startAngleValue, targetEndAngle);
+
+    return function (t) {
+      // Aplikujeme oneskorenie: animácia "začína" až po uplynutí času 'delay'
+      const adjustedT = Math.max(0, Math.min(1, (t - delay) / (1 - delay)));
+      
+      return arcGenerator({
+        x0: d.x0,
+        x1: p.x0 + (interpolateEnd(adjustedT) / (2 * Math.PI)) * (p.x1 - p.x0),
+        depth: d.depth,
+        data: d.data,
+        value: d.value
+      });
+    };
+  },
+
+  /**
+   * Intro animácia: "Sekvenčné objavovanie" (Sequential - podľa veľkosti)
+   * Najväčšie segmenty sa objavia ako prvé, najmenšie ako posledné.
+   */
+  sequentialTween(d, p, arcGenerator, index, total) {
+    // Oneskorenie podľa poradia: prvý úsek má 0 oneskorenia, posledný maximum
+    const delay = index / total * 0.6; // maximálne 60% oneskorenia
+    
+    const targetEndAngle = Math.max(0, Math.min(2 * Math.PI, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
+    const startAngleValue = Math.max(0, Math.min(2 * Math.PI, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI;
+    const interpolateEnd = d3.interpolate(startAngleValue, targetEndAngle);
+
+    return function (t) {
+      const adjustedT = Math.max(0, Math.min(1, (t - delay) / (1 - delay)));
+      
+      return arcGenerator({
+        x0: d.x0,
+        x1: p.x0 + (interpolateEnd(adjustedT) / (2 * Math.PI)) * (p.x1 - p.x0),
+        depth: d.depth,
+        data: d.data,
+        value: d.value
+      });
+    };
   }
 };
 

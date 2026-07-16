@@ -110,12 +110,19 @@
           "introAnimationType": "Typ úvodnej animácie",
           "options": {
             "sweep": "Vejár",
+            "staggered": "Staggered (podľa hĺbky)",
+            "spiral": "Spiráľa",
+            "sequential": "Sekvenčné (podľa veľkosti)",
             "grow": "Expanzia",
+            "random": "Náhodná",
             "none": "Žiadna"
           },
           "transitionDuration": "Trvanie zoomu (klik)",
           "introSweepDuration": "Trvanie vejára",
-          "introGrowDuration": "Trvanie expanzie"
+          "introGrowDuration": "Trvanie expanzie",
+          "introSpiralDuration": "Trvanie spirály",
+          "introSequentialDuration": "Trvanie sekvenčnej animácie",
+          "introStaggeredDuration": "Trvanie staggered animácie"
         },
         "performance": {
           "title": "Výkon a Filtrovanie",
@@ -253,12 +260,19 @@
           "introAnimationType": "Intro Animation Type",
           "options": {
             "sweep": "Sweep",
+            "staggered": "Staggered (by depth)",
+            "spiral": "Spiral",
+            "sequential": "Sequential (by size)",
             "grow": "Grow",
+            "random": "Random",
             "none": "None"
           },
           "transitionDuration": "Zoom Duration (click)",
           "introSweepDuration": "Sweep Duration",
-          "introGrowDuration": "Grow Duration"
+          "introGrowDuration": "Grow Duration",
+          "introSpiralDuration": "Spiral Duration",
+          "introSequentialDuration": "Sequential Animation Duration",
+          "introStaggeredDuration": "Staggered Animation Duration"
         },
         "performance": {
           "title": "Performance & Filtering",

@@ -190,10 +190,13 @@ const APP_CONFIG = {
 
   // Nastavenia animácií:
   useInteractiveAnimations: true,    // Plynulé prechody pri kliknutí (zoom)
-  introAnimationType: "sweep",       // Možnosti: "none", "sweep", "grow"
+  introAnimationType: "sweep",       // Možnosti: "none", "sweep", "grow", "spiral", "sequential", "random"
   transitionDuration: 450,           // Pre interaktívny zoom (kliknutie)
   introSweepDuration: 850,           // Trvanie pre počiatočný vejár (sweep)
   introGrowDuration: 400,            // Trvanie pre počiatočnú expanziu (grow)
+  introSpiralDuration: 900,          // Trvanie pre spirálovú animáciu
+  introSequentialDuration: 1000,     // Trvanie pre sekvenčnú animáciu
+  introStaggeredDuration: 950,       // Trvanie pre staggered animáciu
   relativeThreshold: 0.0015,          // Prah relatívneho zlučovania do __others__ (0.0015 = 0.15%)
 };
 
@@ -877,7 +880,7 @@ function zoomTo(p) {
       // Výber animácie (podpora pre "random")
       let activeAnimation = APP_CONFIG.introAnimationType;
       if (activeAnimation === "random") {
-        const pool = ["sweep", "grow", "staggered"];
+        const pool = ["sweep", "grow", "staggered", "spiral", "sequential"];
         activeAnimation = pool[Math.floor(Math.random() * pool.length)];
       }
 
@@ -888,6 +891,15 @@ function zoomTo(p) {
       if (activeAnimation === "grow") {
         duration = APP_CONFIG.introGrowDuration;
         easing = d3.easeCubicInOut; // Plynulý rozbeh aj dobeh
+      } else if (activeAnimation === "spiral") {
+        duration = APP_CONFIG.introSpiralDuration;
+        easing = d3.easeCubicIn;
+      } else if (activeAnimation === "sequential") {
+        duration = APP_CONFIG.introSequentialDuration;
+        easing = d3.easeCubicOut;
+      } else if (activeAnimation === "staggered") {
+        duration = APP_CONFIG.introStaggeredDuration;
+        easing = d3.easeCubicOut;
       }
 
       const introTransition = paths.transition()
@@ -899,12 +911,23 @@ function zoomTo(p) {
         introTransition.delay(d => (d.depth - p.depth) * 100);
       }
 
-      introTransition.attrTween("d", d => {
+      // Pre sequential animáciu potrebujeme indexed array
+      const indexedDescendants = visibleDescendants.map((d, i) => ({ node: d, index: i }));
+      const totalNodes = visibleDescendants.length;
+
+      introTransition.attrTween("d", (d, i, nodes) => {
         if (activeAnimation === "grow") {
           // Vypočítame cieľové polomery a odovzdáme ich growTween funkcii
           const targetInnerRadius = arc.innerRadius()(d);
           const targetOuterRadius = arc.outerRadius()(d);
           return SunburstAnimations.growTween(d, targetInnerRadius, targetOuterRadius, arc);
+        } else if (activeAnimation === "spiral") {
+          // Spiráľová animácia podľa úhlovej pozície
+          return SunburstAnimations.spiralTween(d, p, arc);
+        } else if (activeAnimation === "sequential") {
+          // Sekvenčná animácia podľa veľkosti (potrebujeme prečítať index z rady)
+          const nodeIndex = nodes.indexOf(d);
+          return SunburstAnimations.sequentialTween(d, p, arc, nodeIndex, totalNodes);
         } else {
           // Pre 'sweep' a 'staggered' použijeme vejarový efekt
           return SunburstAnimations.sweepTween(d, p, arc);
@@ -969,6 +992,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   const introSweepDurationValue = document.getElementById("intro-sweep-duration-value");
   const introGrowDurationSlider = document.getElementById("intro-grow-duration");
   const introGrowDurationValue = document.getElementById("intro-grow-duration-value");
+  const introSpiralDurationSlider = document.getElementById("intro-spiral-duration");
+  const introSpiralDurationValue = document.getElementById("intro-spiral-duration-value");
+  const introSequentialDurationSlider = document.getElementById("intro-sequential-duration");
+  const introSequentialDurationValue = document.getElementById("intro-sequential-duration-value");
+  const introStaggeredDurationSlider = document.getElementById("intro-staggered-duration");
+  const introStaggeredDurationValue = document.getElementById("intro-staggered-duration-value");
 
   const autoToggleFilterCheckbox = document.getElementById("auto-toggle-filter");
   const performanceThresholdInput = document.getElementById("performance-threshold");
@@ -984,11 +1013,17 @@ window.addEventListener("DOMContentLoaded", async () => {
   // --- Conditional UI Rows ---
   const introSweepRow = document.getElementById("intro-sweep-duration-row");
   const introGrowRow = document.getElementById("intro-grow-duration-row");
+  const introSpiralRow = document.getElementById("intro-spiral-duration-row");
+  const introSequentialRow = document.getElementById("intro-sequential-duration-row");
+  const introStaggeredRow = document.getElementById("intro-staggered-duration-row");
 
   function updateConditionalSettingsUI() {
     const animType = introAnimationTypeSelect.value;
     introSweepRow.style.display = animType === 'sweep' ? 'flex' : 'none';
     introGrowRow.style.display = animType === 'grow' ? 'flex' : 'none';
+    introSpiralRow.style.display = animType === 'spiral' ? 'flex' : 'none';
+    introSequentialRow.style.display = animType === 'sequential' ? 'flex' : 'none';
+    introStaggeredRow.style.display = animType === 'staggered' ? 'flex' : 'none';
   }
 
   function openSettingsModal() {
@@ -1001,6 +1036,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     introSweepDurationValue.textContent = `${APP_CONFIG.introSweepDuration}ms`;
     introGrowDurationSlider.value = APP_CONFIG.introGrowDuration;
     introGrowDurationValue.textContent = `${APP_CONFIG.introGrowDuration}ms`;
+    introStaggeredDurationSlider.value = APP_CONFIG.introStaggeredDuration;
+    introStaggeredDurationValue.textContent = `${APP_CONFIG.introStaggeredDuration}ms`;
 
     autoToggleFilterCheckbox.checked = APP_CONFIG.autoTogglePerformanceFilter;
     performanceThresholdInput.value = APP_CONFIG.performanceThreshold;
@@ -1074,6 +1111,15 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
   introGrowDurationSlider.addEventListener("input", (event) => {
     introGrowDurationValue.textContent = `${event.target.value}ms`;
+  });
+  introSpiralDurationSlider.addEventListener("input", (event) => {
+    introSpiralDurationValue.textContent = `${event.target.value}ms`;
+  });
+  introSequentialDurationSlider.addEventListener("input", (event) => {
+    introSequentialDurationValue.textContent = `${event.target.value}ms`;
+  });
+  introStaggeredDurationSlider.addEventListener("input", (event) => {
+    introStaggeredDurationValue.textContent = `${event.target.value}ms`;
   });
 
   function updateMinAngleLabel(value) {
