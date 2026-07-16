@@ -42,5 +42,4 @@ Thumbs.db
 clinerules-data/
 .clinerules/
 *.clinedata
-# Ak ti ukladá dynamické markdowny kontextu do špecifického priečinka, pridaj ho sem:
 memory-bank/
