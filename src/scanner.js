@@ -270,8 +270,8 @@ async function startDiskScan(path, totalSpace) {
   document.getElementById("live-ticker-bar").style.width = "0%";
 
   isScanning = true;
-  // UX improvement: Keep back button text unchanged, show cancel button separately
-  backBtn.classList.remove("in-cancel-mode");
+  backBtn.textContent = getText("scanScreen.cancelScan");
+  backBtn.classList.add("in-cancel-mode");
   if (cancelScanBtn) cancelScanBtn.classList.remove("hidden");
 
   const spinner = document.getElementById("scan-spinner");
@@ -316,6 +316,8 @@ async function startDiskScan(path, totalSpace) {
   // Po skončení skenu si od Rustu pýtame celý strom binárne a aplikujeme collapse lokalne.
   unlistenFinished = await listen("scan-finished", async () => {
     isScanning = false;
+    backBtn.textContent = getText("scanScreen.backButton");
+    backBtn.classList.remove("in-cancel-mode");
     // Hide cancel button when scan finishes
     if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
     
@@ -359,6 +361,8 @@ async function startDiskScan(path, totalSpace) {
 
   unlistenFailed = await listen("scan-failed", (event) => {
     isScanning = false;
+    backBtn.textContent = getText("scanScreen.backButton");
+    backBtn.classList.remove("in-cancel-mode");
     // Hide cancel button when scan fails
     if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
     const spinner = document.getElementById("scan-spinner");
