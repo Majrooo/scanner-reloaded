@@ -86,7 +86,6 @@ function deserializeBinaryTree(arrayBuffer) {
 let selectedDiskTotalSpace = 0;
 let totalScannedBytes = 0;
 let lastUpdateTime = 0;
-let tickerHideTimeout = null;
 
 // Globálne premenné pre správnu synchronizáciu
 let memoryTree = {};
@@ -253,10 +252,6 @@ function showConfirm(message, isDanger = false) {
 }
 
 async function startDiskScan(path, totalSpace) {
-  if (tickerHideTimeout) {
-    clearTimeout(tickerHideTimeout);
-    tickerHideTimeout = null;
-  }
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
 
@@ -327,13 +322,10 @@ async function startDiskScan(path, totalSpace) {
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
 
-    liveTicker.textContent = getText("scanScreen.statuses.finished");
     document.getElementById("live-ticker-bar").style.width = "100%";
-
-    tickerHideTimeout = setTimeout(() => {
-      document.getElementById("scan-progress-content").classList.add("hidden");
-      document.getElementById("hover-details-content").classList.remove("hidden");
-    }, 3000);
+    showToast(getText("scanScreen.statuses.finished"), "success");
+    document.getElementById("scan-progress-content").classList.add("hidden");
+    document.getElementById("hover-details-content").classList.remove("hidden");
 
     try {
       // Nacitame CELY strom binarne (efektivnejsie ako JSON)
