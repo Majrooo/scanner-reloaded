@@ -4,14 +4,26 @@
 const SunburstAnimations = {
   /**
    * Štandardný zoom prechod medzi starým a novým stavom uzlov.
+   * Interpoluje nielen uhly (x0, x1), ale aj vnútorný a vonkajší polomer,
+   * aby animácia pôsobila plynule pri zmene medzi rôznymi úrovňami.
    */
   arcTween(oldNode, newNode, arcGenerator) {
     const interpX0 = d3.interpolate(oldNode.x0, newNode.x0);
     const interpX1 = d3.interpolate(oldNode.x1, newNode.x1);
+    // Radii - používame uložené hodnoty z __arcData, ak existujú,
+    // inak ich dopočítame z arcGeneratora pre starý aj nový uzol.
+    const oldInner = oldNode.innerRadius !== undefined ? oldNode.innerRadius : arcGenerator.innerRadius()(oldNode);
+    const oldOuter = oldNode.outerRadius !== undefined ? oldNode.outerRadius : arcGenerator.outerRadius()(oldNode);
+    const newInner = newNode.innerRadius !== undefined ? newNode.innerRadius : arcGenerator.innerRadius()(newNode);
+    const newOuter = newNode.outerRadius !== undefined ? newNode.outerRadius : arcGenerator.outerRadius()(newNode);
+    const interpInner = d3.interpolate(oldInner, newInner);
+    const interpOuter = d3.interpolate(oldOuter, newOuter);
     return function (t) {
       return arcGenerator({
         x0: interpX0(t),
         x1: interpX1(t),
+        innerRadius: interpInner(t),
+        outerRadius: interpOuter(t),
         depth: newNode.depth,
         data: newNode.data,
         value: newNode.value

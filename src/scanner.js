@@ -158,6 +158,9 @@ let currentFocus = null;
 // Global state for intro animation
 let isFirstRenderAfterScan = false;
 
+// Flag to prevent ResizeObserver from interrupting zoom transitions
+let isZoomAnimating = false;
+
 // OS detection
 const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
 
@@ -184,6 +187,9 @@ function scheduleChartResize() {
   // Block ResizeObserver during the first chart render to avoid
   // a second zoomTo that would skip the intro animation.
   if (isChartInitializing) return;
+  // Block ResizeObserver during zoom transitions to prevent
+  // interrupting the arc interpolation animation.
+  if (isZoomAnimating) return;
   isResizeScheduled = true;
   requestAnimationFrame(() => {
     isResizeScheduled = false;
@@ -618,10 +624,11 @@ function findNodeByPath(node, targetPath) {
   }
   // Fallback: recursive search (shouldn't happen after pathIndex is built)
   const normalizedTarget = targetPath.replace(/\\/g, "/").replace(/\/+$/, "");
-  const normalizedNode = node.path.replace(/\\/g, "/").replace(/\/+$/, "");
+  const normalizedNode = node.path ? node.path.replace(/\\/g, "/").replace(/\/+$/, "") : "";
   if (normalizedNode.toLowerCase() === normalizedTarget.toLowerCase()) {
     return node;
   }
+  if (!node.children) return null;
   for (const child of node.children) {
     const found = findNodeByPath(child, targetPath);
     if (found) return found;
@@ -882,6 +889,7 @@ function zoomTo(p) {
   }
 
   if (APP_CONFIG.useInteractiveAnimations && !isFirstRenderAfterScan) {
+    isZoomAnimating = true;
     const TRANSITION_DURATION = APP_CONFIG.transitionDuration;
     const oldArcData = new Map();
     svg.selectAll("path").each(function () {
@@ -896,7 +904,14 @@ function zoomTo(p) {
       .join("path")
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
-      .each(function (d) { this.__arcData = { ...d }; });
+      .each(function (d) {
+        // Uložíme aj aktuálne polomery, aby boli k dispozícii pre ďalší zoom
+        this.__arcData = {
+          ...d,
+          innerRadius: arc.innerRadius()(d),
+          outerRadius: arc.outerRadius()(d)
+        };
+      });
     paths.each(function (d) {
       const el = this;
       const oldNode = oldArcData.get(d.data.path);
@@ -909,17 +924,26 @@ function zoomTo(p) {
           })
           .attr("fill", getFillColor(d));
       } else {
+        // Nové uzly: animujeme od nuly (x1 = x0, innerRadius = 0, outerRadius = 0)
         d3.select(el)
           .style("opacity", 0)
           .transition()
           .duration(TRANSITION_DURATION)
           .style("opacity", 1)
           .attrTween("d", function () {
-            const startNode = { ...d, x1: d.x0 };
+            const startNode = {
+              ...d,
+              x1: d.x0,
+              innerRadius: 0,
+              outerRadius: 0
+            };
             try { return SunburstAnimations.arcTween(startNode, d, arc); } catch { return () => arc(d); }
           });
       }
     });
+    // Po uplynutí trvania animácie (+ rezerva) uvoľníme flag,
+    // aby ResizeObserver mohol opäť fungovať.
+    setTimeout(() => { isZoomAnimating = false; }, TRANSITION_DURATION + 50);
     attachPathEvents(paths);
   } else {
     svg.selectAll("path").remove();
