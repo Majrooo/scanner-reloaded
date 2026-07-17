@@ -188,7 +188,7 @@ h1, h2 {
 /* B5: Empty state */
 .empty-state {
   text-align: center;
-  color: #6c7086;
+  color: #7f849c;
   font-size: 18px;
   padding: 60px 20px;
   font-style: italic;
@@ -289,6 +289,15 @@ h1, h2 {
   margin-bottom: 20px;
   width: 100%;
   min-height: 44px; /* Ensure consistent row height */
+}
+
+/* Centered action buttons row (disk screen) */
+.header-row.actions-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+  min-height: auto;
 }
 #back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; line-height: 1.2; }
 #back-to-disks-btn:hover { background: #45475a; }
@@ -413,7 +422,7 @@ h1, h2 {
   border-radius: 8px;
   text-align: center;
   box-sizing: border-box;
-  height: 85px; /* Fixná výška — žiadne skákanie grafu */
+  min-height: 85px; /* Minimálna výška — pružné prispôsobenie obsahu */
   border: 1px solid #313244;
   overflow: hidden; /* Dôležité, aby progress bar nepretekal cez zaoblené rohy */
   flex-shrink: 0;
@@ -873,6 +882,34 @@ dialog.modal .modal-content {
   }
 }
 
+/* ── Reduced motion (accessibility) ───────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .refresh-btn:hover {
+    transform: none;
+  }
+
+  .disk-card:hover {
+    transform: none;
+  }
+
+  .util-btn:hover {
+    transform: none;
+  }
+
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+}
+
 /* ── Responsive: very small screens (< 480px) ─────────────────────────────── */
 
 @media (max-width: 480px) {
@@ -916,7 +953,7 @@ dialog.modal .modal-content {
   }
 
   /* Action buttons row */
-  .header-row[style*="center"] {
+  .header-row.actions-row {
     flex-direction: column;
     gap: 8px;
   }
