@@ -36,4 +36,3 @@ windows-sys = { version = "0.52", features = [
 ] }
 flate2 = "1.1.9"
 base64 = "0.22"
-fxhash = "0.2"
