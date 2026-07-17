@@ -3,12 +3,13 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
 use sysinfo::Disks;
 use tauri::{AppHandle, Emitter, Manager};
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 use tauri::WebviewWindow;
 use walkdir::WalkDir;
 use flate2::read::GzEncoder;
@@ -38,8 +39,8 @@ struct DiskInfo {
 
 #[derive(Serialize, Clone)]
 pub(crate) struct FileNode {
-    name: Box<str>,
-    path: Box<str>,
+    name: Arc<str>,
+    path: Arc<str>,
     size: u64,
     is_dir: bool,
     dir_count: usize,
@@ -341,7 +342,7 @@ fn scan_directory(
     running_total: &mut u64,
 ) -> Option<FileNode> {
     // Create a helper map to build the tree (from leaf nodes to the root).
-    let mut nodes: HashMap<PathBuf, FileNode> = HashMap::with_capacity(250_000);
+    let mut nodes: FxHashMap<PathBuf, FileNode> = FxHashMap::with_capacity_and_hasher(250_000, fxhash::FxBuildHasher::default());
     let mut paths_to_process = Vec::with_capacity(250_000);
 
     // 1. Traverse the entire disk linearly using WalkDir without recursion.
@@ -362,13 +363,13 @@ fn scan_directory(
             Err(_) => continue, // Skip folders without access rights (e.g., System Volume Information).
         };
 
-        let name = path
+        let name: Arc<str> = path
             .file_name()
-            .map(|n| n.to_string_lossy().into_owned().into_boxed_str())
-            .unwrap_or_else(|| path.to_string_lossy().into_owned().into_boxed_str());
+            .map(|n| Arc::from(n.to_string_lossy().as_ref()))
+            .unwrap_or_else(|| Arc::from(path.to_string_lossy().as_ref()));
 
         if metadata.is_dir() {
-            let path_str = path.to_string_lossy().into_owned().into_boxed_str();
+            let path_str: Arc<str> = Arc::from(path.to_string_lossy().as_ref());
             nodes.insert(
                 path.clone(),
                 FileNode {
@@ -391,7 +392,7 @@ fn scan_directory(
                 path.clone(),
                 FileNode {
                     name,
-                    path: "".into(), // For files, we don't store the path initially.
+                    path: Arc::from(""), // For files, we don't store the path initially.
                     size,
                     is_dir: false,
                     dir_count: 0,
@@ -455,11 +456,11 @@ fn scan_directory(
 /// Normalize all paths in the tree to use forward slashes (matches frontend convention).
 /// Also reconstructs paths for files.
 fn normalize_paths(node: &mut FileNode) {
-    node.path = node.path.replace('\\', "/").into();
+    node.path = Arc::from(node.path.replace('\\', "/").as_str());
     for child in &mut node.children {
         if !child.is_dir {
             // Reconstruct path for file.
-            child.path = format!("{}/{}", node.path, child.name).into_boxed_str();
+            child.path = Arc::from(format!("{}/{}", node.path, child.name).as_str());
         }
         normalize_paths(child);
     }
