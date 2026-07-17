@@ -66,8 +66,7 @@
         "properties": "ℹ️ Vlastnosti",
         "copyPath": "📋 Kopírovať cestu",
         "trash": "🗑️ Presunúť do koša",
-        "delete": "❌ Vymazať navždy",
-        "setTCPath": "⚙️ Nastaviť cestu TC..."
+        "delete": "❌ Vymazať navždy"
       },
       "tcModal": {
         "title": "Nastavenie cesty Total Commander",
@@ -221,8 +220,7 @@
         "properties": "ℹ️ Properties",
         "copyPath": "📋 Copy path",
         "trash": "🗑️ Move to Trash",
-        "delete": "❌ Delete Permanently",
-        "setTCPath": "⚙️ Set TC Path..."
+        "delete": "❌ Delete Permanently"
       },
       "tcModal": {
         "title": "Total Commander Path Settings",

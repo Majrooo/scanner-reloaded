@@ -1344,16 +1344,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     };
   }
-  if (isWindows) {
-    const cmSetTcPath = document.createElement("div");
-    cmSetTcPath.className = "menu-item";
-    cmSetTcPath.id = "cm-set-tc-path";
-    cmSetTcPath.setAttribute("data-i18n", "contextMenu.setTCPath");
-    cmSetTcPath.textContent = getText("contextMenu.setTCPath");
-    cmSetTcPath.onclick = () => { showToast(getText("tcModal.configureFromMenu"), "info"); };
-    const cmDivider = contextMenu?.querySelector(".divider");
-    if (cmDivider && contextMenu) contextMenu.insertBefore(cmSetTcPath, cmDivider);
-  } else {
+  if (!isWindows) {
     const cmOpenTcItem = document.getElementById("cm-open-tc");
     if (cmOpenTcItem) cmOpenTcItem.style.display = "none";
   }

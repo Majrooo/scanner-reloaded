@@ -144,6 +144,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("util-defrag")?.addEventListener("click", () => invoke("open_system_utility", { utility: "defrag" }));
   }
 
+  // TC Path section (Windows only)
+  const tcPathSection = document.getElementById("tc-path-section");
+  if (isWindows && tcPathSection) {
+    tcPathSection.classList.remove("hidden");
+  }
+
   // Language selector setup
   const languageSelect = document.getElementById("language-select");
   if (languageSelect) {

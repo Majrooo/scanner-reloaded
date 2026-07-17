@@ -97,23 +97,25 @@
     </div>
   </dialog>
 
-  <!-- Modal for setting Total Commander path -->
-  <dialog id="tc-path-modal" class="modal">
-    <div class="modal-content tc-modal-content">
-      <button id="close-tc-modal-btn" class="close-btn" data-i18n-title="common.close">&times;</button>
-      <h2 data-i18n="tcModal.title">Nastavenie cesty Total Commander</h2>
-      <p class="tc-modal-desc" data-i18n="tcModal.description">Zadajte cestu k spustiteľnému súboru Total Commander (napr. C:\totalcmd\TOTALCMD64.EXE)</p>
-      <div class="tc-input-row">
-        <input type="text" id="tc-path-input" class="tc-path-input" placeholder="C:\totalcmd\TOTALCMD64.EXE" />
-        <button id="tc-browse-btn" class="tc-browse-btn" data-i18n="tcModal.browse">Prehľadávať</button>
+  <!-- Modal for setting Total Commander path (Windows only) -->
+  <div id="tc-path-section" class="hidden">
+    <dialog id="tc-path-modal" class="modal">
+      <div class="modal-content tc-modal-content">
+        <button id="close-tc-modal-btn" class="close-btn" data-i18n-title="common.close">&times;</button>
+        <h2 data-i18n="tcModal.title">Nastavenie cesty Total Commander</h2>
+        <p class="tc-modal-desc" data-i18n="tcModal.description">Zadajte cestu k spustiteľnému súboru Total Commander (napr. C:\totalcmd\TOTALCMD64.EXE)</p>
+        <div class="tc-input-row">
+          <input type="text" id="tc-path-input" class="tc-path-input" placeholder="C:\totalcmd\TOTALCMD64.EXE" />
+          <button id="tc-browse-btn" class="tc-browse-btn" data-i18n="tcModal.browse">Prehľadávať</button>
+        </div>
+        <div class="tc-current-path" id="tc-current-path-info"></div>
+        <div class="tc-modal-buttons">
+          <button id="tc-save-btn" class="tc-save-btn" data-i18n="tcModal.save">Uložiť</button>
+          <button id="tc-clear-btn" class="tc-clear-btn" data-i18n="tcModal.clear">Vymazať (auto-detekcia)</button>
+        </div>
       </div>
-      <div class="tc-current-path" id="tc-current-path-info"></div>
-      <div class="tc-modal-buttons">
-        <button id="tc-save-btn" class="tc-save-btn" data-i18n="tcModal.save">Uložiť</button>
-        <button id="tc-clear-btn" class="tc-clear-btn" data-i18n="tcModal.clear">Vymazať (auto-detekcia)</button>
-      </div>
-    </div>
-  </dialog>
+    </dialog>
+  </div>
 
   <!-- Toast notification container -->
   <div id="toast-container"></div>
