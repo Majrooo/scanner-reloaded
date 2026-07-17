@@ -977,7 +977,9 @@ function zoomTo(p) {
         .on("end", function () {
           d3.select(this).style("pointer-events", "auto");
         });
-      isFirstRenderAfterScan = false;
+      introTransition.end().then(() => {
+        isFirstRenderAfterScan = false;
+      });
     } else {
       paths.attr("d", d => { try { return arc(d); } catch { return null; } });
     }
