@@ -14,3 +14,4 @@ To conserve tokens, use search tools (e.g., `grep`, `search`) instead of reading
 - **Use English for all comments** and adhere to the project's established coding style.
 - **Write clear commit messages** following the conventional commit format (e.g., `feat: ...`, `fix: ...`).
 - **`.clinerules/memory-bank.md`**: This file contains the Memory Bank documentation system.
+- **`memory-bank/ai-tools-reference.md`**: This file contains the AI tools reference for Cline in VS Code.

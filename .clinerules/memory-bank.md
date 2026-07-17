@@ -55,6 +55,7 @@ Create additional files/folders within the `memory-bank/` directory (note: no le
 - API documentation
 - Testing strategies
 - Deployment procedures
+- Technical reference documentation (e.g., `ai-tools-reference.md`)
 
 ## Documentation Updates
 
