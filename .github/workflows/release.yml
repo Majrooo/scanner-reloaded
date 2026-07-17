@@ -42,9 +42,27 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || '' }}
       
-      # Zmeň 'npm' podľa toho, čo používaš (pnpm, yarn, bun), ak nepoužívaš npm
       - name: Install frontend dependencies
         run: npm install 
+
+      # Extrahovanie release notes z CHANGELOG.md pre aktuálnu verziu
+      - name: Extract release notes from CHANGELOG
+        id: extract_notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          $content = Get-Content CHANGELOG.md -Raw
+          $pattern = "## \[$version\].*?(?=## \[|\z)"
+          $match = [regex]::Match($content, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+          if ($match.Success) {
+            $notes = $match.Value.Trim()
+            "notes<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            $notes | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } else {
+            "notes=Automatický build pre verziu $tag." | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
 
       # Spustenie buildu cez oficiálnu Tauri akciu
       - name: Build Tauri App
@@ -55,8 +73,8 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Release ${{ github.ref_name }}'
-          releaseBody: 'Automatický build pre verziu ${{ github.ref_name }}.'
-          releaseDraft: false
+          releaseBody: ${{ steps.extract_notes.outputs.notes }}
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
@@ -65,20 +83,24 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
           $appName = "scanner-reloaded"
           $exePath = "src-tauri/target/release/$appName.exe"
           if (Test-Path $exePath) {
-            Compress-Archive -Path $exePath -DestinationPath "src-tauri/target/release/$appName-windows-portable.zip"
+            $arch = "x64"
+            Compress-Archive -Path $exePath -DestinationPath "src-tauri/target/release/${appName}_${version}_${arch}_portable.zip"
           } else { Write-Error "Nenašiel sa súbor $exePath" }
 
       # Zabalenie prenosnej verzie (Linux) - zbalí binárku do .tar.gz
       - name: Package Portable Version (Linux)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
+          version="${{ github.ref_name }}" && version="${version#v}"
           appName="scanner-reloaded"
           binaryPath="src-tauri/target/release/$appName"
           if [ -f "$binaryPath" ]; then
-            tar -czvf "src-tauri/target/release/$appName-linux-portable.tar.gz" -C src-tauri/target/release "$appName"
+            arch="x64"
+            tar -czvf "src-tauri/target/release/${appName}_${version}_${arch}_portable.tar.gz" -C src-tauri/target/release "$appName"
           else
             echo "Nenašiel sa súbor $binaryPath" && exit 1
           fi
@@ -87,10 +109,14 @@ jobs:
       - name: Package Portable Version (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
+          version="${{ github.ref_name }}" && version="${version#v}"
           appName="scanner-reloaded"
           binaryPath="src-tauri/target/release/$appName"
           if [ -f "$binaryPath" ]; then
-            zip -j "src-tauri/target/release/$appName-mac-portable.zip" "$binaryPath"
+            arch=$(uname -m)
+            [ "$arch" = "x86_64" ] && arch="x64"
+            [ "$arch" = "arm64" ] && arch="aarch64"
+            zip -j "src-tauri/target/release/${appName}_${version}_${arch}_portable.zip" "$binaryPath"
           else
             echo "Nenašiel sa súbor $binaryPath" && exit 1
           fi
