@@ -25,9 +25,17 @@ const tcCurrentPathInfo = document.getElementById("tc-current-path-info");
 const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
 
 async function loadDisks() {
+  const skeleton = document.getElementById("disk-list-skeleton");
   diskList.innerHTML = "";
   const noDisksMsg = document.getElementById("no-disks-message");
+
+  // Show skeleton while loading
+  if (skeleton) skeleton.classList.remove("hidden");
+
   let disks = await invoke("get_disks");
+
+  // Hide skeleton after loading
+  if (skeleton) skeleton.classList.add("hidden");
   disks.sort((a, b) => a.mount_point.localeCompare(b.mount_point));
 
   if (disks.length === 0) {

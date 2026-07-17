@@ -4,12 +4,26 @@ html, body {
   background-color: #11111b;
   color: #cdd6f4;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  overflow: hidden;
-  cursor: default !important;
+  overflow-y: auto;
+  cursor: default;
 }
 
 #disk-list, .disk-card, button, input, .breadcrumb-item, path, #center-info {
   cursor: pointer;
+}
+
+/* Keyboard accessibility - focus visible indicator */
+:focus-visible {
+  outline: 2px solid #89b4fa;
+  outline-offset: 2px;
+}
+
+/* Remove default focus outline for mouse users, keep for keyboard */
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .container {
@@ -597,7 +611,9 @@ dialog.modal {
 }
 
 dialog.modal::backdrop {
-  background-color: rgba(17, 17, 27, 0.6);
+  background-color: rgba(17, 17, 27, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 /* Base modal content styling */
@@ -855,6 +871,203 @@ dialog.modal .modal-content {
     transform: translateX(120%);
     opacity: 0;
   }
+}
+
+/* ── Responsive: very small screens (< 480px) ─────────────────────────────── */
+
+@media (max-width: 480px) {
+  .container {
+    padding: 12px 12px 0;
+  }
+
+  .top-bar {
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .disk-screen-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #disk-screen-title {
+    font-size: 1.2em;
+  }
+
+  #disk-list {
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .disk-card {
+    padding: 14px;
+  }
+
+  .disk-name {
+    font-size: 16px;
+  }
+
+  .header-row {
+    gap: 10px;
+    min-height: auto;
+    flex-wrap: wrap;
+  }
+
+  /* Action buttons row */
+  .header-row[style*="center"] {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .refresh-btn,
+  .scan-folder-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  #system-utilities-section {
+    margin-top: 24px;
+    padding-top: 12px;
+  }
+
+  .utilities-list {
+    gap: 10px;
+  }
+
+  .util-btn {
+    font-size: 13px;
+    padding: 8px 12px;
+    min-height: 40px;
+  }
+
+  .filter-control-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #hover-panel {
+    height: auto;
+    min-height: 70px;
+    padding: 10px;
+  }
+
+  .breadcrumbs-container {
+    font-size: 16px;
+  }
+
+  .drag-drop-content {
+    font-size: 20px;
+    padding: 40px 30px;
+  }
+
+  .toast {
+    min-width: auto;
+    max-width: calc(100vw - 40px);
+  }
+
+  #toast-container {
+    right: 10px;
+    top: 10px;
+    left: 10px;
+  }
+
+  .tc-modal-content {
+    width: auto;
+  }
+
+  .tc-input-row {
+    flex-wrap: wrap;
+  }
+
+  .tc-browse-btn {
+    width: 100%;
+  }
+}
+
+/* ── Skeleton loaders ─────────────────────────────────────────────────────── */
+
+#disk-list-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.disk-card-skeleton {
+  background-color: #1e1e2e;
+  border: 2px solid #313244;
+  border-radius: 12px;
+  padding: 20px;
+  pointer-events: none;
+}
+
+.skeleton-icon {
+  width: 28px;
+  height: 28px;
+  background: #313244;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  display: block;
+}
+
+.skeleton-name {
+  height: 20px;
+  background: #313244;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  width: 60%;
+}
+
+.skeleton-bar {
+  height: 8px;
+  background: #313244;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.skeleton-text {
+  height: 14px;
+  background: #313244;
+  border-radius: 4px;
+  width: 40%;
+  margin-bottom: 6px;
+}
+
+/* Shimmer animation */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.04),
+    transparent
+  );
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(200%); }
+}
+
+/* Hide skeleton when hidden */
+#disk-list-skeleton.hidden {
+  display: none;
 }
 
 /* ── Custom Confirm Modal ─────────────────────────────────────────────────── */

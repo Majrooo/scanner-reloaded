@@ -11,13 +11,35 @@
   <main class="container" aria-label="Disk Selection Workspace">
     <header class="top-bar">
       <label for="language-select" class="language-label" data-i18n="common.languageLabel">Jazyk</label>
-      <select id="language-select"></select>
+      <select id="language-select">
+        <option value="sk">Slovenčina</option>
+      </select>
       <button id="about-btn" class="icon-btn" data-i18n-title="about.title"><span aria-hidden="true">ℹ</span></button>
     </header>
 
     <div id="disk-screen">
       <div class="disk-screen-header">
         <h1 id="disk-screen-title" data-i18n="diskScreen.title">Vyberte disk na analýzu</h1>
+      </div>
+      <div id="disk-list-skeleton" class="hidden">
+        <div class="disk-card-skeleton skeleton-shimmer">
+          <div class="skeleton-icon"></div>
+          <div class="skeleton-name"></div>
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-text"></div>
+        </div>
+        <div class="disk-card-skeleton skeleton-shimmer">
+          <div class="skeleton-icon"></div>
+          <div class="skeleton-name"></div>
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-text"></div>
+        </div>
+        <div class="disk-card-skeleton skeleton-shimmer">
+          <div class="skeleton-icon"></div>
+          <div class="skeleton-name"></div>
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-text"></div>
+        </div>
       </div>
       <div id="disk-list"></div>
       <div id="no-disks-message" class="empty-state hidden" data-i18n="diskScreen.noDisks">Nenašli sa žiadne disky.</div>

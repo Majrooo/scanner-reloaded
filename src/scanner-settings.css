@@ -1,17 +1,3 @@
-/* --- Globálna štruktúra modálneho okna (pre <dialog> elementy) --- */
-dialog.modal {
-  margin: auto;
-  border: none;
-  padding: 0;
-  background: transparent;
-}
-
-dialog.modal::backdrop {
-  background-color: rgba(17, 17, 27, 0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px); /* Fallback pre Safari */
-}
-
 .modal-content {
   background-color: #1e1e2e;
   color: #cdd6f4;
