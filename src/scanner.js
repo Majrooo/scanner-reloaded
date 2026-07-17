@@ -144,6 +144,12 @@ let unlistenProgress;
 let unlistenFinished;
 let unlistenFailed;
 
+// Path-to-node Map for O(1) lookup
+let pathIndex = null;
+
+// Cache for collapsed views keyed by path (avoids redundant clone+collapse)
+const collapsedViewCache = new Map();
+
 // Global references for D3 nodes
 let rootNode = null;
 let gPartition = null;
@@ -167,8 +173,17 @@ let isResizeScheduled = false;
  * handles actual pixel scaling. This just re-runs the D3 layout
  * to ensure proper arc positioning after container size changes.
  */
+/**
+ * Flag to block ResizeObserver during the initial chart render.
+ * Prevents a second zoomTo from interrupting the intro animation.
+ */
+let isChartInitializing = false;
+
 function scheduleChartResize() {
   if (isResizeScheduled) return;
+  // Block ResizeObserver during the first chart render to avoid
+  // a second zoomTo that would skip the intro animation.
+  if (isChartInitializing) return;
   isResizeScheduled = true;
   requestAnimationFrame(() => {
     isResizeScheduled = false;
@@ -422,11 +437,18 @@ async function startDiskScan(path, totalSpace) {
       const compressed = base64ToUint8Array(encoded);
       const binaryBuf = await decompressGzip(compressed);
       memoryTree = deserializeBinaryTree(binaryBuf);
-      const renderData = structuredClone(memoryTree);
-      collapseLocalJS(renderData, Math.max(renderData.size, 1));
+      // Build O(1) path index for fast node lookup
+      pathIndex = new Map();
+      buildPathIndex(memoryTree, pathIndex);
+      // Clear any previous cache (new scan = stale data)
+      collapsedViewCache.clear();
+      isChartInitializing = true;
       isFirstRenderAfterScan = true;
-      currentViewPath = renderData.path || rootPath;
-      drawSunburst(renderData);
+      currentViewPath = rootPath;
+      // Use navigateToPath so the intro animation plays consistently
+      // (same code path as after saving settings)
+      navigateToPath(rootPath);
+      isChartInitializing = false;
       const statsBar = document.getElementById("scan-stats-bar");
       if (statsBar && memoryTree) {
         statsBar.textContent = getText("scanScreen.statsBar", {
@@ -474,6 +496,8 @@ async function goBackToMenu() {
   memoryTree = null;
   currentViewPath = "";
   rootPath = "";
+  pathIndex = null;
+  collapsedViewCache.clear();
   const mainContainers = ["sunburst-chart", "current-folder-title", "live-ticker"];
   mainContainers.forEach(id => {
     const el = document.getElementById(id);
@@ -525,6 +549,29 @@ function updateBreadcrumbs(currentPath) {
   });
 }
 
+function getOrCreateCollapsedView(found, targetPath) {
+  const cacheKey = targetPath.replace(/\\/g, "/").replace(/\/+$/, "");
+  if (collapsedViewCache.has(cacheKey)) {
+    return collapsedViewCache.get(cacheKey);
+  }
+  const cloned = structuredClone(found);
+  collapseLocalJS(cloned, Math.max(cloned.size, 1));
+  // Pre-build D3 hierarchy + partition and cache them together
+  const hierarchy = d3.hierarchy(cloned)
+    .sum(d => d.is_dir ? 0 : (d.size || 0))
+    .sort((a, b) => {
+      if (a.data.name === "__others__") return 1;
+      if (b.data.name === "__others__") return -1;
+      return b.value - a.value;
+    });
+  const partition = d3.partition().size([2 * Math.PI, radius]);
+  hierarchy.each(d => { d.data.size = d.value; });
+  partition(hierarchy);
+  const entry = { raw: cloned, hierarchy, partition };
+  collapsedViewCache.set(cacheKey, entry);
+  return entry;
+}
+
 function navigateToPath(targetPath) {
   if (!targetPath) return;
   const found = findNodeByPath(memoryTree, targetPath);
@@ -532,10 +579,9 @@ function navigateToPath(targetPath) {
     showToast("Priečinok '" + targetPath + "' sa nenašiel v strome.", "error");
     return;
   }
-  const cloned = structuredClone(found);
-  collapseLocalJS(cloned, Math.max(cloned.size, 1));
-  currentViewPath = cloned.path || targetPath;
-  drawSunburst(cloned);
+  const entry = getOrCreateCollapsedView(found, targetPath);
+  currentViewPath = targetPath;
+  drawSunburst(entry.hierarchy, entry.partition);
 }
 
 function updateSunburstForFolder(folderPath) {
@@ -545,14 +591,32 @@ function updateSunburstForFolder(folderPath) {
     showToast("Priečinok '" + folderPath + "' sa nenašiel v strome.", "error");
     return;
   }
-  const cloned = structuredClone(found);
-  collapseLocalJS(cloned, Math.max(cloned.size, 1));
-  currentViewPath = cloned.path || folderPath;
-  drawSunburst(cloned);
+  const entry = getOrCreateCollapsedView(found, folderPath);
+  currentViewPath = folderPath;
+  drawSunburst(entry.hierarchy, entry.partition);
+}
+
+/**
+ * Build a Map from normalized path -> node for O(1) lookup.
+ * Call this once after deserializing the tree.
+ */
+function buildPathIndex(node, map) {
+  if (!node) return;
+  const normalized = node.path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  map.set(normalized, node);
+  for (const child of node.children) {
+    buildPathIndex(child, map);
+  }
 }
 
 function findNodeByPath(node, targetPath) {
   if (!node || !targetPath) return null;
+  // Use pathIndex if available (O(1) lookup)
+  if (pathIndex) {
+    const normalized = targetPath.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+    return pathIndex.get(normalized) || null;
+  }
+  // Fallback: recursive search (shouldn't happen after pathIndex is built)
   const normalizedTarget = targetPath.replace(/\\/g, "/").replace(/\/+$/, "");
   const normalizedNode = node.path.replace(/\\/g, "/").replace(/\/+$/, "");
   if (normalizedNode.toLowerCase() === normalizedTarget.toLowerCase()) {
@@ -613,7 +677,8 @@ function getParentPath(path) {
   return normalized.substring(0, idx);
 }
 
-function drawSunburst(data) {
+function drawSunburst(hierarchy, partition) {
+  const data = hierarchy.data;
   const emptyFolderMsg = document.getElementById("empty-folder-message");
   if (!data || !data.children || data.children.length === 0) {
     if (emptyFolderMsg) emptyFolderMsg.classList.remove("hidden");
@@ -623,14 +688,8 @@ function drawSunburst(data) {
   }
   if (emptyFolderMsg) emptyFolderMsg.classList.add("hidden");
   const baseSize = 640;
-  rootNode = d3.hierarchy(data)
-    .sum(d => d.is_dir ? 0 : (d.size || 0))
-    .sort((a, b) => {
-      if (a.data.name === "__others__") return 1;
-      if (b.data.name === "__others__") return -1;
-      return b.value - a.value;
-    });
-  gPartition = d3.partition().size([2 * Math.PI, radius]);
+  rootNode = hierarchy;
+  gPartition = partition;
   const totalDescendants = rootNode.descendants().length;
   if (APP_CONFIG.autoTogglePerformanceFilter) {
     if (totalDescendants >= APP_CONFIG.performanceThreshold) {
@@ -640,8 +699,6 @@ function drawSunburst(data) {
     }
     if (filterToggle) filterToggle.checked = APP_CONFIG.usePerformanceFilter;
   }
-  rootNode.each(d => { d.data.size = d.value; });
-  gPartition(rootNode);
   currentFocus = rootNode;
   let svg;
   if (d3.select("#sunburst-chart").select("#sunburst-group").empty()) {
@@ -698,9 +755,7 @@ function zoomTo(p) {
       size: formatBytes(p.value || 0)
     });
   }
-  if (gPartition && rootNode) {
-    gPartition(rootNode);
-  }
+  // gPartition is already computed in drawSunburst – no need to recompute here
   const visibleDescendants = p.descendants().filter(d => {
     const basicCheck = d.depth > p.depth &&
       d.depth <= p.depth + maxDepth &&
@@ -1162,6 +1217,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.totalCommanderPath = tcPathInput.value;
     await invoke("set_tc_path", { path: tcPathInput.value || "" });
     await saveSettings();
+    // Clear cache so settings like relativeThreshold, introAnimationType take effect
+    collapsedViewCache.clear();
+    // Re-enable intro animation so the newly built graph plays the selected animation
+    isFirstRenderAfterScan = true;
     closeSettingsModal();
     if (currentViewPath && memoryTree) {
       navigateToPath(currentViewPath);
