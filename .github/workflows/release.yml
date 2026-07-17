@@ -1,0 +1,76 @@
+name: "Publish Release"
+
+on:
+  push:
+    tags:
+      - 'v*' # Spustí sa iba vtedy, keď pushneš tag začínajúci na 'v' (napr. v0.2.0)
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || '' }}
+
+      # Zmeň 'npm' podľa toho, čo používaš (pnpm, yarn, bun), ak nepoužívaš npm
+      - name: Install frontend dependencies
+        run: npm install 
+
+      # Spustenie buildu cez oficiálnu Tauri akciu
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        id: tauri_build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Release ${{ github.ref_name }}'
+          releaseBody: 'Automatický build pre verziu ${{ github.ref_name }}.'
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      # Krok navyše: Zabalenie prenosnej (portable) verzie do .zip
+      - name: Package Portable Version (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Názov tvojej aplikácie (zmeň podľa Cargo.toml / tauri.conf.json ak sa volá inak)
+          $appName = "scanner-reloaded" 
+          $exePath = "src-tauri/target/release/$appName.exe"
+          
+          if (Test-Path $exePath) {
+            Compress-Archive -Path $exePath -DestinationPath "src-tauri/target/release/$appName-portable.zip"
+            echo "Portable verzia úspešne zabalená."
+          } else {
+            Write-Error "Nenašiel sa .exe súbor na adrese $exePath. Skontroluj názov aplikácie."
+          }
+
+      # Nahranie portable .zip archívu do vytvoreného GitHub Release
+      - name: Upload Portable Asset
+        if: matrix.platform == 'windows-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/*-portable.zip
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
