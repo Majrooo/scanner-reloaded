@@ -34,3 +34,5 @@ windows-sys = { version = "0.52", features = [
     "Win32_System_Registry", 
     "Win32_UI_WindowsAndMessaging"
 ] }
+flate2 = "1.1.9"
+base64 = "0.22"

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,6 +11,10 @@ use tauri::{AppHandle, Emitter, Manager};
 use std::collections::HashMap;
 use tauri::WebviewWindow;
 use walkdir::WalkDir;
+use flate2::read::GzEncoder;
+use flate2::Compression;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 
 // Global flag to cancel a scan.
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -544,13 +549,13 @@ fn optimize_webview_memory(window: WebviewWindow) -> Result<(), String> {
 
 // ── Binary Data Transfer ─────────────────────────────────────────────────────
 
-/// Returns the entire tree serialized into compact binary format.
-/// Uses Tauri IPC Response for native binary transfer (no JSON serialization).
+/// Returns the entire tree serialized into compact binary format,
+/// GZip compressed and base64-encoded for safe transfer through production IPC.
 /// The frontend deserializes and performs local collapse/navigation on the full tree.
 #[tauri::command]
 fn get_binary_tree(
     state: tauri::State<'_, ScanState>,
-) -> Result<tauri::ipc::Response, String> {
+) -> Result<String, String> {
     let guard = state
         .current_tree
         .lock()
@@ -562,7 +567,17 @@ fn get_binary_tree(
 
     let mut buf = Vec::with_capacity(10 * 1024 * 1024); // pre-allocate 10 MB
     root.serialize_to_binary(&mut buf);
-    Ok(tauri::ipc::Response::new(buf))
+
+    // GZip compress the binary data
+    let mut encoder = GzEncoder::new(buf.as_slice(), Compression::default());
+    let mut compressed = Vec::new();
+    encoder.read_to_end(&mut compressed)
+        .map_err(|e| format!("Compression failed: {}", e))?;
+
+    // Base64 encode the compressed data for safe IPC transfer
+    let encoded = BASE64.encode(&compressed);
+    
+    Ok(encoded)
 }
 
 // ── Cross-platform: Show in File Manager ─────────────────────────────────────

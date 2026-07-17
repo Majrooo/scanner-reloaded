@@ -32,7 +32,56 @@ const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const cancelScanBtn = document.getElementById("cancel-scan-btn");
 let isScanning = false;
 
+/**
+ * Decode a base64 string into a Uint8Array.
+ */
+function base64ToUint8Array(base64) {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Decompress GZip-compressed bytes using the native CompressionStream API.
+ * Returns an ArrayBuffer.
+ */
+async function decompressGzip(compressedBytes) {
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  writer.write(compressedBytes);
+  writer.close();
+  const reader = ds.readable.getReader();
+  const chunks = [];
+  let totalLength = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLength += value.length;
+  }
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result.buffer;
+}
+
 function deserializeBinaryTree(arrayBuffer) {
+  // Handle production build where data may arrive as number[] or Uint8Array
+  if (!(arrayBuffer instanceof ArrayBuffer)) {
+    if (arrayBuffer instanceof Uint8Array) {
+      arrayBuffer = arrayBuffer.buffer;
+    } else if (Array.isArray(arrayBuffer)) {
+      arrayBuffer = new Uint8Array(arrayBuffer).buffer;
+    } else {
+      throw new Error("Invalid binary data format");
+    }
+  }
   const view = new DataView(arrayBuffer);
   const decoder = new TextDecoder("utf-8");
   let offset = 0;
@@ -368,8 +417,12 @@ async function startDiskScan(path, totalSpace) {
     document.getElementById("scan-progress-content").classList.add("hidden");
     document.getElementById("hover-details-content").classList.remove("hidden");
     try {
-      memoryTree = deserializeBinaryTree(await invoke("get_binary_tree"));
-      const renderData = deepCloneNode(memoryTree);
+      // Fetch and decompress the tree: base64 -> GZip -> ArrayBuffer -> deserialize
+      const encoded = await invoke("get_binary_tree");
+      const compressed = base64ToUint8Array(encoded);
+      const binaryBuf = await decompressGzip(compressed);
+      memoryTree = deserializeBinaryTree(binaryBuf);
+      const renderData = structuredClone(memoryTree);
       collapseLocalJS(renderData, Math.max(renderData.size, 1));
       isFirstRenderAfterScan = true;
       currentViewPath = renderData.path || rootPath;
@@ -479,7 +532,7 @@ function navigateToPath(targetPath) {
     showToast("Priečinok '" + targetPath + "' sa nenašiel v strome.", "error");
     return;
   }
-  const cloned = deepCloneNode(found);
+  const cloned = structuredClone(found);
   collapseLocalJS(cloned, Math.max(cloned.size, 1));
   currentViewPath = cloned.path || targetPath;
   drawSunburst(cloned);
@@ -492,14 +545,10 @@ function updateSunburstForFolder(folderPath) {
     showToast("Priečinok '" + folderPath + "' sa nenašiel v strome.", "error");
     return;
   }
-  const cloned = deepCloneNode(found);
+  const cloned = structuredClone(found);
   collapseLocalJS(cloned, Math.max(cloned.size, 1));
   currentViewPath = cloned.path || folderPath;
   drawSunburst(cloned);
-}
-
-function deepCloneNode(node) {
-  return JSON.parse(JSON.stringify(node));
 }
 
 function findNodeByPath(node, targetPath) {
