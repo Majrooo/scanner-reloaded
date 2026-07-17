@@ -15,6 +15,10 @@ jobs:
         include:
           - platform: 'windows-latest'
             args: ''
+          - platform: 'macos-latest'
+            args: ''
+          - platform: 'ubuntu-22.04' # Pre Linux je stabilnejšie použiť staršie Ubuntu kvôli spätnej kompatibilite glibc
+            args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -26,11 +30,18 @@ jobs:
         with:
           node-version: lts/*
 
+      # Linux vyžaduje dodatočné systémové knižnice pre Tauri webview a grafiku
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || '' }}
-
+      
       # Zmeň 'npm' podľa toho, čo používaš (pnpm, yarn, bun), ak nepoužívaš npm
       - name: Install frontend dependencies
         run: npm install 
@@ -49,28 +60,48 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-      # Krok navyše: Zabalenie prenosnej (portable) verzie do .zip
+      # Zabalenie prenosnej verzie (Windows)
       - name: Package Portable Version (Windows)
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          # Názov tvojej aplikácie (zmeň podľa Cargo.toml / tauri.conf.json ak sa volá inak)
-          $appName = "scanner-reloaded" 
+          $appName = "scanner-reloaded"
           $exePath = "src-tauri/target/release/$appName.exe"
-          
           if (Test-Path $exePath) {
-            Compress-Archive -Path $exePath -DestinationPath "src-tauri/target/release/$appName-portable.zip"
-            echo "Portable verzia úspešne zabalená."
-          } else {
-            Write-Error "Nenašiel sa .exe súbor na adrese $exePath. Skontroluj názov aplikácie."
-          }
+            Compress-Archive -Path $exePath -DestinationPath "src-tauri/target/release/$appName-windows-portable.zip"
+          } else { Write-Error "Nenašiel sa súbor $exePath" }
 
-      # Nahranie portable .zip archívu do vytvoreného GitHub Release
+      # Zabalenie prenosnej verzie (Linux) - zbalí binárku do .tar.gz
+      - name: Package Portable Version (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          appName="scanner-reloaded"
+          binaryPath="src-tauri/target/release/$appName"
+          if [ -f "$binaryPath" ]; then
+            tar -czvf "src-tauri/target/release/$appName-linux-portable.tar.gz" -C src-tauri/target/release "$appName"
+          else
+            echo "Nenašiel sa súbor $binaryPath" && exit 1
+          fi
+
+      # Zabalenie prenosnej verzie (macOS) - zbalí čistú binárku do .zip
+      - name: Package Portable Version (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          appName="scanner-reloaded"
+          binaryPath="src-tauri/target/release/$appName"
+          if [ -f "$binaryPath" ]; then
+            zip -j "src-tauri/target/release/$appName-mac-portable.zip" "$binaryPath"
+          else
+            echo "Nenašiel sa súbor $binaryPath" && exit 1
+          fi
+
+      # Nahranie prenosných verzií na GitHub Release
       - name: Upload Portable Asset
-        if: matrix.platform == 'windows-latest'
         uses: softprops/action-gh-release@v2
         with:
-          files: src-tauri/target/release/*-portable.zip
+          files: |
+            src-tauri/target/release/*-portable.zip
+            src-tauri/target/release/*-portable.tar.gz
           tag_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
