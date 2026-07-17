@@ -471,7 +471,6 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
     SCAN_CANCELLED.store(false, Ordering::Relaxed);
 
     thread::spawn(move || {
-        let _start_time = Instant::now();
         let target_path = Path::new(&path);
         if !target_path.exists() {
             let _ = app_handle.emit("scan-failed", format!("Cesta neexistuje: {}", path));

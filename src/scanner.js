@@ -137,7 +137,7 @@ let totalScannedBytes = 0;
 let lastUpdateTime = 0;
 
 // Global variables for proper synchronization
-let memoryTree = {};
+let memoryTree = null;
 let rootPath = "";
 let currentViewPath = "";
 let unlistenProgress;

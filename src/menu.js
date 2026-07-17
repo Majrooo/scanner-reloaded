@@ -9,9 +9,6 @@ let githubLink = document.getElementById("github-link");
 let diskScreen = document.getElementById("disk-screen");
 let diskList = document.getElementById("disk-list");
 
-// Toast
-const toastContainer = document.getElementById("toast-container");
-
 // Drag & Drop overlay
 const dragDropOverlay = document.getElementById("drag-drop-overlay");
 
@@ -24,118 +21,8 @@ const tcClearBtn = document.getElementById("tc-clear-btn");
 const tcCloseBtn = document.getElementById("close-tc-modal-btn");
 const tcCurrentPathInfo = document.getElementById("tc-current-path-info");
 
-// Detekcia OS
+// OS detection
 const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
-
-let translationsData = null;
-let currentLanguage = "sk";
-
-function getNestedValue(obj, path) {
-  return path.split(".").reduce((current, key) => current?.[key], obj);
-}
-
-function interpolate(template, replacements = {}) {
-  if (typeof template !== "string") return template;
-  return template.replace(/\{(\w+)\}/g, (_, key) => replacements[key] ?? "");
-}
-
-function getText(key, replacements = {}) {
-  if (!translationsData) return key;
-
-  const currentTranslations = translationsData.languages?.[currentLanguage];
-  const fallbackTranslations = translationsData.languages?.[translationsData.defaultLanguage] || {};
-  const value = getNestedValue(currentTranslations, key) ?? getNestedValue(fallbackTranslations, key) ?? key;
-
-  return interpolate(value, replacements);
-}
-
-function applyTranslations() {
-  if (!translationsData) return;
-
-  document.documentElement.lang = currentLanguage;
-  document.title = getText("appTitle");
-
-  document.querySelectorAll("[data-i18n]").forEach((element) => {
-    const key = element.getAttribute("data-i18n");
-    if (key) {
-      element.textContent = getText(key);
-    }
-  });
-
-  // Apply aria-labels for elements with data-i18n-title
-  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
-    const key = element.getAttribute("data-i18n-title");
-    if (key) {
-      element.setAttribute("aria-label", getText(key));
-    }
-  });
-
-  const languageSelect = document.getElementById("language-select");
-  if (languageSelect) {
-    languageSelect.value = currentLanguage;
-  }
-}
-
-async function loadTranslations() {
-  try {
-    const response = await fetch("./translations.json");
-    if (!response.ok) throw new Error("Failed to load translations");
-
-    translationsData = await response.json();
-    const languages = Object.keys(translationsData.languages || {});
-    const languageSelect = document.getElementById("language-select");
-
-    if (languageSelect) {
-      languageSelect.innerHTML = "";
-      languages.forEach((code) => {
-        const option = document.createElement("option");
-        option.value = code;
-        option.textContent = translationsData.languages[code].name || code.toUpperCase();
-        languageSelect.appendChild(option);
-      });
-
-      const storedLanguage = localStorage.getItem("disk-scanner-language");
-      const browserLanguage = navigator.language?.split("-")[0];
-      const preferredLanguage = storedLanguage || (languages.includes(browserLanguage) ? browserLanguage : translationsData.defaultLanguage || languages[0]);
-      currentLanguage = languages.includes(preferredLanguage) ? preferredLanguage : translationsData.defaultLanguage || languages[0];
-      languageSelect.value = currentLanguage;
-
-      languageSelect.addEventListener("change", (event) => {
-        currentLanguage = event.target.value;
-        localStorage.setItem("disk-scanner-language", currentLanguage);
-        applyTranslations();
-        loadDisks();
-      });
-    }
-
-    applyTranslations();
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function showToast(message, type = "info", duration = 4000) {
-  if (!toastContainer) return;
-
-  const toast = document.createElement("div");
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-
-  toastContainer.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add("toast-fading");
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
-}
 
 async function loadDisks() {
   diskList.innerHTML = "";
@@ -152,7 +39,7 @@ async function loadDisks() {
   disks.forEach(disk => {
     const used = disk.total_space - disk.available_space;
     const pct = (used / disk.total_space) * 100;
-    const typeIcon = getText(`diskScreen.diskType.${disk.kind || "unknown"}`);
+    const typeIcon = I18n.getText(`diskScreen.diskType.${disk.kind || "unknown"}`);
 
     const card = document.createElement("div");
     card.className = "disk-card";
@@ -160,14 +47,14 @@ async function loadDisks() {
       <div class="disk-type-icon">${typeIcon}</div>
       <div class="disk-name" title="${disk.name} (${disk.mount_point})">${disk.name} (${disk.mount_point})</div>
       <div class="disk-bar-bg"><div class="disk-bar-fill" style="width: ${pct}%"></div></div>
-      <div>${getText("diskScreen.used", { used: formatBytes(used), total: formatBytes(disk.total_space) })}</div>
+      <div>${I18n.getText("diskScreen.used", { used: Utils.formatBytes(used), total: Utils.formatBytes(disk.total_space) })}</div>
     `;
     const usedSpace = disk.total_space - disk.available_space;
     card.onclick = () => startDiskScan(disk.mount_point, usedSpace);
     diskList.appendChild(card);
   });
 
-  showToast(getText("toast.disksLoaded"), "success", 2000);
+  Utils.showToast(I18n.getText("toast.disksLoaded"), "success", 2000);
 }
 
 function startDiskScan(path, totalSpace) {
@@ -197,7 +84,7 @@ async function handleDragDrop(paths) {
   }
 
   if (!paths || paths.length === 0) {
-    showToast(getText("dragDrop.noPaths"), "error");
+    Utils.showToast(I18n.getText("dragDrop.noPaths"), "error");
     return;
   }
 
@@ -208,12 +95,12 @@ async function handleDragDrop(paths) {
     await invoke("validate_directory", { path: path });
     startDiskScan(path, 0);
   } catch (err) {
-    showToast(getText("dragDrop.notDirectory"), "error");
+    Utils.showToast(I18n.getText("dragDrop.notDirectory"), "error");
   }
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  await loadTranslations();
+  await I18n.loadTranslations();
   loadDisks();
 
   const refreshDisksBtn = document.getElementById("refresh-disks-btn");
@@ -228,7 +115,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const selected = await window.__TAURI__.dialog.open({
           directory: true,
           multiple: false,
-          title: getText("diskScreen.scanFolder"),
+          title: I18n.getText("diskScreen.scanFolder"),
         });
         if (selected) {
           startDiskScan(selected, 0);
@@ -249,9 +136,28 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("util-defrag")?.addEventListener("click", () => invoke("open_system_utility", { utility: "defrag" }));
   }
 
+  // Language selector setup
+  const languageSelect = document.getElementById("language-select");
+  if (languageSelect) {
+    const languages = I18n.getAvailableLanguages();
+    const transData = I18n.getTranslationsData();
+    languageSelect.innerHTML = "";
+    languages.forEach((code) => {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = (transData?.languages?.[code]?.name) || code.toUpperCase();
+      languageSelect.appendChild(option);
+    });
+    languageSelect.value = I18n.getCurrentLanguage();
+    languageSelect.addEventListener("change", (event) => {
+      I18n.setLanguage(event.target.value);
+      loadDisks();
+    });
+  }
+
   // About Modal - using native dialog API
   aboutBtn.onclick = async () => {
-    applyTranslations();
+    I18n.applyTranslations();
     if (aboutModal.showModal) {
       aboutModal.showModal();
     } else {
