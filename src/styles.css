@@ -422,7 +422,7 @@ h1, h2 {
   border-radius: 8px;
   text-align: center;
   box-sizing: border-box;
-  min-height: 85px; /* Minimálna výška — pružné prispôsobenie obsahu */
+  height: 85px; /* Pevná výška — zabraňuje posunu grafu */
   border: 1px solid #313244;
   overflow: hidden; /* Dôležité, aby progress bar nepretekal cez zaoblené rohy */
   flex-shrink: 0;
@@ -988,8 +988,7 @@ dialog.modal .modal-content {
   }
 
   #hover-panel {
-    height: auto;
-    min-height: 70px;
+    height: 70px;
     padding: 10px;
   }
 
