@@ -12,6 +12,19 @@ This project is a tribute to and a modern remake of the classic "Scanner" utilit
 
 You can find more about the original author and his work here: [www.steffengerlach.de](http://www.steffengerlach.de/freeware/index.html)
 
+## Download
+
+Get the latest version for your platform from the [Releases page](https://github.com/Majrooo/scanner-reloaded/releases).
+
+| Platform | Installer | Portable |
+|----------|-----------|----------|
+| **Windows** | `scanner-reloaded_*_x64-setup.exe` (NSIS) or `.msi` | `scanner-reloaded_*_x64_portable.zip` |
+| **macOS** | `.dmg` *(coming in next release)* | `*_portable.zip` *(coming in next release)* |
+| **Linux** | `.AppImage` *(coming in next release)* | `*_portable.tar.gz` *(coming in next release)* |
+
+> **Tip:** Portable version requires no installation — just extract and run.
+> **Note:** macOS and Linux builds will be available in a future release.
+
 ## Features
 
 - **Fast Analysis**: Leverages Rust's performance for quick, multi-threaded scanning of your drives.
