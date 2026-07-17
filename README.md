@@ -1,5 +1,7 @@
 # Scanner Reloaded 🔍📊
 
+**Version 0.1.0** — Initial Release
+
 A modern, fast, and cross-platform disk space visualizer built with Tauri, Rust, and D3.js.
 
 ![Scanner Reloaded Screenshot](images/screenshot.jpg)
