@@ -979,6 +979,11 @@ function zoomTo(p) {
         });
       introTransition.end().then(() => {
         isFirstRenderAfterScan = false;
+      }).catch(() => {
+        // If the intro transition is interrupted (e.g. by ResizeObserver
+        // triggering navigateToPath mid-animation), we must still clear
+        // the flag so subsequent zoom interactions animate properly.
+        isFirstRenderAfterScan = false;
       });
     } else {
       paths.attr("d", d => { try { return arc(d); } catch { return null; } });
