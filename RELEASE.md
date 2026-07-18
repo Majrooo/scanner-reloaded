@@ -9,15 +9,7 @@ Tento návod popisuje, ako vytvoriť nový release pre **Scanner Reloaded** pomo
 
 ## Postup krok za krokom
 
-### 1. Aktualizuj verziu
-
-Ak si menil verziu (napr. na `0.2.0`), aktualizuj ju vo všetkých súboroch:
-
-- `package.json` — `"version": "0.2.0"`
-- `src-tauri/Cargo.toml` — `version = "0.2.0"`
-- `src-tauri/tauri.conf.json` — `"version": "0.2.0"`
-
-### 2. Aktualizuj CHANGELOG.md
+### 1. Aktualizuj CHANGELOG.md
 
 Pridaj novú sekciu na začiatok `CHANGELOG.md`:
 
@@ -37,19 +29,25 @@ Pridaj novú sekciu na začiatok `CHANGELOG.md`:
 [0.2.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.2.0
 ```
 
-### 3. Commitni a pushni zmeny
+### 2. Zvýš verziu (automaticky)
+
+Spusti príkaz, ktorý zvýši verziu vo všetkých 3 súboroch naraz, vytvorí commit a tag:
 
 ```bash
-git add CHANGELOG.md package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
-git commit -m "chore: bump version to 0.2.0"
-git push origin main
+npm run bump patch   # 0.1.0 → 0.1.1 (opravy)
+npm run bump minor   # 0.1.0 → 0.2.0 (nové funkcie)
+npm run bump major   # 0.1.0 → 1.0.0 (nekompatibilné zmeny)
 ```
 
-### 4. Vytvor a pushni tag
+Tento príkaz:
+- Zvýši verziu v `package.json`, `src-tauri/Cargo.toml` aj `src-tauri/tauri.conf.json`
+- Vytvorí git commit: `chore: bump version to 0.2.0`
+- Vytvorí git tag: `v0.2.0`
+
+### 3. Pushni zmeny
 
 ```bash
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
+git push origin main && git push origin v0.2.0
 ```
 
 ### 5. GitHub Actions spustí automatický build
@@ -76,16 +74,13 @@ Po pushnutí tagu sa automaticky spustí workflow `.github/workflows/release.yml
 ## Zhrnutie (príkazový riadok)
 
 ```bash
-# 1. Aktualizuj verziu a changelog (ručne v súboroch)
+# 1. Aktualizuj CHANGELOG.md (ručne)
 
-# 2. Commitni
-git add CHANGELOG.md package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
-git commit -m "chore: bump version to 0.2.0"
-git push origin main
+# 2. Zvýš verziu, commit a tag (automaticky)
+npm run bump minor
 
-# 3. Tag a push
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
+# 3. Pushni všetko
+git push origin main && git push origin v0.2.0
 
 # 4. Hotovo — GitHub Actions spraví zvyšok
 ```
