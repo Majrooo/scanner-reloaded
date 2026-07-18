@@ -10,11 +10,13 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "Scanner Reloaded",
         "width": 1400,
         "height": 850,
         "resizable": true,
         "fullscreen": false,
+        "visible": false,
         "minWidth": 800,
         "minHeight": 600
       }

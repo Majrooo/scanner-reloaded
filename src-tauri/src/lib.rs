@@ -956,6 +956,19 @@ pub fn main() {
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_dialog::init())
     .manage(ScanState::default())
+    .setup(|app| {
+      // Window-state plugin has already applied saved position/size.
+      // Short delay ensures the plugin has fully applied the state
+      // before showing the window — prevents position flash.
+      if let Some(window) = app.get_webview_window("main") {
+        let w = window.clone();
+        std::thread::spawn(move || {
+          std::thread::sleep(std::time::Duration::from_millis(50));
+          let _ = w.show();
+        });
+      }
+      Ok(())
+    })
     .invoke_handler(tauri::generate_handler![
       get_disks,
       start_async_scan,
