@@ -37,6 +37,9 @@ Thumbs.db
 *.sln
 *.sw?
 
+# Forknutý repozitár pre PR do awesome-tauri
+awesome-tauri/
+
 # AI Agent (Cline / Roo Code) Memory Banks
 .cline/
 clinerules-data/
