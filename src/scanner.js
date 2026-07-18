@@ -446,6 +446,8 @@ async function startDiskScan(path, totalSpace) {
       // Build O(1) path index for fast node lookup
       pathIndex = new Map();
       buildPathIndex(memoryTree, pathIndex);
+      // Log file size statistics to console (F12 → Console)
+      logFileSizeStats(memoryTree);
       // Clear any previous cache (new scan = stale data)
       collapsedViewCache.clear();
       isChartInitializing = true;
@@ -606,6 +608,34 @@ function updateSunburstForFolder(folderPath) {
  * Build a Map from normalized path -> node for O(1) lookup.
  * Call this once after deserializing the tree.
  */
+function logFileSizeStats(node) {
+  let totalFiles = 0;
+  let lt32k = 0, lt64k = 0, lt128k = 0, lt256k = 0;
+
+  function walk(n) {
+    if (!n.is_dir) {
+      totalFiles++;
+      if (n.size < 32 * 1024) lt32k++;
+      if (n.size < 64 * 1024) lt64k++;
+      if (n.size < 128 * 1024) lt128k++;
+      if (n.size < 256 * 1024) lt256k++;
+    }
+    for (const child of (n.children || [])) {
+      walk(child);
+    }
+  }
+
+  walk(node);
+
+  console.log('=== File Size Statistics ===');
+  console.log(`Total files: ${totalFiles}`);
+  console.log(`Files < 32KB: ${lt32k}`);
+  console.log(`Files < 64KB: ${lt64k}`);
+  console.log(`Files < 128KB: ${lt128k}`);
+  console.log(`Files < 256KB: ${lt256k}`);
+  console.log('============================');
+}
+
 function buildPathIndex(node, map) {
   if (!node) return;
   const normalized = node.path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
