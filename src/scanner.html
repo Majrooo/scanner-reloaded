@@ -95,11 +95,18 @@
         <div class="settings-section">
           <h3 data-i18n="settingsModal.animations.title">Vizualizácia a Animácie</h3>
           <div class="setting-row">
-            <label for="use-interactive-animations" data-i18n="settingsModal.animations.useInteractiveAnimations">Použiť interaktívne animácie (zoom)</label>
+            <div class="setting-label-group">
+              <label for="use-interactive-animations" data-i18n="settingsModal.animations.useInteractiveAnimations">Použiť interaktívne animácie (zoom)</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-interactive-anim" aria-label="Info">ⓘ</button>
+            </div>
             <input type="checkbox" id="use-interactive-animations" class="settings-toggle">
           </div>
+          <div id="info-interactive-anim" class="setting-info-card hidden" data-i18n="settingsModal.info.useInteractiveAnimations"></div>
           <div class="setting-row">
-            <label for="intro-animation-type" data-i18n="settingsModal.animations.introAnimationType">Typ úvodnej animácie</label>
+            <div class="setting-label-group">
+              <label for="intro-animation-type" data-i18n="settingsModal.animations.introAnimationType">Typ úvodnej animácie</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-intro-anim-type" aria-label="Info">ⓘ</button>
+            </div>
             <select id="intro-animation-type">
               <option value="sweep" data-i18n="settingsModal.animations.options.sweep">Vejár</option>
               <option value="staggered" data-i18n="settingsModal.animations.options.staggered">Staggered (podľa hĺbky)</option>
@@ -110,6 +117,7 @@
               <option value="none" data-i18n="settingsModal.animations.options.none">Žiadna</option>
             </select>
           </div>
+          <div id="info-intro-anim-type" class="setting-info-card hidden" data-i18n="settingsModal.info.introAnimationType"></div>
 <div class="setting-row">
             <label for="transition-duration" data-i18n="settingsModal.animations.transitionDuration">Trvanie zoomu</label>
             <div class="slider-container">
@@ -158,43 +166,67 @@
         <div class="settings-section">
           <h3 data-i18n="settingsModal.performance.title">Výkon a Filtrovanie</h3>
           <div class="setting-row" id="auto-toggle-row">
-            <label for="auto-toggle-filter" data-i18n="settingsModal.performance.autoTogglePerformanceFilter">Automaticky aktivovať filter</label>
+            <div class="setting-label-group">
+              <label for="auto-toggle-filter" data-i18n="settingsModal.performance.autoTogglePerformanceFilter">Automaticky aktivovať filter</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-auto-toggle" aria-label="Info">ⓘ</button>
+            </div>
             <input type="checkbox" id="auto-toggle-filter" class="settings-toggle">
           </div>
+          <div id="info-auto-toggle" class="setting-info-card hidden" data-i18n="settingsModal.info.autoTogglePerformanceFilter"></div>
           <div class="setting-row" id="threshold-row">
-            <label for="performance-threshold" data-i18n="settingsModal.performance.performanceThreshold">Prahový počet položiek</label>
+            <div class="setting-label-group">
+              <label for="performance-threshold" data-i18n="settingsModal.performance.performanceThreshold">Prahový počet položiek</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-perf-threshold" aria-label="Info">ⓘ</button>
+            </div>
             <input type="number" id="performance-threshold" class="settings-number-input" min="100" step="50">
           </div>
+          <div id="info-perf-threshold" class="setting-info-card hidden" data-i18n="settingsModal.info.performanceThreshold"></div>
           <div class="setting-row" id="min-size-row">
-            <label for="min-size-to-render" data-i18n="settingsModal.performance.minSizeToRender">Minimálna veľkosť (MB)</label>
+            <div class="setting-label-group">
+              <label for="min-size-to-render" data-i18n="settingsModal.performance.minSizeToRender">Minimálna veľkosť (MB)</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-min-size" aria-label="Info">ⓘ</button>
+            </div>
             <input type="number" id="min-size-to-render" class="settings-number-input" min="0" step="0.1">
           </div>
+          <div id="info-min-size" class="setting-info-card hidden" data-i18n="settingsModal.info.minSizeToRender"></div>
           <div class="setting-row" id="min-angle-row">
-            <label for="setting-min-angle" data-i18n="settingsModal.performance.minAngleToRender">Minimálny uhol segmentu</label>
+            <div class="setting-label-group">
+              <label for="setting-min-angle" data-i18n="settingsModal.performance.minAngleToRender">Minimálny uhol segmentu</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-min-angle" aria-label="Info">ⓘ</button>
+            </div>
             <div class="slider-container">
               <input type="range" id="setting-min-angle" min="0" max="0.05" step="0.001" value="0.01">
               <span id="min-angle-value">0.010 rad</span>
             </div>
           </div>
+          <div id="info-min-angle" class="setting-info-card hidden" data-i18n="settingsModal.info.minAngleToRender"></div>
           <div class="setting-row" id="relative-threshold-row">
-            <label for="setting-relative-threshold" data-i18n="settingsModal.performance.relativeThreshold">Prah zlučovania (__others__)</label>
+            <div class="setting-label-group">
+              <label for="setting-relative-threshold" data-i18n="settingsModal.performance.relativeThreshold">Prah zlučovania (__others__)</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-relative-threshold" aria-label="Info">ⓘ</button>
+            </div>
             <div class="slider-container">
               <input type="range" id="setting-relative-threshold" min="0" max="0.01" step="0.0005" value="0.001">
               <span id="relative-threshold-value">0.10%</span>
             </div>
           </div>
+          <div id="info-relative-threshold" class="setting-info-card hidden" data-i18n="settingsModal.info.relativeThreshold"></div>
         </div>
 
         <!-- C. Systém a Integrácie -->
         <div class="settings-section">
           <h3 data-i18n="settingsModal.integrations.title">Systém a Integrácie</h3>
           <div class="setting-row">
-            <label for="tc-path-input" data-i18n="settingsModal.integrations.tcPath">Cesta k Total Commanderu</label>
+            <div class="setting-label-group">
+              <label for="tc-path-input" data-i18n="settingsModal.integrations.tcPath">Cesta k Total Commanderu</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-tc-path" aria-label="Info">ⓘ</button>
+            </div>
             <div class="input-with-button">
               <input type="text" id="tc-path-input" data-i18n-placeholder="settingsModal.integrations.tcPathPlaceholder">
               <button id="browse-tc-path-btn" data-i18n="settingsModal.integrations.browse">Prehľadávať...</button>
             </div>
           </div>
+          <div id="info-tc-path" class="setting-info-card hidden" data-i18n="settingsModal.info.tcPath"></div>
         </div>
       </div>
       <div class="modal-footer">

@@ -82,6 +82,13 @@
   flex-shrink: 0; /* Zabraňuje zmenšovaniu labelu */
 }
 
+.setting-label-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .setting-row.conditional {
   padding-left: 28px;
   display: none; /* Skryté defaultne, JS ich zobrazí */
@@ -184,4 +191,39 @@
 
 .close-btn:hover {
   color: #f38ba8;
+}
+
+/* --- Info tlačidlo ⓘ --- */
+.info-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #89b4fa;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+.info-toggle-btn:hover {
+  color: #b4d0fb;
+  transform: scale(1.2);
+}
+.info-toggle-btn.active {
+  color: #f9e2af;
+}
+
+/* --- Info karta (vysvetlivka) --- */
+.setting-info-card {
+  background: #252538;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 8px 8px 8px;
+  font-size: 12px;
+  color: #a6adc8;
+  line-height: 1.5;
+}
+.setting-info-card.hidden {
+  display: none;
 }

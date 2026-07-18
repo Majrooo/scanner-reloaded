@@ -152,6 +152,16 @@
         },
         "reset": {
           "success": "Nastavenia boli resetované na predvolené hodnoty"
+        },
+        "info": {
+          "useInteractiveAnimations": "Zapína plynulé animácie pri približovaní/oddaľovaní v grafe. Vypnutie zrýchli odozvu na slabších zariadeniach.",
+          "introAnimationType": "Štýl úvodnej animácie, ktorá sa prehrá po dokončení skenovania pri prvom zobrazení grafu.",
+          "autoTogglePerformanceFilter": "Keď počet segmentov v grafe presiahne nastavený limit, automaticky zaškrtne prepínač \"Rýchly režim\" nad grafom. Udržuje plynulé vykresľovanie pri veľkom množstve položiek.",
+          "performanceThreshold": "Maximálny počet segmentov v grafe, po ktorého prekročení sa automaticky aktivuje filter pre zachovanie plynulosti.",
+          "minSizeToRender": "Minimálna veľkosť segmentu (v MB), ktorá sa pri aktívnom rýchlom filtri zobrazí. Menšie segmenty sa v grafe nevykreslia.",
+          "minAngleToRender": "Pri zapnutom rýchlom filtri sa segmenty s uhlom menším ako táto hodnota nevykreslia. Vyššia hodnota = menej drobných výrezov, prehľadnejší graf.",
+          "relativeThreshold": "Nezávisle od rýchleho filtra zlučuje malé položky (menšie ako toto percento veľkosti rodiča) do segmentu '__others__'. Vyššia hodnota = viac položiek v 'Iné', menej preťažený graf.",
+          "tcPath": "Úplná cesta k spustiteľnému súboru Total Commander. Ak ju necháte prázdnu, systém sa pokúsi o automatickú detekciu v predvolených priečinkoch."
         }
       }
     },
@@ -306,6 +316,16 @@
         },
         "reset": {
           "success": "Settings have been reset to default values"
+        },
+        "info": {
+          "useInteractiveAnimations": "Enables smooth zoom animations when navigating the chart. Disable on slower devices for better responsiveness.",
+          "introAnimationType": "The style of the intro animation played after a scan completes when the chart is first displayed.",
+          "autoTogglePerformanceFilter": "When the number of segments in the chart exceeds the set limit, automatically checks the \"Fast mode\" toggle above the chart. Keeps rendering smooth with large datasets.",
+          "performanceThreshold": "The maximum number of segments in the chart above which the performance filter is automatically activated.",
+          "minSizeToRender": "The minimum segment size (in MB) displayed when the performance filter is active. Smaller segments are not rendered.",
+          "minAngleToRender": "When the performance filter is active, segments with an angle smaller than this value are not rendered. Higher value = fewer tiny slices, cleaner chart.",
+          "relativeThreshold": "Independent of the performance filter. Merges items smaller than this percentage of their parent's size into a single '__others__' segment. Higher value = more items in 'Others', less cluttered chart.",
+          "tcPath": "Full path to the Total Commander executable. Leave empty for auto-detection in default installation folders."
         }
       }
     }

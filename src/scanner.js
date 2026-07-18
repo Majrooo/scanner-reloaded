@@ -1103,7 +1103,17 @@ window.addEventListener("DOMContentLoaded", async () => {
     introStaggeredRow.style.display = animType === 'staggered' ? 'flex' : 'none';
   }
 
+  function collapseAllInfoCards() {
+    document.querySelectorAll('.setting-info-card:not(.hidden)').forEach(card => {
+      card.classList.add('hidden');
+    });
+    document.querySelectorAll('.info-toggle-btn.active').forEach(btn => {
+      btn.classList.remove('active');
+    });
+  }
+
   function openSettingsModal() {
+    collapseAllInfoCards();
     useInteractiveAnimationsCheckbox.checked = APP_CONFIG.useInteractiveAnimations;
     introAnimationTypeSelect.value = APP_CONFIG.introAnimationType;
     transitionDurationSlider.value = APP_CONFIG.transitionDuration;
@@ -1162,6 +1172,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   function closeSettingsModal() {
+    collapseAllInfoCards();
     if (settingsModal.close) {
       settingsModal.close();
     } else {
@@ -1176,6 +1187,17 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (resetSettingsBtn) {
     resetSettingsBtn.addEventListener("click", resetSettingsToDefaults);
   }
+  // Info toggle - event delegation
+  document.querySelector('.modal-body').addEventListener('click', (e) => {
+    const btn = e.target.closest('.info-toggle-btn');
+    if (!btn) return;
+    const infoCard = document.getElementById(btn.dataset.infoId);
+    if (!infoCard) return;
+    infoCard.classList.toggle('hidden');
+    btn.classList.toggle('active');
+    e.stopPropagation();
+  });
+
   settingsModal.addEventListener("click", (event) => {
     if (event.target === settingsModal) {
       closeSettingsModal();
