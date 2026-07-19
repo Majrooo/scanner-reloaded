@@ -425,7 +425,7 @@ h1, h2 {
 #hover-panel {
   width: 100%;
   max-width: 1200px;
-  margin: 15px auto 20px;
+  margin: 0 auto 15px;
   background: #1e1e2e;
   padding: 15px;
   border-radius: 8px;

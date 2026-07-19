@@ -23,6 +23,21 @@
         <div id="stats-bar-total"></div>
       </div>
 
+      <aside id="hover-panel" aria-live="polite">
+        <div id="scan-progress-content">
+          <div id="live-ticker-bar"></div>
+          <div id="scan-progress-flex">
+            <div id="live-ticker" data-i18n="scanScreen.initializing">Pripravujem skenovanie...</div>
+            <div id="scan-spinner" class="scan-spinner"></div>
+          </div>
+        </div>
+        <div id="hover-details-content" class="hidden">
+          <div id="hover-path" data-i18n="scanScreen.hoverPlaceholder">Ukaž myšou na priečinok...</div>
+          <div id="hover-size"></div>
+          <div id="hover-stats"></div>
+        </div>
+      </aside>
+
       <div id="empty-folder-message" class="empty-state hidden" data-i18n="scanScreen.emptyFolder">Tento priečinok je prázdny</div>
 
       <div class="filter-control-row">
@@ -44,20 +59,6 @@
           </div>
         </div>
 
-        <aside id="hover-panel" aria-live="polite">
-          <div id="scan-progress-content">
-            <div id="live-ticker-bar"></div>
-            <div id="scan-progress-flex">
-              <div id="live-ticker" data-i18n="scanScreen.initializing">Pripravujem skenovanie...</div>
-              <div id="scan-spinner" class="scan-spinner"></div>
-            </div>
-          </div>
-          <div id="hover-details-content" class="hidden">
-            <div id="hover-path" data-i18n="scanScreen.hoverPlaceholder">Ukaž myšou na priečinok...</div>
-            <div id="hover-size"></div>
-            <div id="hover-stats"></div>
-          </div>
-        </aside>
       </div>
     </div>
   </main>
