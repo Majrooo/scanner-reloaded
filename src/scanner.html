@@ -18,7 +18,10 @@
         <button id="cancel-scan-btn" class="cancel-scan-btn hidden" data-i18n="scanScreen.cancelScan">✖ Zrušiť skenovanie</button>
       </header>
 
-      <div id="scan-stats-bar" class="scan-stats-bar hidden"></div>
+      <div id="scan-stats-bar" class="scan-stats-bar hidden">
+        <div id="stats-bar-direct"></div>
+        <div id="stats-bar-total"></div>
+      </div>
 
       <div id="empty-folder-message" class="empty-state hidden" data-i18n="scanScreen.emptyFolder">Tento priečinok je prázdny</div>
 
@@ -211,6 +214,17 @@
             </div>
           </div>
           <div id="info-relative-threshold" class="setting-info-card hidden" data-i18n="settingsModal.info.relativeThreshold"></div>
+          <div class="setting-row" id="backend-merge-row">
+            <div class="setting-label-group">
+              <label for="backend-merge-threshold" data-i18n="settingsModal.performance.backendMergeThreshold">Backend merge threshold (KB)</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-backend-merge" aria-label="Info">ⓘ</button>
+            </div>
+            <div class="slider-container">
+              <input type="range" id="backend-merge-threshold" min="0" max="1024" step="32" value="0">
+              <span id="backend-merge-threshold-value">0 KB (vypnuté)</span>
+            </div>
+          </div>
+          <div id="info-backend-merge" class="setting-info-card hidden" data-i18n="settingsModal.info.backendMergeThreshold"></div>
         </div>
 
         <!-- C. Systém a Integrácie -->

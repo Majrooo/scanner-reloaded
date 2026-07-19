@@ -164,6 +164,9 @@ let isZoomAnimating = false;
 // OS detection
 const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
 
+// Backend merge threshold in KB (loaded from Rust config at startup)
+let backendMergeThresholdKb = 0;
+
 let radius = 320;
 let innerHoleRadius = 80;
 const maxDepth = 24;
@@ -459,11 +462,23 @@ async function startDiskScan(path, totalSpace) {
       isChartInitializing = false;
       const statsBar = document.getElementById("scan-stats-bar");
       if (statsBar && memoryTree) {
-        statsBar.textContent = getText("scanScreen.statsBar", {
-          files: memoryTree.file_count || 0,
-          dirs: memoryTree.dir_count || 0,
-          size: formatBytes(memoryTree.size || 0)
-        });
+        const direct = getDirectStats(memoryTree);
+        const directEl = document.getElementById("stats-bar-direct");
+        const totalEl = document.getElementById("stats-bar-total");
+        if (directEl) {
+          directEl.textContent = getText("scanScreen.statsBar.direct", {
+            files: direct.files,
+            dirs: direct.dirs,
+            size: formatBytes(direct.size)
+          });
+        }
+        if (totalEl) {
+          totalEl.textContent = getText("scanScreen.statsBar.total", {
+            files: memoryTree.file_count || 0,
+            dirs: memoryTree.dir_count || 0,
+            size: formatBytes(memoryTree.size || 0)
+          });
+        }
         statsBar.classList.remove("hidden");
       }
     } catch (err) {
@@ -568,6 +583,8 @@ function getOrCreateCollapsedView(found, targetPath) {
   const hierarchy = d3.hierarchy(cloned)
     .sum(d => d.is_dir ? 0 : (d.size || 0))
     .sort((a, b) => {
+      if (a.data.name === "__super_small_files__") return 1;
+      if (b.data.name === "__super_small_files__") return -1;
       if (a.data.name === "__others__") return 1;
       if (b.data.name === "__others__") return -1;
       return b.value - a.value;
@@ -608,17 +625,45 @@ function updateSunburstForFolder(folderPath) {
  * Build a Map from normalized path -> node for O(1) lookup.
  * Call this once after deserializing the tree.
  */
+function countFileNodes(node) {
+  if (!node.is_dir) return 1;
+  let count = 0;
+  for (const child of (node.children || [])) {
+    count += countFileNodes(child);
+  }
+  return count;
+}
+
 function logFileSizeStats(node) {
   let totalFiles = 0;
   let lt32k = 0, lt64k = 0, lt128k = 0, lt256k = 0;
+  let fileNodeCount = 0;
 
   function walk(n) {
     if (!n.is_dir) {
+      fileNodeCount++;
+      // __super_small_files__ nodes contain multiple files merged by the backend.
+      // Use file_count to account for all real files, and aggregate size thresholds.
+      if (n.name === '__super_small_files__') {
+        totalFiles += n.file_count || 1;
+        // The size of the merged node is the total size of all merged files.
+        // We apply the same logic: count this merged chunk toward each threshold
+        // if the individual files would meet it. Since we don't know individual sizes,
+        // and all files in this chunk are guaranteed to be below the backend threshold,
+        // we count the chunk's file_count toward every threshold above it.
+        if (n.size < 32 * 1024) lt32k += n.file_count;
+        else if (n.size < 64 * 1024) lt64k += n.file_count;
+        else if (n.size < 128 * 1024) lt128k += n.file_count;
+        else if (n.size < 256 * 1024) lt256k += n.file_count;
+        // Files >= 256KB would not have been merged, so they're regular file nodes.
+        return;
+      }
       totalFiles++;
       if (n.size < 32 * 1024) lt32k++;
-      if (n.size < 64 * 1024) lt64k++;
-      if (n.size < 128 * 1024) lt128k++;
-      if (n.size < 256 * 1024) lt256k++;
+      else if (n.size < 64 * 1024) lt64k++;
+      else if (n.size < 128 * 1024) lt128k++;
+      else if (n.size < 256 * 1024) lt256k++;
+      // Files >= 256KB not counted in any threshold bucket
     }
     for (const child of (n.children || [])) {
       walk(child);
@@ -628,7 +673,8 @@ function logFileSizeStats(node) {
   walk(node);
 
   console.log('=== File Size Statistics ===');
-  console.log(`Total files: ${totalFiles}`);
+  console.log(`Total files (on disk): ${totalFiles}`);
+  console.log(`FileNode objects: ${fileNodeCount}`);
   console.log(`Files < 32KB: ${lt32k}`);
   console.log(`Files < 64KB: ${lt64k}`);
   console.log(`Files < 128KB: ${lt128k}`);
@@ -699,11 +745,30 @@ function collapseLocalJS(node, parentSize) {
     });
   }
   largeChildren.sort((a, b) => {
+    if (a.name === "__super_small_files__") return 1;
+    if (b.name === "__super_small_files__") return -1;
     if (a.name === OTHERS_NAME) return 1;
     if (b.name === OTHERS_NAME) return -1;
     return b.size - a.size;
   });
   node.children = largeChildren;
+}
+
+function getDirectStats(node) {
+  let files = 0;
+  let dirs = 0;
+  let size = 0;
+  for (const child of (node.children || [])) {
+    if (child.is_dir) {
+      dirs++;
+      // size of a directory is recursive (includes all descendants),
+      // so we skip it — we only want the size of direct files
+    } else {
+      files += (child.file_count || 1);
+      size += child.size;
+    }
+  }
+  return { files, dirs, size };
 }
 
 function getParentPath(path) {
@@ -786,11 +851,24 @@ function zoomTo(p) {
   updateCenterHUD(hasParent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
   const statsBar = document.getElementById("scan-stats-bar");
   if (statsBar && p.data) {
-    statsBar.textContent = getText("scanScreen.statsBar", {
-      files: p.data.file_count || 0,
-      dirs: p.data.dir_count || 0,
-      size: formatBytes(p.value || 0)
-    });
+    const direct = getDirectStats(p.data);
+    const directEl = document.getElementById("stats-bar-direct");
+    const totalEl = document.getElementById("stats-bar-total");
+    if (directEl) {
+      directEl.textContent = getText("scanScreen.statsBar.direct", {
+        files: direct.files,
+        dirs: direct.dirs,
+        size: formatBytes(direct.size)
+      });
+    }
+    if (totalEl) {
+      totalEl.textContent = getText("scanScreen.statsBar.total", {
+        files: p.data.file_count || 0,
+        dirs: p.data.dir_count || 0,
+        size: formatBytes(p.value || 0)
+      });
+    }
+    statsBar.classList.remove("hidden");
   }
   // gPartition is already computed in drawSunburst – no need to recompute here
   const visibleDescendants = p.descendants().filter(d => {
@@ -859,7 +937,10 @@ function zoomTo(p) {
 
   function getFillColor(d) {
     if (d.data.name === "__others__") {
-      return "#a6a6a6";
+      return "#585b70";
+    }
+    if (d.data.name === "__super_small_files__") {
+      return "#b33a4d";
     }
     if (d.data.is_dir) {
       const localYellowScale = d3.scaleLinear()
@@ -885,6 +966,12 @@ function zoomTo(p) {
       hoverStats.textContent = d.data.is_dir
         ? getText("scanScreen.stats.contains", { dirCount, fileCount })
         : getText("scanScreen.stats.fileType");
+      if (d.data.name === "__super_small_files__") {
+        hoverStats.textContent = getText("scanScreen.stats.mergedFiles", {
+          count: fileCount,
+          threshold: backendMergeThresholdKb + " KB"
+        });
+      }
       if (d.data.name === "__others__") {
         hoverStats.textContent = getText("scanScreen.stats.otherFiles", { count: fileCount });
       }
@@ -1080,6 +1167,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Load backend merge threshold from Rust config for hover display
+  try {
+    backendMergeThresholdKb = await invoke("get_backend_merge_threshold");
+  } catch (err) {
+    console.error("Failed to load backend merge threshold:", err);
+    backendMergeThresholdKb = 0;
+  }
+
   // Initialize ResizeObserver for chart responsive sizing
   const chartContainer = document.getElementById("chart-container");
   if (chartContainer && window.ResizeObserver) {
@@ -1116,6 +1211,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const minAngleValue = document.getElementById("min-angle-value");
   const relativeThresholdSlider = document.getElementById("setting-relative-threshold");
   const relativeThresholdValue = document.getElementById("relative-threshold-value");
+  const backendMergeSlider = document.getElementById("backend-merge-threshold");
+  const backendMergeValue = document.getElementById("backend-merge-threshold-value");
   const tcPathInput = document.getElementById("tc-path-input");
   const browseTcPathBtn = document.getElementById("browse-tc-path-btn");
   const introSweepRow = document.getElementById("intro-sweep-duration-row");
@@ -1142,7 +1239,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  function openSettingsModal() {
+  function updateBackendMergeLabel(value) {
+    const numValue = parseInt(value, 10);
+    if (numValue === 0) {
+      backendMergeValue.textContent = "0 KB (vypnuté)";
+    } else {
+      backendMergeValue.textContent = `${numValue} KB`;
+    }
+  }
+
+  async function openSettingsModal() {
     collapseAllInfoCards();
     useInteractiveAnimationsCheckbox.checked = APP_CONFIG.useInteractiveAnimations;
     introAnimationTypeSelect.value = APP_CONFIG.introAnimationType;
@@ -1166,6 +1272,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     relativeThresholdSlider.value = APP_CONFIG.relativeThreshold;
     updateRelativeThresholdLabel(APP_CONFIG.relativeThreshold);
     tcPathInput.value = APP_CONFIG.totalCommanderPath || "";
+    // Load backend merge threshold from Rust config
+    try {
+      const backendThreshold = await invoke("get_backend_merge_threshold");
+      backendMergeSlider.value = backendThreshold;
+      updateBackendMergeLabel(backendThreshold);
+    } catch (err) {
+      console.error("Failed to load backend merge threshold:", err);
+      backendMergeSlider.value = 0;
+      updateBackendMergeLabel(0);
+    }
     updateConditionalSettingsUI();
     if (settingsModal.showModal) {
       settingsModal.showModal();
@@ -1271,6 +1387,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   minAngleSlider.addEventListener("input", (event) => updateMinAngleLabel(event.target.value));
   relativeThresholdSlider.addEventListener("input", (event) => updateRelativeThresholdLabel(event.target.value));
+  backendMergeSlider.addEventListener("input", (event) => updateBackendMergeLabel(event.target.value));
   introAnimationTypeSelect.addEventListener("change", updateConditionalSettingsUI);
 
   browseTcPathBtn.addEventListener("click", async () => {
@@ -1299,6 +1416,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.relativeThreshold = parseFloat(relativeThresholdSlider.value);
     APP_CONFIG.totalCommanderPath = tcPathInput.value;
     await invoke("set_tc_path", { path: tcPathInput.value || "" });
+    // Save backend merge threshold to Rust config
+    const backendThreshold = parseInt(backendMergeSlider.value, 10);
+    await invoke("set_backend_merge_threshold", { thresholdKb: backendThreshold });
     await saveSettings();
     // Clear cache so settings like relativeThreshold, introAnimationType take effect
     collapsedViewCache.clear();

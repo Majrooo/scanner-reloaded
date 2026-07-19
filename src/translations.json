@@ -12,7 +12,7 @@
       },
       "common": {
         "languageLabel": "Jazyk",
-        "close": "Zatvorť"
+        "close": "Zatvoriť"
       },
       "diskScreen": {
         "title": "Vyberte disk na analýzu",
@@ -42,7 +42,10 @@
         "hoverPlaceholder": "Ukaž myšou na priečinok...",
         "cancelScan": "✖ Zrušiť skenovanie",
         "emptyFolder": "Tento priečinok je prázdny",
-        "statsBar": "{files} súborov, {dirs} priečinkov • Celkom: {size}",
+        "statsBar": {
+          "direct": "📁 Tento priečinok: {files} súborov, {dirs} priečinkov, {size}",
+          "total": "🔍 Celý podstrom: {files} súborov, {dirs} priečinkov, {size}"
+        },
         "dragDropHint": "📁 Pretiahnite priečinok sem pre skenovanie",
         "center": {
           "goUp": "⬆ Hore"
@@ -57,7 +60,8 @@
         "stats": {
           "contains": "Obsahuje: {dirCount} priečinkov, {fileCount} súborov",
           "fileType": "Typ: Súbor",
-          "otherFiles": "{count} iných malých súborov"
+          "otherFiles": "{count} iných malých súborov",
+          "mergedFiles": "{count} zlúčených súborov menších ako {threshold} (backend)"
         }
       },
       "contextMenu": {
@@ -115,7 +119,7 @@
           "options": {
             "sweep": "Vejár",
             "staggered": "Staggered (podľa hĺbky)",
-            "spiral": "Spiráľa",
+            "spiral": "Spirála",
             "sequential": "Sekvenčné (podľa veľkosti)",
             "grow": "Expanzia",
             "random": "Náhodná",
@@ -137,7 +141,8 @@
           "minAngleToRender": "Minimálny uhol segmentu",
           "minAngleToRenderOff": "Zobraziť všetko",
           "relativeThreshold": "Prah zlučovania (__others__)",
-          "relativeThresholdOff": "Vypnuté"
+          "relativeThresholdOff": "Vypnuté",
+          "backendMergeThreshold": "Prah zlučovania v backend-e (KB)"
         },
         "integrations": {
           "title": "Systém a Integrácie",
@@ -161,7 +166,8 @@
           "minSizeToRender": "Minimálna veľkosť segmentu (v MB), ktorá sa pri aktívnom rýchlom filtri zobrazí. Menšie segmenty sa v grafe nevykreslia.",
           "minAngleToRender": "Pri zapnutom rýchlom filtri sa segmenty s uhlom menším ako táto hodnota nevykreslia. Vyššia hodnota = menej drobných výrezov, prehľadnejší graf.",
           "relativeThreshold": "Nezávisle od rýchleho filtra zlučuje malé položky (menšie ako toto percento veľkosti rodiča) do segmentu '__others__'. Vyššia hodnota = viac položiek v 'Iné', menej preťažený graf.",
-          "tcPath": "Úplná cesta k spustiteľnému súboru Total Commander. Ak ju necháte prázdnu, systém sa pokúsi o automatickú detekciu v predvolených priečinkoch."
+          "tcPath": "Úplná cesta k spustiteľnému súboru Total Commander. Ak ju necháte prázdnu, systém sa pokúsi o automatickú detekciu v predvolených priečinkoch.",
+          "backendMergeThreshold": "Súbory menšie ako táto hodnota sa zlúčia v backend-e ešte pred odoslaním na frontend. Výrazne znižuje pamäťovú náročnosť a urýchľuje IPC prenos. Zmena sa prejaví až pri novom skenovaní."
         }
       }
     },
@@ -206,7 +212,10 @@
         "hoverPlaceholder": "Hover over a folder to inspect it...",
         "cancelScan": "✖ Cancel scan",
         "emptyFolder": "This folder is empty",
-        "statsBar": "{files} files, {dirs} folders • Total: {size}",
+        "statsBar": {
+          "direct": "📁 This folder: {files} files, {dirs} folders, {size}",
+          "total": "🔍 Entire subtree: {files} files, {dirs} folders, {size}"
+        },
         "dragDropHint": "📁 Drag a folder here to scan",
         "center": {
           "goUp": "⬆ Up"
@@ -221,7 +230,8 @@
         "stats": {
           "contains": "Contains: {dirCount} folders, {fileCount} files",
           "fileType": "Type: File",
-          "otherFiles": "{count} other small files"
+          "otherFiles": "{count} other small files",
+          "mergedFiles": "{count} merged files smaller than {threshold} (backend)"
         }
       },
       "contextMenu": {
@@ -301,7 +311,8 @@
           "minAngleToRender": "Minimum segment angle",
           "minAngleToRenderOff": "Show all",
           "relativeThreshold": "Aggregation Threshold (__others__)",
-          "relativeThresholdOff": "Off"
+          "relativeThresholdOff": "Off",
+          "backendMergeThreshold": "Backend merge threshold (KB)"
         },
         "integrations": {
           "title": "System & Integrations",
@@ -325,7 +336,8 @@
           "minSizeToRender": "The minimum segment size (in MB) displayed when the performance filter is active. Smaller segments are not rendered.",
           "minAngleToRender": "When the performance filter is active, segments with an angle smaller than this value are not rendered. Higher value = fewer tiny slices, cleaner chart.",
           "relativeThreshold": "Independent of the performance filter. Merges items smaller than this percentage of their parent's size into a single '__others__' segment. Higher value = more items in 'Others', less cluttered chart.",
-          "tcPath": "Full path to the Total Commander executable. Leave empty for auto-detection in default installation folders."
+          "tcPath": "Full path to the Total Commander executable. Leave empty for auto-detection in default installation folders.",
+          "backendMergeThreshold": "Files smaller than this value are merged in the backend before sending to frontend. Dramatically reduces memory footprint and speeds up IPC transfer. The change takes effect on the next scan."
         }
       }
     }

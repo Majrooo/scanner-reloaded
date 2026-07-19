@@ -104,6 +104,7 @@ struct LivePayload {
 #[derive(Serialize, Deserialize, Clone, Default)]
 struct AppConfig {
     total_commander_path: Option<String>,
+    backend_merge_threshold_kb: Option<u64>,
 }
 
 /// Returns the path to the config file: {app_data}/scanner-reloaded/config.json
@@ -491,6 +492,56 @@ fn normalize_paths(node: &mut FileNode) {
     }
 }
 
+/// Count total file nodes in the tree (non-directory nodes).
+fn count_file_nodes(node: &FileNode) -> usize {
+    if !node.is_dir {
+        return 1;
+    }
+    node.children.iter().map(count_file_nodes).sum()
+}
+
+/// Merge files smaller than `threshold` bytes into a single `__super_small_files__` node
+/// in each directory. This drastically reduces the number of FileNode objects in the tree
+/// before serialization, reducing memory usage and IPC transfer time.
+fn merge_small_files(node: &mut FileNode, threshold: u64) {
+    if !node.is_dir || node.children.is_empty() {
+        return;
+    }
+
+    // First, recursively process children
+    for child in &mut node.children {
+        merge_small_files(child, threshold);
+    }
+
+    // Then merge small files in this directory
+    let mut merged_size: u64 = 0;
+    let mut merged_files: usize = 0;
+    let mut keep: Vec<FileNode> = Vec::with_capacity(node.children.len());
+
+    for child in node.children.drain(..) {
+        if !child.is_dir && child.size < threshold {
+            merged_size += child.size;
+            merged_files += child.file_count;
+        } else {
+            keep.push(child);
+        }
+    }
+
+    if merged_files > 0 {
+        keep.push(FileNode {
+            name: Arc::from("__super_small_files__"),
+            path: Arc::from(format!("{}/__super_small_files__", node.path)),
+            size: merged_size,
+            is_dir: false,
+            dir_count: 0,
+            file_count: merged_files,
+            children: Vec::new(),
+        });
+    }
+
+    node.children = keep;
+}
+
 #[tauri::command]
 fn start_async_scan(path: String, app_handle: AppHandle) {
     // Reset cancellation flag before starting a new scan.
@@ -516,6 +567,16 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
         {
             // Normalize paths to forward slashes so the frontend can easily compare them.
             normalize_paths(&mut full_tree);
+
+            // Merge small files in the backend if threshold is configured.
+            // This drastically reduces the number of FileNode objects before serialization.
+            let cfg = load_config();
+            if let Some(threshold_kb) = cfg.backend_merge_threshold_kb {
+                if threshold_kb > 0 {
+                    let threshold_bytes = threshold_kb * 1024;
+                    merge_small_files(&mut full_tree, threshold_bytes);
+                }
+            }
 
             // Store the complete, untrimmed tree in the global state.
             // The frontend will later fetch it binary via get_binary_tree and handle navigation locally.
@@ -710,6 +771,21 @@ fn set_tc_path(path: String) -> Result<(), String> {
     }
     let mut cfg = load_config();
     cfg.total_commander_path = if path.is_empty() { None } else { Some(path) };
+    save_config(&cfg)
+}
+
+/// Get the backend merge threshold in KB (0 = disabled)
+#[tauri::command]
+fn get_backend_merge_threshold() -> Result<u64, String> {
+    let cfg = load_config();
+    Ok(cfg.backend_merge_threshold_kb.unwrap_or(0))
+}
+
+/// Set the backend merge threshold in KB (0 = disabled)
+#[tauri::command]
+fn set_backend_merge_threshold(threshold_kb: u64) -> Result<(), String> {
+    let mut cfg = load_config();
+    cfg.backend_merge_threshold_kb = if threshold_kb > 0 { Some(threshold_kb) } else { None };
     save_config(&cfg)
 }
 
@@ -983,6 +1059,8 @@ pub fn main() {
       permanent_delete,
       get_tc_path,
       set_tc_path,
+      get_backend_merge_threshold,
+      set_backend_merge_threshold,
       validate_directory,
       #[cfg(target_os = "windows")]
       open_system_utility,

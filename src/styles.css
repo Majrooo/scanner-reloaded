@@ -263,14 +263,23 @@ h1, h2 {
   border-radius: 6px;
   padding: 8px 16px;
   margin-bottom: 15px;
-  font-size: 13px;
+  font-size: 14px;
   color: #a6adc8;
   text-align: center;
   font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .scan-stats-bar.hidden {
   display: none;
+}
+
+#stats-bar-direct,
+#stats-bar-total {
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 /* Skenovacia obrazovka */
