@@ -1,6 +1,6 @@
 [package]
 name = "scanner-reloaded"
-version = "0.1.0"
+version = "0.2.0"
 description = "A modern, fast, and cross-platform disk space visualizer"
 authors = ["Majrooo"]
 edition = "2024"

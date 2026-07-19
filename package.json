@@ -1,7 +1,7 @@
 {
   "name": "disk-scanner",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "tauri": "tauri",
@@ -10,7 +10,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2"
   },
-"dependencies": {
+  "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "d3": "^7.9.0"

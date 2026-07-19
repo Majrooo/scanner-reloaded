@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-19
+
+### Added
+
+#### Backend Merge of Small Files
+- **Rust backend merge**: `merge_small_files(node, threshold)` rekurzívne zlúči súbory menšie ako threshold v každom adresári do jedného `__super_small_files__` uzla
+- **AppConfig**: rozšírené o `backend_merge_threshold_kb: Option<u64>` s Tauri commandami `get_backend_merge_threshold` / `set_backend_merge_threshold`
+- **Frontend support**: globálna `backendMergeThresholdKb`, `countFileNodes()`, prepracovaná `logFileSizeStats()`
+- **Settings slider**: backend merge threshold (0-1024 KB, step 32) s info kartou
+- **Výsledok**: 1.34M → 240k FileNode uzlov (82% menej), ~500 MB RAM namiesto 3-4 GB
+
+#### Stats Bar — Direct/Total Counts
+- **`getDirectStats(node)`** v scanner.js — počíta priame deti (nerekurzívne), preskakuje rekurzívny `size` priečinkov
+- `#scan-stats-bar` rozdelený na `#stats-bar-direct` a `#stats-bar-total` (oba 14px)
+
+#### Tooltip/Info Cards v Nastaveniach
+- 8 `ⓘ` tlačidiel v settings modale — po kliknutí zobraziť stručnú vysvetlivku (SK/EN)
+- CSS štýly pre `.info-toggle-btn` (modré, hover zväčšenie, active zlatá) a `.setting-info-card`
+- i18n sekcia `settingsModal.info` s odbornými vysvetlivkami
+
+#### Hover Panel Reposition
+- `#hover-panel` presunutý z `#chart-layout` medzi `#scan-stats-bar` a `#empty-folder-message`
+- Fixná výška 85px zachovaná — informačné listy vedľa seba, oči nelietajú cez graf
+
+#### Window Flash Fix
+- `"visible": false` v `tauri.conf.json` — okno sa vytvorí neviditeľné
+- `.setup()` hook s 50ms oneskorením cez `std::thread::spawn` zavolá `window.show()`
+- Plugin `tauri-plugin-window-state` stihne aplikovať uloženú pozíciu na neviditeľné okno
+
+#### Release Infrastructure
+- **GitHub Actions release workflow** (`.github/workflows/release.yml`) — build na Windows/macOS/Linux, extrakcia release notes z CHANGELOG.md, draft release s inštalátormi a portable balíčkami
+- **Portable verzie**: `_portable.zip` (Windows), `_portable.tar.gz` (Linux), `_portable.zip` (macOS) s arch-aware názvami
+- **Automatic version bump script** (`bump-version.cjs`) — zvýši verziu v `package.json`, `Cargo.toml`, `tauri.conf.json`, vytvorí commit a tag
+- **RELEASE.md** — dokumentácia release procesu
+- **README.md** — doplnené download inštrukcie a platform details
+
+### Changed
+- **Hover panel position**: presunutý nad filter controls, nie pod graf
+- **Stats bar**: rozdelený na direct a total counts, oba riadky rovnako veľké
+- **Translations**: `scanScreen.statsBar` → objekt s `direct`/`total`, nový kľúč `scanScreen.stats.mergedFiles`
+- **Backend merge farby**: `__super_small_files__` → `#b33a4d` (vínovočervená), `__others__` → `#585b70` (teplá neutrálna)
+
+### Removed
+- **`count_file_nodes()`** v Ruste (dead code warning — odstránená 2026-07-19)
+- Debug výpisy z `start_async_scan()` po otestovaní backend merge
+
+### Fixed
+- **Window flash at startup**: okno sa už nezobrazí na nesprávnej pozícii pred aplikovaním uloženého stavu
+- **translations.json**: prepísané pôvodnými textami z `git show HEAD`, pridané len nové kľúče (nestratili sa originálne preklady)
+- **Farba `__others__`**: z `#000000` na `#585b70` — teplá neutrálna, lepšie ladí
+
+[0.2.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.2.0
+
 ## [0.1.0] - 2026-07-17
 
 ### Added
