@@ -45,6 +45,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm install 
 
+      # Build Rust binary first (portable packaging needs the binary at known path)
+      - name: Build Rust binary
+        run: cargo build --release --manifest-path src-tauri/Cargo.toml
+
       # Extrahovanie release notes z CHANGELOG.md pre aktuálnu verziu
       - name: Extract release notes from CHANGELOG
         id: extract_notes
