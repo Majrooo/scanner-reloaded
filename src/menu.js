@@ -172,6 +172,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   // About Modal - using native dialog API
   aboutBtn.onclick = async () => {
     I18n.applyTranslations();
+    try {
+      const version = await window.__TAURI__.app.getVersion();
+      document.getElementById("app-version").textContent = version;
+    } catch (e) {
+      // fallback if running outside Tauri
+    }
     if (aboutModal.showModal) {
       aboutModal.showModal();
     } else {
