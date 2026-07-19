@@ -10,51 +10,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Backend Merge of Small Files
-- **Rust backend merge**: `merge_small_files(node, threshold)` rekurzívne zlúči súbory menšie ako threshold v každom adresári do jedného `__super_small_files__` uzla
-- **AppConfig**: rozšírené o `backend_merge_threshold_kb: Option<u64>` s Tauri commandami `get_backend_merge_threshold` / `set_backend_merge_threshold`
-- **Frontend support**: globálna `backendMergeThresholdKb`, `countFileNodes()`, prepracovaná `logFileSizeStats()`
-- **Settings slider**: backend merge threshold (0-1024 KB, step 32) s info kartou
-- **Výsledok**: 1.34M → 240k FileNode uzlov (82% menej), ~500 MB RAM namiesto 3-4 GB
+- **Rust backend merge**: `merge_small_files(node, threshold)` recursively merges files smaller than a configurable threshold into a single `__super_small_files__` node per directory
+- **AppConfig**: extended with `backend_merge_threshold_kb: Option<u64>`, new Tauri commands `get_backend_merge_threshold` / `set_backend_merge_threshold`
+- **Frontend support**: global `backendMergeThresholdKb` variable, `countFileNodes()`, improved `logFileSizeStats()`
+- **Settings slider**: backend merge threshold (0-1024 KB, step 32) with info card
+- **Result**: 1.34M → 240k FileNode objects (82% fewer), ~500 MB RAM instead of 3-4 GB
 
 #### Stats Bar — Direct/Total Counts
-- **`getDirectStats(node)`** v scanner.js — počíta priame deti (nerekurzívne), preskakuje rekurzívny `size` priečinkov
-- `#scan-stats-bar` rozdelený na `#stats-bar-direct` a `#stats-bar-total` (oba 14px)
+- **`getDirectStats(node)`** in scanner.js — counts direct children (non-recursive), skips recursive `size` of directories
+- `#scan-stats-bar` split into `#stats-bar-direct` and `#stats-bar-total` (both 14px)
 
-#### Tooltip/Info Cards v Nastaveniach
-- 8 `ⓘ` tlačidiel v settings modale — po kliknutí zobraziť stručnú vysvetlivku (SK/EN)
-- CSS štýly pre `.info-toggle-btn` (modré, hover zväčšenie, active zlatá) a `.setting-info-card`
-- i18n sekcia `settingsModal.info` s odbornými vysvetlivkami
+#### Tooltip / Info Cards in Settings
+- 8 `ⓘ` buttons in the settings modal — click to show a brief explanation (SK/EN)
+- CSS styles for `.info-toggle-btn` (blue, hover enlarge, active gold) and `.setting-info-card`
+- i18n section `settingsModal.info` with detailed explanations
 
 #### Hover Panel Reposition
-- `#hover-panel` presunutý z `#chart-layout` medzi `#scan-stats-bar` a `#empty-folder-message`
-- Fixná výška 85px zachovaná — informačné listy vedľa seba, oči nelietajú cez graf
+- `#hover-panel` moved from inside `#chart-layout` to between `#scan-stats-bar` and `#empty-folder-message`
+- Fixed 85px height preserved — information panels side by side, no eye travel across the chart
 
 #### Window Flash Fix
-- `"visible": false` v `tauri.conf.json` — okno sa vytvorí neviditeľné
-- `.setup()` hook s 50ms oneskorením cez `std::thread::spawn` zavolá `window.show()`
-- Plugin `tauri-plugin-window-state` stihne aplikovať uloženú pozíciu na neviditeľné okno
+- `"visible": false` in `tauri.conf.json` — window created invisible
+- `.setup()` hook with 50ms delay via `std::thread::spawn` calls `window.show()`
+- `tauri-plugin-window-state` applies saved position/size before the window becomes visible
 
 #### Release Infrastructure
-- **GitHub Actions release workflow** (`.github/workflows/release.yml`) — build na Windows/macOS/Linux, extrakcia release notes z CHANGELOG.md, draft release s inštalátormi a portable balíčkami
-- **Portable verzie**: `_portable.zip` (Windows), `_portable.tar.gz` (Linux), `_portable.zip` (macOS) s arch-aware názvami
-- **Automatic version bump script** (`bump-version.cjs`) — zvýši verziu v `package.json`, `Cargo.toml`, `tauri.conf.json`, vytvorí commit a tag
-- **RELEASE.md** — dokumentácia release procesu
-- **README.md** — doplnené download inštrukcie a platform details
+- **GitHub Actions release workflow** (`.github/workflows/release.yml`) — build on Windows/macOS/Linux, changelog extraction, draft release with installers and portable packages
+- **Portable versions**: `_portable.zip` (Windows), `_portable.tar.gz` (Linux), `_portable.zip` (macOS) with arch-aware naming
+- **Automatic version bump script** (`bump-version.cjs`) — bumps version in `package.json`, `Cargo.toml`, `tauri.conf.json`, creates commit and tag
+- **RELEASE.md** — release process documentation
+- **README.md** — download instructions and platform details
 
 ### Changed
-- **Hover panel position**: presunutý nad filter controls, nie pod graf
-- **Stats bar**: rozdelený na direct a total counts, oba riadky rovnako veľké
-- **Translations**: `scanScreen.statsBar` → objekt s `direct`/`total`, nový kľúč `scanScreen.stats.mergedFiles`
-- **Backend merge farby**: `__super_small_files__` → `#b33a4d` (vínovočervená), `__others__` → `#585b70` (teplá neutrálna)
+- **Hover panel position**: moved above filter controls, below stats bar
+- **Stats bar**: split into direct and total counts, both rows equally sized (14px)
+- **Translations**: `scanScreen.statsBar` → object with `direct`/`total`, new key `scanScreen.stats.mergedFiles`
+- **Backend merge colors**: `__super_small_files__` → `#b33a4d` (wine red), `__others__` → `#585b70` (warm neutral)
 
 ### Removed
-- **`count_file_nodes()`** v Ruste (dead code warning — odstránená 2026-07-19)
-- Debug výpisy z `start_async_scan()` po otestovaní backend merge
+- **`count_file_nodes()`** in Rust (dead code — removed 2026-07-19)
+- Debug prints from `start_async_scan()` after backend merge testing
 
 ### Fixed
-- **Window flash at startup**: okno sa už nezobrazí na nesprávnej pozícii pred aplikovaním uloženého stavu
-- **translations.json**: prepísané pôvodnými textami z `git show HEAD`, pridané len nové kľúče (nestratili sa originálne preklady)
-- **Farba `__others__`**: z `#000000` na `#585b70` — teplá neutrálna, lepšie ladí
+- **Window flash at startup**: window no longer appears at wrong position before saved state is applied
+- **translations.json**: overwritten with original texts from `git show HEAD`, only new keys added (original translations preserved)
+- **`__others__` color**: changed from `#000000` to `#585b70` — warm neutral, better visual harmony
 
 [0.2.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.2.0
 

@@ -1,101 +1,112 @@
 # Release Process
 
-Tento návod popisuje, ako vytvoriť nový release pre **Scanner Reloaded** pomocou GitHub Actions.
+This guide describes how to create a new release for **Scanner Reloaded** using GitHub Actions.
 
-## Predpoklady
+> **Important:** The entire `CHANGELOG.md` must be written in **English only** — all entries, templates, and notes.
 
-- Všetky zmeny pre novú verziu sú commitnuté a pushnuté do `main`
-- GitHub Actions workflow je nastavený (`.github/workflows/release.yml`)
+## Prerequisites
 
-## Postup krok za krokom
+- All changes for the new version are committed and pushed to `main`
+- GitHub Actions workflow is configured (`.github/workflows/release.yml`)
 
-### 1. Aktualizuj CHANGELOG.md
+## Step-by-step
 
-Pridaj novú sekciu na začiatok `CHANGELOG.md`:
+### 1. Update CHANGELOG.md
+
+Add a new section at the top of `CHANGELOG.md` (English only):
 
 ```markdown
-## [0.2.0] - 2026-MM-DD
+## [0.3.0] - 2026-MM-DD
 
 ### Added
-- Nová feature 1
-- Nová feature 2
+- New feature 1
+- New feature 2
 
 ### Fixed
-- Opravený bug 1
+- Bug fix 1
 
 ### Changed
-- Zmena 1
+- Change description 1
 
-[0.2.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.2.0
+[0.3.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.3.0
 ```
 
-### 2. Zvýš verziu (automaticky)
+### 2. Bump version (automatic)
 
-Spusti príkaz, ktorý zvýši verziu vo všetkých 3 súboroch naraz, vytvorí commit a tag:
+Run the command that bumps the version in all 3 files, creates a commit and a tag:
 
 ```bash
-npm run bump patch   # 0.1.0 → 0.1.1 (opravy)
-npm run bump minor   # 0.1.0 → 0.2.0 (nové funkcie)
-npm run bump major   # 0.1.0 → 1.0.0 (nekompatibilné zmeny)
+npm run bump patch   # 0.1.0 → 0.1.1 (bug fixes)
+npm run bump minor   # 0.1.0 → 0.2.0 (new features)
+npm run bump major   # 0.1.0 → 1.0.0 (breaking changes)
 ```
 
-Tento príkaz:
-- Zvýši verziu v `package.json`, `src-tauri/Cargo.toml` aj `src-tauri/tauri.conf.json`
-- Vytvorí git commit: `chore: bump version to 0.2.0`
-- Vytvorí git tag: `v0.2.0`
+This command:
+- Bumps version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`
+- Creates a git commit: `chore: bump version to 0.3.0`
+- Creates a git tag: `v0.3.0`
 
-### 3. Pushni zmeny
+### 3. Push changes
 
 ```bash
-git push origin main && git push origin v0.2.0
+# Windows (PowerShell) — use semicolon instead of &&
+git push origin main; git push origin v0.3.0
+
+# Linux / macOS
+git push origin main && git push origin v0.3.0
 ```
 
-### 5. GitHub Actions spustí automatický build
+### 4. GitHub Actions runs the build automatically
 
-Po pushnutí tagu sa automaticky spustí workflow `.github/workflows/release.yml`, ktorý:
+After pushing the tag, the workflow `.github/workflows/release.yml` automatically:
 
-1. Vybuildí aplikáciu na **Windows**, **macOS** a **Linux**
-2. Extrahuje release notes z `CHANGELOG.md` pre danú verziu
-3. Vytvorí **draft release** na GitHub
-4. Priloží inštalačné balíčky (MSI, NSIS, DMG, AppImage)
-5. Priloží **portable verzie**:
-   - `scanner-reloaded_0.2.0_x64_portable.zip` (Windows)
-   - `scanner-reloaded_0.2.0_x64_portable.tar.gz` (Linux)
-   - `scanner-reloaded_0.2.0_x64_portable.zip` alebo `..._aarch64_portable.zip` (macOS)
+1. Builds the application on **Windows**, **macOS** and **Linux**
+2. Extracts release notes from `CHANGELOG.md` for the version
+3. Runs `cargo build --release` so portable packaging can find the binary
+4. Creates a **draft release** on GitHub
+5. Attaches installer packages (MSI, NSIS, DMG, AppImage)
+6. Attaches **portable versions**:
+   - `scanner-reloaded_0.3.0_x64_portable.zip` (Windows)
+   - `scanner-reloaded_0.3.0_x64_portable.tar.gz` (Linux)
+   - `scanner-reloaded_0.3.0_x64_portable.zip` or `..._aarch64_portable.zip` (macOS)
 
-### 6. Skontroluj a publikuj release
+### 5. Review and publish the release
 
-1. Choď na [github.com/Majrooo/scanner-reloaded/releases](https://github.com/Majrooo/scanner-reloaded/releases)
-2. Nájdi draft release s názvom `Release v0.2.0`
-3. Skontroluj release notes (automaticky extrahované z `CHANGELOG.md`)
-4. Skontroluj priložené súbory (inštalátory + portable)
-5. Klikni **"Publish release"**
+1. Go to [github.com/Majrooo/scanner-reloaded/releases](https://github.com/Majrooo/scanner-reloaded/releases)
+2. Find the draft release with the name `Release v0.3.0`
+3. Review the release notes (automatically extracted from `CHANGELOG.md`)
+4. Check the attached files (installers + portable)
+5. Click **"Publish release"**
 
-## Zhrnutie (príkazový riadok)
+## Quick summary
 
 ```bash
-# 1. Aktualizuj CHANGELOG.md (ručne)
+# 1. Update CHANGELOG.md (manually, in English)
 
-# 2. Zvýš verziu, commit a tag (automaticky)
+# 2. Bump version, commit and tag (automatic)
 npm run bump minor
 
-# 3. Pushni všetko
-git push origin main && git push origin v0.2.0
+# 3. Push everything
+git push origin main; git push origin v0.3.0
 
-# 4. Hotovo — GitHub Actions spraví zvyšok
+# 4. Done — GitHub Actions takes care of the rest
 ```
 
-## Riešenie problémov
+## Troubleshooting
 
-### Workflow sa nespustil
-- Skontroluj, či tag začína na `v` (napr. `v0.2.0`, nie `0.2.0`)
-- Skontroluj, či je `.github/workflows/release.yml` v `main` vetve
+### Workflow didn't start
+- Check that the tag starts with `v` (e.g. `v0.3.0`, not `0.3.0`)
+- Check that `.github/workflows/release.yml` exists in the `main` branch
 
-### Build zlyhal
-- Choď na [github.com/Majrooo/scanner-reloaded/actions](https://github.com/Majrooo/scanner-reloaded/actions)
-- Klikni na neúspešný workflow run
-- Pozri si logy a zistí príčinu zlyhania
+### Build failed
+- Go to [github.com/Majrooo/scanner-reloaded/actions](https://github.com/Majrooo/scanner-reloaded/actions)
+- Click on the failed workflow run
+- Check the logs to find the cause
 
-### Release sa nevytvoril
-- Skontroluj, či `GITHUB_TOKEN` má `contents: write` permisie
-- Skontroluj, či `tauri.conf.json` má `"bundle": { "active": true }`
+### Release wasn't created
+- Check that `GITHUB_TOKEN` has `contents: write` permissions
+- Check that `tauri.conf.json` has `"bundle": { "active": true }`
+
+### Portable files are missing from the release
+- Check that the `cargo build --release` step ran before `tauri-action` in the workflow
+- The workflow must build the Rust binary first so the packaging step can find it

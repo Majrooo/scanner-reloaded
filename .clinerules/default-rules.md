@@ -13,5 +13,6 @@ To conserve tokens, use search tools (e.g., `grep`, `search`) instead of reading
 - **Keep documentation in sync.** If you add or change a feature, update the relevant documentation (e.g., `README.md`).
 - **Use English for all comments** and adhere to the project's established coding style.
 - **Write clear commit messages** following the conventional commit format (e.g., `feat: ...`, `fix: ...`).
+- **CHANGELOG.md must be written entirely in English** — all entries, section headers, and descriptions.
 - **`.clinerules/memory-bank.md`**: This file contains the Memory Bank documentation system.
 - **`memory-bank/ai-tools-reference.md`**: This file contains the AI tools reference for Cline in VS Code.

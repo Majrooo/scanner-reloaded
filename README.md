@@ -1,7 +1,5 @@
 # Scanner Reloaded 🔍📊
 
-**Version 0.1.0** — Initial Release
-
 A modern, fast, and cross-platform disk space visualizer built with Tauri, Rust, and D3.js.
 
 ![Scanner Reloaded Screenshot](images/screenshot.jpg)
@@ -19,11 +17,10 @@ Get the latest version for your platform from the [Releases page](https://github
 | Platform | Installer | Portable |
 |----------|-----------|----------|
 | **Windows** | `scanner-reloaded_*_x64-setup.exe` (NSIS) or `.msi` | `scanner-reloaded_*_x64_portable.zip` |
-| **macOS** | `.dmg` *(coming in next release)* | `*_portable.zip` *(coming in next release)* |
-| **Linux** | `.AppImage` *(coming in next release)* | `*_portable.tar.gz` *(coming in next release)* |
+| **macOS** | `.dmg` | `scanner-reloaded_*_x64_portable.zip` (Intel) or `*_aarch64_portable.zip` (Apple Silicon) |
+| **Linux** | `.AppImage` | `scanner-reloaded_*_x64_portable.tar.gz` |
 
 > **Tip:** Portable version requires no installation — just extract and run.
-> **Note:** macOS and Linux builds will be available in a future release.
 
 ## Features
 
