@@ -492,14 +492,6 @@ fn normalize_paths(node: &mut FileNode) {
     }
 }
 
-/// Count total file nodes in the tree (non-directory nodes).
-fn count_file_nodes(node: &FileNode) -> usize {
-    if !node.is_dir {
-        return 1;
-    }
-    node.children.iter().map(count_file_nodes).sum()
-}
-
 /// Merge files smaller than `threshold` bytes into a single `__super_small_files__` node
 /// in each directory. This drastically reduces the number of FileNode objects in the tree
 /// before serialization, reducing memory usage and IPC transfer time.
