@@ -57,6 +57,12 @@
           "finished": "✅ Skenovanie dokončené úspešne.",
           "error": "❌ Chyba: {message}"
         },
+        "filterWarning": {
+          "title": "⚠️ Varovanie",
+          "message": "Chystáte sa vypnúť rýchly filter. Zobrazí sa {count} uzlov, čo môže spôsobiť spomalenie alebo zamrznutie aplikácie. Naozaj chcete pokračovať?",
+          "confirm": "Áno, vypnúť filter",
+          "cancel": "Zrušiť"
+        },
         "stats": {
           "contains": "Obsahuje: {dirCount} priečinkov, {fileCount} súborov",
           "fileType": "Typ: Súbor",
@@ -142,7 +148,8 @@
           "minAngleToRenderOff": "Zobraziť všetko",
           "relativeThreshold": "Prah zlučovania (__others__)",
           "relativeThresholdOff": "Vypnuté",
-          "backendMergeThreshold": "Prah zlučovania v backend-e (KB)"
+          "backendMergeThreshold": "Prah zlučovania v backend-e (KB)",
+          "filterDisableWarningThreshold": "Prah varovania pri vypnutí filtra"
         },
         "integrations": {
           "title": "Systém a Integrácie",
@@ -167,7 +174,8 @@
           "minAngleToRender": "Pri zapnutom rýchlom filtri sa segmenty s uhlom menším ako táto hodnota nevykreslia. Vyššia hodnota = menej drobných výrezov, prehľadnejší graf.",
           "relativeThreshold": "Nezávisle od rýchleho filtra zlučuje malé položky (menšie ako toto percento veľkosti rodiča) do segmentu '__others__'. Vyššia hodnota = viac položiek v 'Iné', menej preťažený graf.",
           "tcPath": "Úplná cesta k spustiteľnému súboru Total Commander. Ak ju necháte prázdnu, systém sa pokúsi o automatickú detekciu v predvolených priečinkoch.",
-          "backendMergeThreshold": "Súbory menšie ako táto hodnota sa zlúčia v backend-e ešte pred odoslaním na frontend. Výrazne znižuje pamäťovú náročnosť a urýchľuje IPC prenos. Zmena sa prejaví až pri novom skenovaní."
+          "backendMergeThreshold": "Súbory menšie ako táto hodnota sa zlúčia v backend-e ešte pred odoslaním na frontend. Výrazne znižuje pamäťovú náročnosť a urýchľuje IPC prenos. Zmena sa prejaví až pri novom skenovaní.",
+          "filterDisableWarningThreshold": "Ak sa pokúsite vypnúť rýchly filter a počet uzlov v grafe presahuje túto hodnotu, zobrazí sa varovanie pred možným zamrznutím."
         }
       }
     },
@@ -226,6 +234,12 @@
           "current": "Currently: {path}",
           "finished": "✅ Scan completed successfully.",
           "error": "❌ Error: {message}"
+        },
+        "filterWarning": {
+          "title": "⚠️ Warning",
+          "message": "You are about to disable the fast filter. This will display {count} nodes, which may cause slowdown or freezing of the application. Do you really want to continue?",
+          "confirm": "Yes, disable filter",
+          "cancel": "Cancel"
         },
         "stats": {
           "contains": "Contains: {dirCount} folders, {fileCount} files",
@@ -312,7 +326,8 @@
           "minAngleToRenderOff": "Show all",
           "relativeThreshold": "Aggregation Threshold (__others__)",
           "relativeThresholdOff": "Off",
-          "backendMergeThreshold": "Backend merge threshold (KB)"
+          "backendMergeThreshold": "Backend merge threshold (KB)",
+          "filterDisableWarningThreshold": "Filter disable warning threshold"
         },
         "integrations": {
           "title": "System & Integrations",
@@ -337,7 +352,8 @@
           "minAngleToRender": "When the performance filter is active, segments with an angle smaller than this value are not rendered. Higher value = fewer tiny slices, cleaner chart.",
           "relativeThreshold": "Independent of the performance filter. Merges items smaller than this percentage of their parent's size into a single '__others__' segment. Higher value = more items in 'Others', less cluttered chart.",
           "tcPath": "Full path to the Total Commander executable. Leave empty for auto-detection in default installation folders.",
-          "backendMergeThreshold": "Files smaller than this value are merged in the backend before sending to frontend. Dramatically reduces memory footprint and speeds up IPC transfer. The change takes effect on the next scan."
+          "backendMergeThreshold": "Files smaller than this value are merged in the backend before sending to frontend. Dramatically reduces memory footprint and speeds up IPC transfer. The change takes effect on the next scan.",
+          "filterDisableWarningThreshold": "If you attempt to disable the fast filter and the number of nodes exceeds this value, a warning will be shown before potential freezing."
         }
       }
     }

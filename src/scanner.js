@@ -292,6 +292,7 @@ const APP_CONFIG = {
   introSequentialDuration: 1000,
   introStaggeredDuration: 950,
   relativeThreshold: 0.0015,
+  filterDisableWarningThreshold: 2000,
 };
 
 function formatBytes(bytes) {
@@ -779,6 +780,20 @@ function getParentPath(path) {
   return normalized.substring(0, idx);
 }
 
+/**
+ * Count how many descendant nodes would be visible without the performance filter.
+ * This mirrors the `basicCheck` logic from zoomTo (depth, value, angle range).
+ */
+function countNodesWithoutFilter(p) {
+  if (!p) return 0;
+  return p.descendants().filter(d => {
+    return d.depth > p.depth &&
+      d.depth <= p.depth + maxDepth &&
+      d.value > 0 &&
+      d.x1 > p.x0 && d.x0 < p.x1;
+  }).length;
+}
+
 function drawSunburst(hierarchy, partition) {
   const data = hierarchy.data;
   const emptyFolderMsg = document.getElementById("empty-folder-message");
@@ -1150,7 +1165,21 @@ window.addEventListener("DOMContentLoaded", async () => {
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: "No path specified." });
   }
   if (filterToggle) {
-    filterToggle.addEventListener("change", (event) => {
+    filterToggle.addEventListener("change", async (event) => {
+      // If user is disabling the filter (unchecking), check node count first
+      if (!event.target.checked && currentFocus) {
+        const nodeCount = countNodesWithoutFilter(currentFocus);
+        if (nodeCount >= APP_CONFIG.filterDisableWarningThreshold) {
+          const message = getText("scanScreen.filterWarning.message", { count: nodeCount.toLocaleString() });
+          const confirmed = await showConfirm(message, true);
+          if (!confirmed) {
+            // User cancelled — revert the checkbox back to checked
+            event.target.checked = true;
+            APP_CONFIG.usePerformanceFilter = true;
+            return;
+          }
+        }
+      }
       APP_CONFIG.usePerformanceFilter = event.target.checked;
       if (currentFocus) zoomTo(currentFocus);
     });
@@ -1213,6 +1242,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const relativeThresholdValue = document.getElementById("relative-threshold-value");
   const backendMergeSlider = document.getElementById("backend-merge-threshold");
   const backendMergeValue = document.getElementById("backend-merge-threshold-value");
+  const filterWarningThresholdInput = document.getElementById("filter-warning-threshold");
   const tcPathInput = document.getElementById("tc-path-input");
   const browseTcPathBtn = document.getElementById("browse-tc-path-btn");
   const introSweepRow = document.getElementById("intro-sweep-duration-row");
@@ -1272,6 +1302,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     relativeThresholdSlider.value = APP_CONFIG.relativeThreshold;
     updateRelativeThresholdLabel(APP_CONFIG.relativeThreshold);
     tcPathInput.value = APP_CONFIG.totalCommanderPath || "";
+    filterWarningThresholdInput.value = APP_CONFIG.filterDisableWarningThreshold;
     // Load backend merge threshold from Rust config
     try {
       const backendThreshold = await invoke("get_backend_merge_threshold");
@@ -1313,6 +1344,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     relativeThresholdSlider.value = 0.0015;
     updateRelativeThresholdLabel(0.0015);
     tcPathInput.value = "";
+    filterWarningThresholdInput.value = 2000;
     updateConditionalSettingsUI();
     showToast(getText("settingsModal.reset.success"), "info");
   }
@@ -1415,6 +1447,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.minAngleToRender = parseFloat(minAngleSlider.value);
     APP_CONFIG.relativeThreshold = parseFloat(relativeThresholdSlider.value);
     APP_CONFIG.totalCommanderPath = tcPathInput.value;
+    APP_CONFIG.filterDisableWarningThreshold = parseInt(filterWarningThresholdInput.value, 10) || 2000;
     await invoke("set_tc_path", { path: tcPathInput.value || "" });
     // Save backend merge threshold to Rust config
     const backendThreshold = parseInt(backendMergeSlider.value, 10);
