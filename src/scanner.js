@@ -250,6 +250,7 @@ async function loadTranslations() {
     applyTranslations();
   } catch (error) {
     console.error(error);
+    showToast(getText("toast.translationsLoadFailed"), "error", 5000);
   }
 }
 
@@ -262,6 +263,7 @@ async function loadSettings() {
     }
   } catch (error) {
     console.error("Failed to load settings from localStorage", error);
+    showToast(getText("toast.settingsLoadFailed"), "error", 5000);
   }
 }
 
@@ -1191,6 +1193,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error("Failed to load backend merge threshold:", err);
     backendMergeThresholdKb = 0;
+    showToast(getText("toast.mergeThresholdLoadFailed"), "error", 5000);
   }
 
   // Initialize ResizeObserver for chart responsive sizing
@@ -1300,6 +1303,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       console.error("Failed to load backend merge threshold:", err);
       backendMergeSlider.value = 0;
+      showToast(getText("toast.mergeThresholdLoadFailed"), "error", 5000);
       updateBackendMergeLabel(0);
     }
     updateConditionalSettingsUI();

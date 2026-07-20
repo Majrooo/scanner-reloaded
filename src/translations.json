@@ -122,7 +122,11 @@
         "autoFilterOff": "Rýchly režim bol automaticky vypnutý.",
         "disksLoading": "Obnovujem zoznam diskov...",
         "disksLoaded": "Zoznam diskov bol úspešne obnovený.",
-        "ipcTimeout": "Operácia '{command}' prekročila časový limit. Skúste znova."
+        "ipcTimeout": "Operácia '{command}' prekročila časový limit. Skúste znova.",
+        "translationsLoadFailed": "Nepodarilo sa načítať preklady. Aplikácia bude pokračovať s predvolenými textami.",
+        "settingsLoadFailed": "Nepodarilo sa načítať nastavenia. Použijú sa predvolené hodnoty.",
+        "mergeThresholdLoadFailed": "Nepodarilo sa načítať backend threshold.",
+        "folderSelectFailed": "Nepodarilo sa otvoriť výber priečinka."
       },
       "settingsModal": {
         "title": "Nastavenia",
@@ -346,7 +350,11 @@
         "autoFilterOff": "Fast mode has been automatically disabled.",
         "disksLoading": "Refreshing disk list...",
         "disksLoaded": "Disk list has been successfully refreshed.",
-        "ipcTimeout": "Operation '{command}' timed out. Please try again."
+        "ipcTimeout": "Operation '{command}' timed out. Please try again.",
+        "translationsLoadFailed": "Failed to load translations. App will continue with default texts.",
+        "settingsLoadFailed": "Failed to load settings. Default values will be used.",
+        "mergeThresholdLoadFailed": "Failed to load backend threshold.",
+        "folderSelectFailed": "Failed to open folder selection."
       },
       "settingsModal": {
         "title": "Settings",

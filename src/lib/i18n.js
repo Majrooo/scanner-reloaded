@@ -50,6 +50,15 @@ async function loadTranslations() {
     applyTranslations();
   } catch (error) {
     console.error("Failed to load translations:", error);
+    // i18n.js sa načíta pred utils.js — počkáme kým je Utils dostupný
+    setTimeout(function () {
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        var msg = (typeof I18n !== 'undefined' && I18n.getText)
+          ? I18n.getText('toast.translationsLoadFailed')
+          : 'Failed to load translations. App will continue with default texts.';
+        Utils.showToast(msg, 'error', 5000);
+      }
+    }, 500);
   }
 }
 

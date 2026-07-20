@@ -130,6 +130,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
       } catch (err) {
         console.error("Folder selection failed:", err);
+        Utils.showToast(I18n.getText("toast.folderSelectFailed"), "error", 5000);
       }
     };
   }
