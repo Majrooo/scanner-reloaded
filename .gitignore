@@ -40,6 +40,9 @@ Thumbs.db
 # Forknutý repozitár pre PR do awesome-tauri
 awesome-tauri/
 
+# MCP servery
+servers/
+
 # AI Agent (Cline / Roo Code) Memory Banks
 .cline/
 clinerules-data/
