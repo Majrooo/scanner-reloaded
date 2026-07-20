@@ -72,6 +72,24 @@ function extractErrorMessage(err, fallbackKey) {
   return fallbackKey || 'Neznáma chyba';
 }
 
+/**
+ * Zavolá Tauri invoke s timeoutom. Ak operácia trvá dlhšie ako timeoutMs,
+ * promise sa rejectne s chybou 'IPC_TIMEOUT:<nazov_komandy>'.
+ * @param {string} command - názov Tauri commandy
+ * @param {object} [args={}] - argumenty pre commandu
+ * @param {number} timeoutMs - timeout v milisekundách
+ * @returns {Promise<any>}
+ */
+function invokeWithTimeout(command, args = {}, timeoutMs) {
+  const { invoke } = window.__TAURI__.core;
+  return Promise.race([
+    invoke(command, args),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('IPC_TIMEOUT:' + command)), timeoutMs)
+    )
+  ]);
+}
+
 function showToast(message, type = "info", duration = 4000) {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;
@@ -91,5 +109,6 @@ window.Utils = {
   escapeHtml,
   middleTruncatePath,
   extractErrorMessage,
+  invokeWithTimeout,
   showToast,
 };

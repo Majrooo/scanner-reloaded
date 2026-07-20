@@ -510,7 +510,7 @@ async function startDiskScan(path, totalSpace) {
 
 async function goBackToMenu() {
   if (isScanning) {
-    await invoke("cancel_scan").catch(console.error);
+    await Utils.invokeWithTimeout("cancel_scan", {}, 5000).catch(console.error);
   }
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
@@ -529,7 +529,7 @@ async function goBackToMenu() {
     const el = document.getElementById(id);
     if (el) el.innerHTML = "";
   });
-  await invoke("clear_scan_state").catch(console.error);
+  await Utils.invokeWithTimeout("clear_scan_state", {}, 5000).catch(console.error);
   setTimeout(() => {
     window.location.replace("index.html");
   }, 100);
@@ -1187,7 +1187,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Load backend merge threshold from Rust config for hover display
   try {
-    backendMergeThresholdKb = await invoke("get_backend_merge_threshold");
+    backendMergeThresholdKb = await Utils.invokeWithTimeout("get_backend_merge_threshold", {}, 5000);
   } catch (err) {
     console.error("Failed to load backend merge threshold:", err);
     backendMergeThresholdKb = 0;
@@ -1294,7 +1294,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     filterWarningThresholdInput.value = APP_CONFIG.filterDisableWarningThreshold;
     // Load backend merge threshold from Rust config
     try {
-      const backendThreshold = await invoke("get_backend_merge_threshold");
+      const backendThreshold = await Utils.invokeWithTimeout("get_backend_merge_threshold", {}, 5000);
       backendMergeSlider.value = backendThreshold;
       updateBackendMergeLabel(backendThreshold);
     } catch (err) {
@@ -1478,10 +1478,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.relativeThreshold = parseFloat(relativeThresholdSlider.value);
     APP_CONFIG.totalCommanderPath = tcPathInput.value;
     APP_CONFIG.filterDisableWarningThreshold = parseInt(filterWarningThresholdInput.value, 10) || 2000;
-    await invoke("set_tc_path", { path: tcPathInput.value || "" });
+    await Utils.invokeWithTimeout("set_tc_path", { path: tcPathInput.value || "" }, 5000);
     // Save backend merge threshold to Rust config
     const backendThreshold = parseInt(backendMergeSlider.value, 10);
-    await invoke("set_backend_merge_threshold", { thresholdKb: backendThreshold });
+    await Utils.invokeWithTimeout("set_backend_merge_threshold", { thresholdKb: backendThreshold }, 5000);
     await saveSettings();
     // Clear cache so settings like relativeThreshold, introAnimationType take effect
     collapsedViewCache.clear();
@@ -1496,14 +1496,20 @@ window.addEventListener("DOMContentLoaded", async () => {
   const cmOpenExplorer = document.getElementById("cm-open-explorer");
   if (cmOpenExplorer) {
     cmOpenExplorer.onclick = async () => {
-      if (menuTargetNode) await invoke("show_in_file_manager", { path: menuTargetNode.data.path });
+      if (menuTargetNode) {
+        try {
+          await Utils.invokeWithTimeout("show_in_file_manager", { path: menuTargetNode.data.path }, 10000);
+        } catch (err) {
+          showToast(getText("toast.ipcTimeout", { command: Utils.extractErrorMessage(err) }), "error");
+        }
+      }
     };
   }
   const cmOpenTc = document.getElementById("cm-open-tc");
   if (cmOpenTc) {
     cmOpenTc.onclick = async () => {
       if (menuTargetNode) {
-        try { await invoke("show_in_total_commander", { path: menuTargetNode.data.path }); }
+        try { await Utils.invokeWithTimeout("show_in_total_commander", { path: menuTargetNode.data.path }, 10000); }
         catch (err) { showToast(getText("toast.tcLaunchFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
       }
     };
@@ -1511,7 +1517,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   const cmProperties = document.getElementById("cm-properties");
   if (cmProperties) {
     cmProperties.onclick = async () => {
-      if (menuTargetNode) await invoke("show_file_properties", { path: menuTargetNode.data.path });
+      if (menuTargetNode) {
+        try {
+          await Utils.invokeWithTimeout("show_file_properties", { path: menuTargetNode.data.path }, 10000);
+        } catch (err) {
+          showToast(getText("toast.ipcTimeout", { command: Utils.extractErrorMessage(err) }), "error");
+        }
+      }
     };
   }
   const cmCopyPath = document.getElementById("cm-copy-path");
@@ -1530,7 +1542,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const confirmed = await showConfirm(getText("confirmations.trash", { name: menuTargetNode.data.name }), false);
         if (confirmed) {
           try {
-            await invoke("move_to_trash", { path: menuTargetNode.data.path });
+            await Utils.invokeWithTimeout("move_to_trash", { path: menuTargetNode.data.path }, 15000);
             showToast(getText("toast.trashed", { name: menuTargetNode.data.name }), "success");
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
@@ -1558,7 +1570,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const confirmed = await showConfirm(getText("confirmations.delete", { name: menuTargetNode.data.name }), true);
         if (confirmed) {
           try {
-            await invoke("permanent_delete", { path: menuTargetNode.data.path });
+            await Utils.invokeWithTimeout("permanent_delete", { path: menuTargetNode.data.path }, 15000);
             showToast(getText("toast.deleted", { name: menuTargetNode.data.name }), "success");
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;

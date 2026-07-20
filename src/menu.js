@@ -32,7 +32,7 @@ async function loadDisks() {
   // Show skeleton while loading
   if (skeleton) skeleton.classList.remove("hidden");
 
-  let disks = await invoke("get_disks");
+  let disks = await Utils.invokeWithTimeout("get_disks", {}, 10000);
 
   // Hide skeleton after loading
   if (skeleton) skeleton.classList.add("hidden");
@@ -100,7 +100,7 @@ async function handleDragDrop(paths) {
 
   try {
     // Validate path is a directory using Rust backend
-    await invoke("validate_directory", { path: path });
+    await Utils.invokeWithTimeout("validate_directory", { path: path }, 5000);
     startDiskScan(path, 0);
   } catch (err) {
     Utils.showToast(I18n.getText("dragDrop.notDirectory"), "error");
@@ -138,10 +138,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (isWindows && systemUtilitiesSection) {
     systemUtilitiesSection.classList.remove("hidden");
 
-    document.getElementById("util-disk-cleanup")?.addEventListener("click", () => invoke("open_system_utility", { utility: "disk-cleanup" }));
-    document.getElementById("util-apps-features")?.addEventListener("click", () => invoke("open_system_utility", { utility: "apps-features" }));
-    document.getElementById("util-storage-settings")?.addEventListener("click", () => invoke("open_system_utility", { utility: "storage-settings" }));
-    document.getElementById("util-defrag")?.addEventListener("click", () => invoke("open_system_utility", { utility: "defrag" }));
+    document.getElementById("util-disk-cleanup")?.addEventListener("click", () => Utils.invokeWithTimeout("open_system_utility", { utility: "disk-cleanup" }, 10000));
+    document.getElementById("util-apps-features")?.addEventListener("click", () => Utils.invokeWithTimeout("open_system_utility", { utility: "apps-features" }, 10000));
+    document.getElementById("util-storage-settings")?.addEventListener("click", () => Utils.invokeWithTimeout("open_system_utility", { utility: "storage-settings" }, 10000));
+    document.getElementById("util-defrag")?.addEventListener("click", () => Utils.invokeWithTimeout("open_system_utility", { utility: "defrag" }, 10000));
   }
 
   // TC Path section (Windows only)
@@ -242,7 +242,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   tcSaveBtn.onclick = async () => {
     if (tcPathInput.value) {
-      await invoke("set_tc_path", { path: tcPathInput.value || "" });
+      await Utils.invokeWithTimeout("set_tc_path", { path: tcPathInput.value || "" }, 5000);
     }
     if (tcPathModal.close) {
       tcPathModal.close();
@@ -253,7 +253,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   tcClearBtn.onclick = async () => {
     tcPathInput.value = "";
-    await invoke("set_tc_path", { path: "" });
+    await Utils.invokeWithTimeout("set_tc_path", { path: "" }, 5000);
     if (tcPathModal.close) {
       tcPathModal.close();
     } else {

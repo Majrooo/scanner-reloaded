@@ -121,7 +121,8 @@
         "autoFilterOn": "Rýchly režim bol zapnutý pre plynulosť ({count} položiek).",
         "autoFilterOff": "Rýchly režim bol automaticky vypnutý.",
         "disksLoading": "Obnovujem zoznam diskov...",
-        "disksLoaded": "Zoznam diskov bol úspešne obnovený."
+        "disksLoaded": "Zoznam diskov bol úspešne obnovený.",
+        "ipcTimeout": "Operácia '{command}' prekročila časový limit. Skúste znova."
       },
       "settingsModal": {
         "title": "Nastavenia",
@@ -344,7 +345,8 @@
         "autoFilterOn": "Fast mode enabled for performance ({count} items).",
         "autoFilterOff": "Fast mode has been automatically disabled.",
         "disksLoading": "Refreshing disk list...",
-        "disksLoaded": "Disk list has been successfully refreshed."
+        "disksLoaded": "Disk list has been successfully refreshed.",
+        "ipcTimeout": "Operation '{command}' timed out. Please try again."
       },
       "settingsModal": {
         "title": "Settings",
