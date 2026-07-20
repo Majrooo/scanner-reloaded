@@ -308,7 +308,7 @@ h1, h2 {
   margin-top: 20px;
   min-height: auto;
 }
-#back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; line-height: 1.2; }
+#back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; line-height: 1.2; }
 #back-to-disks-btn:hover { background: #45475a; }
 
 /* New style for the button in cancel mode */
@@ -330,25 +330,19 @@ h1, h2 {
   border-radius: 6px;
   cursor: pointer;
   font-size: 16px;
+  line-height: 1.2;
+  min-width: 44px;
+  text-align: center;
 }
 .icon-btn:hover {
   background: #45475a;
 }
 
-.cancel-scan-btn {
-  background: #f38ba8;
-  color: #11111b;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 13px;
-  transition: background 0.2s ease;
-}
-
-.cancel-scan-btn:hover {
-  background: #eb6f92;
+/* Header right-side action buttons container */
+.header-right-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 /* Flexibilný layout pre graf */
@@ -1178,4 +1172,62 @@ dialog.modal .modal-content {
 
 .confirm-ok-btn.danger:hover {
   background: #eb6f92;
+}
+
+/* ── Help Modal Styles ─────────────────────────────────────────────────────── */
+
+.help-modal-content {
+  width: 580px;
+  max-width: 92vw;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.help-modal-content h2 {
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.help-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #313244;
+}
+
+.help-item:last-child {
+  border-bottom: none;
+}
+
+.help-item strong {
+  display: block;
+  color: #cdd6f4;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.help-item p {
+  color: #a6adc8;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Color swatches for segment colors help */
+.color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-right: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.help-colors-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  color: #a6adc8;
+  font-size: 13px;
+  line-height: 1.5;
 }

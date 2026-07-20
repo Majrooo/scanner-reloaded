@@ -169,6 +169,44 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // Help Modal (Menu) — opening and dynamic population
+  const helpMenuBtn = document.getElementById("help-menu-btn");
+  const helpMenuModal = document.getElementById("help-menu-modal");
+  const closeHelpMenuBtn = document.getElementById("close-help-menu-btn");
+  const helpMenuBody = document.getElementById("help-menu-body");
+
+  function renderHelpMenuModal() {
+    if (!helpMenuBody) return;
+    const items = I18n.getText("helpModalMenu.items");
+    // getText returns the key if not found; items is an array so we need special handling
+    const transData = I18n.getTranslationsData();
+    const langData = transData?.languages?.[I18n.getCurrentLanguage()] || transData?.languages?.[transData?.defaultLanguage] || {};
+    const helpItems = langData?.helpModalMenu?.items || [];
+    helpMenuBody.innerHTML = helpItems.map(item => {
+      return `<div class="help-item">
+        <strong>${item.title}</strong>
+        <p>${item.text}</p>
+      </div>`;
+    }).join("");
+  }
+
+  helpMenuBtn.onclick = () => {
+    renderHelpMenuModal();
+    if (helpMenuModal.showModal) {
+      helpMenuModal.showModal();
+    } else {
+      helpMenuModal.classList.remove("hidden");
+    }
+  };
+
+  closeHelpMenuBtn.onclick = () => {
+    if (helpMenuModal.close) {
+      helpMenuModal.close();
+    } else {
+      helpMenuModal.classList.add("hidden");
+    }
+  };
+
   // About Modal - using native dialog API
   aboutBtn.onclick = async () => {
     I18n.applyTranslations();

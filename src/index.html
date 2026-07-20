@@ -14,6 +14,7 @@
       <select id="language-select">
         <option value="sk">Slovenčina</option>
       </select>
+      <button id="help-menu-btn" class="icon-btn" data-i18n-title="helpModalMenu.buttonTooltip"><span aria-hidden="true">?</span></button>
       <button id="about-btn" class="icon-btn" data-i18n-title="about.title"><span aria-hidden="true">ℹ</span></button>
     </header>
 
@@ -79,6 +80,15 @@
       </div>
     </div>
   </main>
+
+  <!-- Help Modal (Menu) -->
+  <dialog id="help-menu-modal" class="modal">
+    <div class="modal-content help-modal-content">
+      <button id="close-help-menu-btn" class="close-btn" data-i18n-title="common.close">&times;</button>
+      <h2 data-i18n="helpModalMenu.title">Nápoveda — Hlavné okno</h2>
+      <div class="modal-body" id="help-menu-body"></div>
+    </div>
+  </dialog>
 
   <!-- About Modal -->
   <dialog id="about-modal" class="modal">

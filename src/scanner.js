@@ -29,7 +29,6 @@ const confirmOkBtn = document.getElementById("confirm-ok-btn");
 const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 
 // Cancel scan
-const cancelScanBtn = document.getElementById("cancel-scan-btn");
 let isScanning = false;
 
 /**
@@ -293,6 +292,13 @@ const APP_CONFIG = {
   introStaggeredDuration: 950,
   relativeThreshold: 0.0015,
   filterDisableWarningThreshold: 2000,
+  colors: {
+    dirShallow: "#ffcc00",
+    dirDeep: "#423500",
+    file: "#89b4fa",
+    others: "#585b70",
+    superSmall: "#b33a4d",
+  },
 };
 
 function formatBytes(bytes) {
@@ -397,7 +403,6 @@ async function startDiskScan(path, totalSpace) {
   isScanning = true;
   backBtn.textContent = getText("scanScreen.cancelScan");
   backBtn.classList.add("in-cancel-mode");
-  if (cancelScanBtn) cancelScanBtn.classList.remove("hidden");
   const spinner = document.getElementById("scan-spinner");
   if (spinner) spinner.classList.remove("hidden");
   const statsBar = document.getElementById("scan-stats-bar");
@@ -434,7 +439,6 @@ async function startDiskScan(path, totalSpace) {
     isScanning = false;
     backBtn.textContent = getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
-    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
     document.getElementById("live-ticker-bar").style.width = "100%";
@@ -495,7 +499,6 @@ async function startDiskScan(path, totalSpace) {
     isScanning = false;
     backBtn.textContent = getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
-    if (cancelScanBtn) cancelScanBtn.classList.add("hidden");
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
     liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
@@ -951,19 +954,16 @@ function zoomTo(p) {
   }
 
   function getFillColor(d) {
-    if (d.data.name === "__others__") {
-      return "#585b70";
-    }
-    if (d.data.name === "__super_small_files__") {
-      return "#b33a4d";
-    }
+    const c = APP_CONFIG.colors;
+    if (d.data.name === "__others__") return c.others;
+    if (d.data.name === "__super_small_files__") return c.superSmall;
     if (d.data.is_dir) {
       const localYellowScale = d3.scaleLinear()
         .domain([0, realMaxDepth])
-        .range(["#ffcc00", "#423500"]);
+        .range([c.dirShallow, c.dirDeep]);
       return localYellowScale(d.depth - p.depth - 1);
     }
-    return "#89b4fa";
+    return c.file;
   }
 
   function attachPathEvents(paths) {
@@ -1185,16 +1185,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
   backBtn.addEventListener("click", goBackToMenu);
-  if (cancelScanBtn) {
-    cancelScanBtn.classList.add("hidden");
-    cancelScanBtn.addEventListener("click", () => {
-      if (isScanning) {
-        invoke("cancel_scan").catch(console.error);
-        showToast(getText("toast.scanCancelled"), "info");
-      }
-      goBackToMenu();
-    });
-  }
 
   // Load backend merge threshold from Rust config for hover display
   try {
@@ -1358,6 +1348,47 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // Help Modal (Scan) — opening and dynamic population
+  const helpScanBtn = document.getElementById("help-scan-btn");
+  const helpScanModal = document.getElementById("help-scan-modal");
+  const closeHelpScanBtn = document.getElementById("close-help-scan-btn");
+  const helpScanBody = document.getElementById("help-scan-body");
+
+  function renderHelpScanModal() {
+    if (!helpScanBody) return;
+    const items = translationsData?.languages?.[currentLanguage]?.helpModalScan?.items ||
+      translationsData?.languages?.[translationsData?.defaultLanguage]?.helpModalScan?.items || [];
+    const c = APP_CONFIG.colors;
+    helpScanBody.innerHTML = items.map(item => {
+      if (Array.isArray(item.text)) {
+        // Color swatches array
+        const swatches = item.text.map(entry => {
+          const colorHex = c[entry.swatch] || "#888";
+          return `<div class="help-colors-row"><span class="color-swatch" style="background:${colorHex}"></span> ${entry.label}</div>`;
+        }).join("");
+        return `<div class="help-item"><strong>${item.title}</strong>${swatches}</div>`;
+      }
+      return `<div class="help-item"><strong>${item.title}</strong><p>${item.text}</p></div>`;
+    }).join("");
+  }
+
+  helpScanBtn.addEventListener("click", () => {
+    renderHelpScanModal();
+    if (helpScanModal.showModal) {
+      helpScanModal.showModal();
+    } else {
+      helpScanModal.classList.remove("hidden");
+    }
+  });
+
+  closeHelpScanBtn.addEventListener("click", () => {
+    if (helpScanModal.close) {
+      helpScanModal.close();
+    } else {
+      helpScanModal.classList.add("hidden");
+    }
+  });
+
   settingsBtn.addEventListener("click", openSettingsModal);
   settingsCloseBtn.addEventListener("click", closeSettingsModal);
   settingsCancelBtn.addEventListener("click", closeSettingsModal);
@@ -1365,8 +1396,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (resetSettingsBtn) {
     resetSettingsBtn.addEventListener("click", resetSettingsToDefaults);
   }
-  // Info toggle - event delegation
-  document.querySelector('.modal-body').addEventListener('click', (e) => {
+  // Info toggle - event delegation (scoped to settings modal only)
+  settingsModal.querySelector('.modal-body').addEventListener('click', (e) => {
     const btn = e.target.closest('.info-toggle-btn');
     if (!btn) return;
     const infoCard = document.getElementById(btn.dataset.infoId);

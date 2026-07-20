@@ -177,6 +177,43 @@
           "backendMergeThreshold": "Súbory menšie ako táto hodnota sa zlúčia v backend-e ešte pred odoslaním na frontend. Výrazne znižuje pamäťovú náročnosť a urýchľuje IPC prenos. Zmena sa prejaví až pri novom skenovaní.",
           "filterDisableWarningThreshold": "Ak sa pokúsite vypnúť rýchly filter a počet uzlov v grafe presahuje túto hodnotu, zobrazí sa varovanie pred možným zamrznutím."
         }
+      },
+      "helpModalMenu": {
+        "buttonTooltip": "Nápoveda menu",
+        "title": "Nápoveda — Hlavné okno",
+        "close": "Zatvoriť",
+        "items": [
+          { "title": "🖱️ Výber disku", "text": "Kliknutím na niektorý z diskov spustíš jeho skenovanie. Počet využitých GB a vizuálny progress bar okamžite ukážu zaplnenosť." },
+          { "title": "📁 Skenovanie priečinka", "text": "Tlačidlo \"Skenovať priečinok\" otvorí dialóg na výber konkrétneho adresára z tvojho PC." },
+          { "title": "🎯 Drag & Drop", "text": "Pretiahni priečinok z Prieskumníka priamo do okna aplikácie pre rýchle skenovanie bez klikania." },
+          { "title": "🔄 Obnoviť", "text": "Tlačidlo \"Obnoviť\" znovu načíta zoznam diskov — užitočné po pripojení USB kľúča alebo externého disku." },
+          { "title": "🧰 Systémové utility", "text": "V spodnej časti nájdeš odkazy na Windows nástroje: Čistenie disku, Aplikácie a súčasti, Nastavenia úložiska a Defragmentácia." },
+          { "title": "🌐 Jazyk", "text": "Rozbaľovacia ponuka vpravo hore umožňuje prepnúť medzi Slovenčinou a Angličtinou." },
+          { "title": "ℹ️ O aplikácii", "text": "Tlačidlo ℹ zobrazí informácie o verzii a odkaze na GitHub repozitár." }
+        ]
+      },
+      "helpModalScan": {
+        "buttonTooltip": "Nápoveda skenovania",
+        "title": "Nápoveda — Skenovanie a graf",
+        "close": "Zatvoriť",
+        "items": [
+          { "title": "🔍 Navigácia v grafe", "text": "Klikni na segment (priečinok) pre priblíženie. Klikni na stredový kruh pre návrat o úroveň vyššie. Šírka segmentu = veľkosť." },
+          { "title": "🧭 Drobková navigácia", "text": "V hornej časti sleduj cestu — kliknutím na ktorúkoľvek časť preskočíš priamo na danú úroveň." },
+          { "title": "🖱️ Kontextové menu", "text": "Pravý klik na segment zobrazí možnosti: Otvoriť v Prieskumníkovi, Otvoriť v Total Commanderi, Vlastnosti, Kopírovať cestu, Presunúť do koša, Vymazať." },
+          { "title": "⚡ Rýchly filter", "text": "Prepínač pod grafom skrýva drobné súbory a priečinky pre plynulejší chod. Pri veľkom počte položiek sa aktivuje automaticky." },
+          {
+            "title": "🎨 Farby segmentov",
+            "text": [
+              { "swatch": "dirShallow", "label": "Priečinky — svetlejšie = bližšie k aktuálnej úrovni" },
+              { "swatch": "dirDeep", "label": "Vnorené priečinky — tmavšie = hlbšie" },
+              { "swatch": "file", "label": "Súbory" },
+              { "swatch": "others", "label": "Zlúčené drobné položky (__others__)" },
+              { "swatch": "superSmall", "label": "Zlúčené malé súbory z backendu (__super_small_files__)" }
+            ]
+          },
+          { "title": "📊 Informačný panel", "text": "Medzi drobkovou navigáciou a grafom vidíš priame štatistiky aktuálneho priečinka (📁) a celkové štatistiky vrátane podpriečinkov (🔍)." },
+          { "title": "⚙️ Nastavenia", "text": "Ozubené koliesko ⚙️ otvára detailné nastavenia výkonu, animácií, filtrov a integrácie s Total Commanderom. Každé nastavenie má tlačidlo ⓘ s vysvetlením." }
+        ]
       }
     },
     "en": {
@@ -355,6 +392,43 @@
           "backendMergeThreshold": "Files smaller than this value are merged in the backend before sending to frontend. Dramatically reduces memory footprint and speeds up IPC transfer. The change takes effect on the next scan.",
           "filterDisableWarningThreshold": "If you attempt to disable the fast filter and the number of nodes exceeds this value, a warning will be shown before potential freezing."
         }
+      },
+      "helpModalMenu": {
+        "buttonTooltip": "Menu help",
+        "title": "Help — Main Window",
+        "close": "Close",
+        "items": [
+          { "title": "🖱️ Disk Selection", "text": "Click on any disk to start scanning it. The used GB count and visual progress bar immediately show disk fullness." },
+          { "title": "📁 Scan Folder", "text": "The \"Scan folder\" button opens a dialog to select a specific directory from your PC." },
+          { "title": "🎯 Drag & Drop", "text": "Drag a folder from File Explorer directly into the app window for quick scanning without clicking." },
+          { "title": "🔄 Refresh", "text": "The \"Refresh\" button reloads the disk list — useful after plugging in a USB drive or external disk." },
+          { "title": "🧰 System Utilities", "text": "At the bottom you'll find links to Windows tools: Disk Cleanup, Apps & Features, Storage Settings, and Defragmentation." },
+          { "title": "🌐 Language", "text": "The dropdown in the top right lets you switch between English and Slovak." },
+          { "title": "ℹ️ About", "text": "The ℹ button shows version information and a link to the GitHub repository." }
+        ]
+      },
+      "helpModalScan": {
+        "buttonTooltip": "Scan help",
+        "title": "Help — Scanning & Chart",
+        "close": "Close",
+        "items": [
+          { "title": "🔍 Chart Navigation", "text": "Click a segment (folder) to zoom in. Click the center circle to go back one level. Segment width = size." },
+          { "title": "🧭 Breadcrumb Navigation", "text": "Follow the path at the top — click any part to jump directly to that level." },
+          { "title": "🖱️ Context Menu", "text": "Right-click a segment for options: Open in File Explorer, Open in Total Commander, Properties, Copy path, Move to Trash, Delete." },
+          { "title": "⚡ Fast Filter", "text": "The toggle below the chart hides small files and folders for smoother performance. Activates automatically with large scan results." },
+          {
+            "title": "🎨 Segment Colors",
+            "text": [
+              { "swatch": "dirShallow", "label": "Folders — lighter = closer to current level" },
+              { "swatch": "dirDeep", "label": "Nested folders — darker = deeper" },
+              { "swatch": "file", "label": "Files" },
+              { "swatch": "others", "label": "Merged tiny items (__others__)" },
+              { "swatch": "superSmall", "label": "Merged small files from backend (__super_small_files__)" }
+            ]
+          },
+          { "title": "📊 Info Panel", "text": "Between the breadcrumb navigation and the chart, you can see direct stats of the current folder (📁) and total stats including subfolders (🔍)." },
+          { "title": "⚙️ Settings", "text": "The gear icon ⚙️ opens detailed settings for performance, animations, filters, and Total Commander integration. Each setting has a ⓘ button with an explanation." }
+        ]
       }
     }
   }
