@@ -488,8 +488,7 @@ async function startDiskScan(path, totalSpace) {
       }
     } catch (err) {
       console.error("Failed to fetch binary tree:", err);
-      const errorMsg = (typeof err === "string" ? err : (err?.message || err?.toString() || "Nepodarilo sa načítať strom."));
-      showToast(errorMsg, "error");
+      showToast(getText("toast.treeLoadFailed", { message: Utils.extractErrorMessage(err) }), "error");
     }
     if (unlistenProgress) unlistenProgress();
     if (unlistenFinished) unlistenFinished();
@@ -605,7 +604,7 @@ function navigateToPath(targetPath) {
   if (!targetPath) return;
   const found = findNodeByPath(memoryTree, targetPath);
   if (!found) {
-    showToast("Priečinok '" + targetPath + "' sa nenašiel v strome.", "error");
+    showToast(getText("toast.folderNotFound", { path: targetPath }), "error");
     return;
   }
   const entry = getOrCreateCollapsedView(found, targetPath);
@@ -617,7 +616,7 @@ function updateSunburstForFolder(folderPath) {
   if (!folderPath) return;
   const found = findNodeByPath(memoryTree, folderPath);
   if (!found) {
-    showToast("Priečinok '" + folderPath + "' sa nenašiel v strome.", "error");
+    showToast(getText("toast.folderNotFound", { path: folderPath }), "error");
     return;
   }
   const entry = getOrCreateCollapsedView(found, folderPath);
@@ -1505,7 +1504,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     cmOpenTc.onclick = async () => {
       if (menuTargetNode) {
         try { await invoke("show_in_total_commander", { path: menuTargetNode.data.path }); }
-        catch (err) { showToast(err, "error"); }
+        catch (err) { showToast(getText("toast.tcLaunchFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
       }
     };
   }
@@ -1547,7 +1546,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             } else {
               goBackToMenu();
             }
-          } catch (err) { showToast(err, "error"); }
+          } catch (err) { showToast(getText("toast.trashFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
         }
       }
     };
@@ -1575,7 +1574,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             } else {
               goBackToMenu();
             }
-          } catch (err) { showToast(err, "error"); }
+          } catch (err) { showToast(getText("toast.deleteFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
         }
       }
     };

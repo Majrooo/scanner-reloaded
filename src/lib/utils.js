@@ -59,8 +59,19 @@ function middleTruncatePath(path, maxLen = 80) {
 }
 
 /**
- * Zobrazí toast notifikáciu.
+ * Extrahuje používateľsky čitateľnú chybovú správu z rôznych typov err objektov.
+ * @param {*} err - Chybový objekt (string, Error, Tauri error, ...)
+ * @param {string} [fallbackKey] - Voliteľný prekladový kľúč, ak err nemá správu
+ * @returns {string} Čitateľná chybová správa
  */
+function extractErrorMessage(err, fallbackKey) {
+  if (typeof err === 'string') return err;
+  if (err && err.userMessage) return err.userMessage;
+  if (err && err.message) return err.message;
+  if (err && typeof err.toString === 'function' && err.toString() !== '[object Object]') return err.toString();
+  return fallbackKey || 'Neznáma chyba';
+}
+
 function showToast(message, type = "info", duration = 4000) {
   const toastContainer = document.getElementById("toast-container");
   if (!toastContainer) return;
@@ -79,5 +90,6 @@ window.Utils = {
   formatBytes,
   escapeHtml,
   middleTruncatePath,
+  extractErrorMessage,
   showToast,
 };
