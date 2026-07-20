@@ -101,6 +101,9 @@
         "noPaths": "Žiadne cesty neboli prenesené.",
         "notDirectory": "Pretiahnutý objekt nie je priečinok."
       },
+      "errors": {
+        "unexpected": "❌ Vyskytla sa neočakávaná chyba: {message}"
+      },
       "toast": {
         "success": "✅ {message}",
         "error": "❌ {message}",
@@ -313,6 +316,9 @@
       "dragDrop": {
         "noPaths": "No paths were provided.",
         "notDirectory": "Dropped item is not a directory."
+      },
+      "errors": {
+        "unexpected": "❌ An unexpected error occurred: {message}"
       },
       "confirmations": {
         "title": "Confirm action",
