@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### Filter Disable Warning
+- **`countNodesWithoutFilter(p)`** function in `scanner.js` — counts visible descendant nodes without the performance filter
+- When disabling the filter and node count exceeds `filterDisableWarningThreshold` (default 2000), shows a `showConfirm` warning before potential freezing
+- New setting `filter-warning-threshold` in settings modal (Performance & Filtering section)
+- New translation keys `scanScreen.filterWarning.*` and `settingsModal.performance.filterDisableWarningThreshold` and `settingsModal.info.filterDisableWarningThreshold` for SK and EN
+- Setting persisted in localStorage via `APP_CONFIG`, loaded and reset together with other settings
+
+#### Help Modals
+- **Menu help modal** (`?` button in menu screen header): 7 items explaining disk selection, folder scanning, drag & drop, refresh, system utilities, language, and about
+- **Scan help modal** (`?` button in scan screen header): 7 items including chart navigation, breadcrumbs, context menu, fast filter, segment colors with real color swatches, info panel, and settings
+- **Color swatches** in scan help modal dynamically render from `APP_CONFIG.colors` — always reflects actual chart colors
+- New translation keys `helpModalMenu.*` and `helpModalScan.*` for SK and EN
+- CSS styles for `.help-modal-content`, `.help-item`, `.color-swatch`, `.help-colors-row`
+
+#### Color Configuration
+- **`APP_CONFIG.colors`**: sunburst chart colors moved from hardcoded `getFillColor()` to config (`dirShallow`, `dirDeep`, `file`, `others`, `superSmall`)
+- `getFillColor()` now reads from `APP_CONFIG.colors` — single source of truth, persistable via localStorage
+
+### Changed
+
+#### Header Layout
+- `?` and `⚙️` buttons wrapped in `.header-right-actions` container for proper grid alignment (3-column header grid preserved)
+- **Removed redundant `cancel-scan-btn`** (HTML, JS, CSS) — `back-btn` already serves as cancel button during scans
+- Unified button dimensions: `#back-to-disks-btn` padding `8px` → `10px`, `.icon-btn` added `min-width: 44px`, `text-align: center`, `line-height: 1.2`
+
+### Fixed
+
+- **About modal version**: app version now loaded dynamically from Tauri API (`getVersion()`) instead of hardcoded `0.1.0`
+- **Info-toggle buttons (`ⓘ`) in settings modal** stopped working after help modal was added — `document.querySelector('.modal-body')` was hitting the wrong modal. Fixed by scoping to `settingsModal.querySelector('.modal-body')`
+
 ## [0.2.0] - 2026-07-19
 
 ### Added
