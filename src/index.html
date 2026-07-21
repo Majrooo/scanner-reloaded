@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="scanner-settings.css" />
   <title>Scanner Reloaded - Disks</title>
 </head>
 
@@ -15,6 +16,7 @@
         <option value="sk">Slovenčina</option>
       </select>
       <button id="help-menu-btn" class="icon-btn" data-i18n-title="helpModalMenu.buttonTooltip"><span aria-hidden="true">?</span></button>
+      <button id="app-settings-btn" class="icon-btn" data-i18n-title="appSettings.title"><span aria-hidden="true">⚙️</span></button>
       <button id="about-btn" class="icon-btn" data-i18n-title="about.title"><span aria-hidden="true">ℹ</span></button>
     </header>
 
@@ -125,6 +127,39 @@
         </div>
       </div>
     </dialog>
+  </div>
+
+  <!-- App Settings Modal -->
+  <div id="app-settings-modal" class="modal hidden">
+    <div class="modal-content settings-modal-content">
+      <button id="close-app-settings-btn" class="close-btn" data-i18n-title="common.close">&times;</button>
+      <h2 data-i18n="appSettings.title">Nastavenia aplikácie</h2>
+      <div class="modal-body">
+        <div class="settings-section">
+          <h3 data-i18n="appSettings.logging.title">Logovanie</h3>
+          <div class="setting-row">
+            <div class="setting-label-group">
+              <label for="error-logging-toggle" data-i18n="appSettings.logging.enableLogging">Logovanie chýb do súboru</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-error-logging" aria-label="Info">ⓘ</button>
+            </div>
+            <input type="checkbox" id="error-logging-toggle" class="settings-toggle">
+          </div>
+          <div id="info-error-logging" class="setting-info-card hidden" data-i18n="appSettings.logging.info"></div>
+          <div class="setting-info-row" id="log-path-row">
+            <span class="log-path-icon">📄</span>
+            <code id="log-path-display"></code>
+          </div>
+          <div class="setting-info-row">
+            <button id="open-error-log-btn" class="secondary-btn" data-i18n="appSettings.logging.openLogButton" disabled>📂 Otvoriť error log</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="footer-actions">
+          <button id="app-settings-close-btn" class="primary-btn" data-i18n="appSettings.close">Zavrieť</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Toast notification container -->

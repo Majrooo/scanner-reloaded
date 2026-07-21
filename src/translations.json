@@ -10,6 +10,20 @@
         "developer": "Vývojár",
         "githubLink": "🐈 GitHub Repozitár"
       },
+      "appSettings": {
+        "title": "Nastavenia aplikácie",
+        "close": "Zavrieť",
+        "logging": {
+          "title": "Logovanie",
+          "enableLogging": "Logovanie chýb do súboru",
+          "info": "Aplikácia ukladá chybové hlásenia do súboru error.log v priečinku s nastaveniami. Logovanie môžete kedykoľvek vypnúť.",
+          "openLogButton": "📂 Otvoriť error log",
+          "enabledToast": "Logovanie chýb zapnuté",
+          "disabledToast": "Logovanie chýb vypnuté",
+          "toggleFailed": "Nepodarilo sa uložiť nastavenie",
+          "openFailed": "Nepodarilo sa otvoriť error log"
+        }
+      },
       "common": {
         "languageLabel": "Jazyk",
         "close": "Zatvoriť"
@@ -237,6 +251,20 @@
         "version": "Version",
         "developer": "Developer",
         "githubLink": "🐈 GitHub Repository"
+      },
+      "appSettings": {
+        "title": "Application Settings",
+        "close": "Close",
+        "logging": {
+          "title": "Logging",
+          "enableLogging": "Error logging to file",
+          "info": "The application saves error messages to an error.log file in the settings folder. You can disable logging at any time.",
+          "openLogButton": "📂 Open error log",
+          "enabledToast": "Error logging enabled",
+          "disabledToast": "Error logging disabled",
+          "toggleFailed": "Failed to save setting",
+          "openFailed": "Failed to open error log"
+        }
       },
       "common": {
         "languageLabel": "Language",

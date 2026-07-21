@@ -280,6 +280,119 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  // ─── App Settings Modal ─────────────────────────────────────────────────
+
+  const appSettingsBtn = document.getElementById("app-settings-btn");
+  const appSettingsModal = document.getElementById("app-settings-modal");
+  const closeAppSettingsBtn = document.getElementById("close-app-settings-btn");
+  const appSettingsCloseBtn = document.getElementById("app-settings-close-btn");
+  const errorLoggingToggle = document.getElementById("error-logging-toggle");
+  const openErrorLogBtn = document.getElementById("open-error-log-btn");
+  const logPathDisplay = document.getElementById("log-path-display");
+
+  async function openAppSettings() {
+    // Load current settings
+    try {
+      const enabled = await Utils.invokeWithTimeout("get_error_logging_enabled", {}, 5000);
+      errorLoggingToggle.checked = enabled;
+      updateOpenLogButtonState();
+    } catch (err) {
+      console.error("Failed to load logging settings:", err);
+    }
+
+    // Load log path
+    try {
+      const logPath = await Utils.invokeWithTimeout("get_error_log_path", {}, 5000);
+      logPathDisplay.textContent = logPath || "unknown";
+    } catch (err) {
+      logPathDisplay.textContent = "unknown";
+    }
+
+    appSettingsModal.classList.remove("hidden");
+  }
+
+  function closeAppSettings() {
+    appSettingsModal.classList.add("hidden");
+  }
+
+  function updateOpenLogButtonState() {
+    // Enable the button only if the log file exists
+    Utils.invokeWithTimeout("get_error_log_path", {}, 5000).then(logPath => {
+      // If we got a path (not "unknown"), assume the file may exist
+      // The backend open_error_log command will check existence and show error if needed
+      openErrorLogBtn.disabled = false;
+    }).catch(() => {
+      openErrorLogBtn.disabled = true;
+    });
+  }
+
+  if (appSettingsBtn) {
+    appSettingsBtn.addEventListener("click", openAppSettings);
+  }
+
+  if (closeAppSettingsBtn) {
+    closeAppSettingsBtn.addEventListener("click", closeAppSettings);
+  }
+
+  if (appSettingsCloseBtn) {
+    appSettingsCloseBtn.addEventListener("click", closeAppSettings);
+  }
+
+  // Info-toggle button (ⓘ) event delegation
+  appSettingsModal.querySelector('.modal-body').addEventListener('click', (e) => {
+    const btn = e.target.closest('.info-toggle-btn');
+    if (!btn) return;
+    const infoId = btn.dataset.infoId;
+    if (!infoId) return;
+    const card = document.getElementById(infoId);
+    if (!card) return;
+    card.classList.toggle('hidden');
+    btn.classList.toggle('active');
+  });
+
+  // Error logging toggle
+  if (errorLoggingToggle) {
+    errorLoggingToggle.addEventListener("change", async () => {
+      const enabled = errorLoggingToggle.checked;
+      try {
+        await Utils.invokeWithTimeout("set_error_logging_enabled", { enabled }, 5000);
+        const msg = enabled
+          ? I18n.getText("appSettings.logging.enabledToast") || "Logging enabled"
+          : I18n.getText("appSettings.logging.disabledToast") || "Logging disabled";
+        Utils.showToast(msg, "info");
+      } catch (err) {
+        Utils.showToast(I18n.getText("appSettings.logging.toggleFailed") || "Failed to save setting", "error");
+        errorLoggingToggle.checked = !enabled; // Revert on failure
+      }
+    });
+  }
+
+  // Open error log button
+  if (openErrorLogBtn) {
+    openErrorLogBtn.addEventListener("click", async () => {
+      try {
+        await Utils.invokeWithTimeout("open_error_log", {}, 10000);
+      } catch (err) {
+        const msg = Utils.extractErrorMessage(err);
+        Utils.showToast(msg || I18n.getText("appSettings.logging.openFailed") || "Failed to open error log", "error");
+      }
+    });
+  }
+
+  // Click on backdrop closes dialog
+  window.addEventListener("click", (event) => {
+    if (event.target === appSettingsModal) {
+      closeAppSettings();
+    }
+  });
+
+  // Update "Open Error Log" button state whenever modal opens (file may have been created)
+  if (appSettingsBtn) {
+    appSettingsBtn.addEventListener("click", () => {
+      setTimeout(updateOpenLogButtonState, 200);
+    });
+  }
+
   // Register drag-drop event listeners using Window API
   const appWindow = getCurrentWindow();
   await appWindow.onDragDropEvent((event) => {

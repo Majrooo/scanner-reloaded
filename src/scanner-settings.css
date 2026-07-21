@@ -227,3 +227,36 @@
 .setting-info-card.hidden {
   display: none;
 }
+
+/* --- Log path info row (App Settings modal) --- */
+.setting-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  margin: 0 8px 8px 8px;
+  font-size: 13px;
+  color: #a6adc8;
+}
+
+.setting-info-row .log-path-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.setting-info-row code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  background: #11111b;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #89b4fa;
+  word-break: break-all;
+  flex: 1;
+}
+
+.setting-info-row .secondary-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}

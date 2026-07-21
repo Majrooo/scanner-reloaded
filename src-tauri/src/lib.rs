@@ -1,5 +1,6 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -101,10 +102,22 @@ struct LivePayload {
 
 // ─── Total Commander Config ──────────────────────────────────────────────────
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone)]
 struct AppConfig {
     total_commander_path: Option<String>,
     backend_merge_threshold_kb: Option<u64>,
+    #[serde(default)]
+    error_logging_enabled: Option<bool>,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            total_commander_path: None,
+            backend_merge_threshold_kb: None,
+            error_logging_enabled: Some(true),
+        }
+    }
 }
 
 /// Returns the path to the config file: {app_data}/scanner-reloaded/config.json
@@ -132,6 +145,56 @@ fn save_config(cfg: &AppConfig) -> Result<(), String> {
     }
     let data = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
+// ─── Error Logging ───────────────────────────────────────────────────────────
+
+const MAX_LOG_SIZE: u64 = 1_000_000; // 1 MB
+
+/// Internal helper that returns the error log path as PathBuf
+fn resolve_error_log_path() -> Option<PathBuf> {
+    dirs::config_dir().map(|p| p.join("scanner-reloaded").join("error.log"))
+}
+
+/// Logs an error message to the error log file with an ISO 8601 timestamp.
+/// Respects the `error_logging_enabled` config flag.
+/// Automatically rotates the log if it exceeds 1 MB.
+fn log_error(msg: &str) {
+    let cfg = load_config();
+    if !cfg.error_logging_enabled.unwrap_or(true) {
+        return;
+    }
+
+    let Some(log_path) = resolve_error_log_path() else {
+        return;
+    };
+
+    // Ensure directory exists
+    if let Some(parent) = log_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    // Rotate if file exceeds MAX_LOG_SIZE
+    if log_path.exists() {
+        if let Ok(metadata) = std::fs::metadata(&log_path) {
+            if metadata.len() > MAX_LOG_SIZE {
+                let old_path = log_path.with_extension("log.old");
+                let _ = std::fs::rename(&log_path, &old_path);
+            }
+        }
+    }
+
+    // Append timestamped error message
+    let timestamp = Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
+    let line = format!("[{}] ERROR: {}\n", timestamp, msg);
+
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
 }
 
 /// Try to find Total Commander via Windows registry
@@ -576,6 +639,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
             if let Ok(mut guard) = state.current_tree.lock() {
                 *guard = Some(full_tree);
             } else {
+                log_error("Failed to lock scan state for saving");
                 let _ = app_handle.emit(
                     "scan-failed",
                     "Failed to save scan state".to_string(),
@@ -586,7 +650,11 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
             // Send only a signal to the frontend that the scan finished successfully (without data).
             let _ = app_handle
                 .emit("scan-finished", ())
-                .map_err(|e| eprintln!("Failed to emit scan-finished: {}", e));
+                .map_err(|e| {
+                    let msg = format!("Failed to emit scan-finished: {}", e);
+                    log_error(&msg);
+                    eprintln!("{}", msg);
+                });
         } else {
             // A8: Ak bolo skenovanie zrušené, pošleme scan-failed so správou o zrušení
             if SCAN_CANCELLED.load(Ordering::Relaxed) {
@@ -595,6 +663,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                     "Scan was cancelled by user".to_string(),
                 );
             } else {
+                log_error("Scan directory returned None (not cancelled)");
                 let _ = app_handle.emit("scan-failed", "Failed to load disk".to_string());
             }
         }
@@ -1016,6 +1085,74 @@ fn validate_directory(path: String) -> Result<bool, String> {
     Ok(true)
 }
 
+// ─── Error Logging Commands ───────────────────────────────────────────────────
+
+/// Returns whether error logging to file is enabled (default: true)
+#[tauri::command]
+fn get_error_logging_enabled() -> bool {
+    let cfg = load_config();
+    cfg.error_logging_enabled.unwrap_or(true)
+}
+
+/// Enable or disable error logging to file
+#[tauri::command]
+fn set_error_logging_enabled(enabled: bool) -> Result<(), String> {
+    let mut cfg = load_config();
+    cfg.error_logging_enabled = Some(enabled);
+    save_config(&cfg)
+}
+
+/// Returns the full path to the error log file
+#[tauri::command]
+fn get_error_log_path() -> String {
+    get_error_log_path_internal()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// Opens the error log file in the default text editor
+#[tauri::command]
+fn open_error_log() -> Result<(), String> {
+    let log_path = get_error_log_path_internal()
+        .ok_or("Could not determine log path")?;
+
+    if !log_path.exists() {
+        return Err("Error log file does not exist yet.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("notepad")
+            .arg(log_path.to_string_lossy().as_ref())
+            .spawn()
+            .map_err(|e| format!("Failed to open error log: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg("-t")
+            .arg(log_path.to_string_lossy().as_ref())
+            .spawn()
+            .map_err(|e| format!("Failed to open error log: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(log_path.to_string_lossy().as_ref())
+            .spawn()
+            .map_err(|e| format!("Failed to open error log: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Internal helper that returns the error log path as PathBuf
+fn get_error_log_path_internal() -> Option<PathBuf> {
+    dirs::config_dir().map(|p| p.join("scanner-reloaded").join("error.log"))
+}
+
 // ─── App Entry Point ─────────────────────────────────────────────────────────
 
 pub fn main() {
@@ -1054,6 +1191,10 @@ pub fn main() {
       get_backend_merge_threshold,
       set_backend_merge_threshold,
       validate_directory,
+      get_error_logging_enabled,
+      set_error_logging_enabled,
+      get_error_log_path,
+      open_error_log,
       #[cfg(target_os = "windows")]
       open_system_utility,
     ])
