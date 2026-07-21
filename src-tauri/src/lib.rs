@@ -455,23 +455,24 @@ fn scan_directory(
         // --- Step 1: Align stack so that top == parent ---
         // Pop completed directories or push missing intermediate dirs
         while stack.last().map_or(false, |(p, _)| *p != parent) {
-            let (top_path, _) = &stack.last().unwrap();
+            let Some((top_path, _)) = stack.last() else { break; };
 
             if parent.starts_with(top_path) {
                 // Parent is deeper inside top_path → push intermediate directory
-                let relative = parent.strip_prefix(top_path).unwrap();
-                let first_component = relative.components().next().unwrap();
+                let Ok(relative) = parent.strip_prefix(top_path) else { continue; };
+                let Some(first_component) = relative.components().next() else { continue; };
                 let intermediate = top_path.join(first_component);
                 stack.push((intermediate, Vec::new()));
             } else {
                 // Parent is outside top_path → pop completed directory
-                let (dir_path, children) = stack.pop().unwrap();
+                let Some((dir_path, children)) = stack.pop() else { break; };
                 let dir_node = build_dir_node(dir_path, children);
                 if stack.is_empty() {
                     // Root finished — return immediately
                     return Some(dir_node);
                 }
-                stack.last_mut().unwrap().1.push(dir_node);
+                let Some(top) = stack.last_mut() else { break; };
+                top.1.push(dir_node);
             }
         }
 
@@ -480,12 +481,13 @@ fn scan_directory(
             // With contents_first(true), directory entry comes AFTER its children.
             // If the dir is still on the stack (e.g., it's the root), pop it now.
             if stack.last().map_or(false, |(p, _)| *p == path) {
-                let (dir_path, children) = stack.pop().unwrap();
+                let Some((dir_path, children)) = stack.pop() else { continue; };
                 let dir_node = build_dir_node(dir_path, children);
                 if stack.is_empty() {
                     return Some(dir_node);
                 }
-                stack.last_mut().unwrap().1.push(dir_node);
+                let Some(top) = stack.last_mut() else { break; };
+                top.1.push(dir_node);
             }
             // Otherwise the while-loop already popped it — nothing to do.
         } else {
@@ -500,7 +502,11 @@ fn scan_directory(
 
             let live_path_str = path.to_string_lossy().to_string();
 
-            stack.last_mut().unwrap().1.push(FileNode {
+            let Some(top) = stack.last_mut() else {
+                log_error("DFS stack empty when processing file entry");
+                continue;
+            };
+            top.1.push(FileNode {
                 name,
                 path: Arc::from(""),
                 size,
