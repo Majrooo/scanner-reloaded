@@ -142,6 +142,7 @@ let currentViewPath = "";
 let unlistenProgress;
 let unlistenFinished;
 let unlistenFailed;
+let unlistenAccessDenied;
 
 // Path-to-node Map for O(1) lookup
 let pathIndex = null;
@@ -394,6 +395,8 @@ function showConfirm(message, isDanger = false) {
 async function startDiskScan(path, totalSpace) {
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
+  if (unlistenFailed) unlistenFailed();
+  if (unlistenAccessDenied) unlistenAccessDenied();
   document.getElementById("scan-progress-content").classList.remove("hidden");
   document.getElementById("hover-details-content").classList.add("hidden");
   liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
@@ -495,6 +498,13 @@ async function startDiskScan(path, totalSpace) {
     if (unlistenProgress) unlistenProgress();
     if (unlistenFinished) unlistenFinished();
     if (unlistenFailed) unlistenFailed();
+    if (unlistenAccessDenied) unlistenAccessDenied();
+  });
+  unlistenAccessDenied = await listen("scan-access-denied", (event) => {
+    const paths = event.payload?.paths || [];
+    if (paths.length > 0) {
+      showToast(getText("scanScreen.accessDenied", { count: paths.length }), "warning", 6000);
+    }
   });
   unlistenFailed = await listen("scan-failed", (event) => {
     isScanning = false;
@@ -506,6 +516,7 @@ async function startDiskScan(path, totalSpace) {
     document.getElementById("live-ticker-bar").style.width = "0%";
     if (unlistenProgress) unlistenProgress();
     if (unlistenFailed) unlistenFailed();
+    if (unlistenAccessDenied) unlistenAccessDenied();
   });
   invoke("start_async_scan", { path });
 }
@@ -517,6 +528,7 @@ async function goBackToMenu() {
   if (unlistenProgress) unlistenProgress();
   if (unlistenFinished) unlistenFinished();
   if (unlistenFailed) unlistenFailed();
+  if (unlistenAccessDenied) unlistenAccessDenied();
   d3.select("#sunburst-chart").selectAll("*").remove();
   rootNode = null;
   gPartition = null;

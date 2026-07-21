@@ -286,18 +286,22 @@ window.addEventListener("DOMContentLoaded", async () => {
   const appSettingsModal = document.getElementById("app-settings-modal");
   const closeAppSettingsBtn = document.getElementById("close-app-settings-btn");
   const appSettingsCloseBtn = document.getElementById("app-settings-close-btn");
-  const errorLoggingToggle = document.getElementById("error-logging-toggle");
+  const permLoggingToggle = document.getElementById("perm-logging-toggle");
+  const internalLoggingToggle = document.getElementById("internal-logging-toggle");
   const openErrorLogBtn = document.getElementById("open-error-log-btn");
   const logPathDisplay = document.getElementById("log-path-display");
 
   async function openAppSettings() {
-    // Load current settings
+    // Load current logging config
     try {
-      const enabled = await Utils.invokeWithTimeout("get_error_logging_enabled", {}, 5000);
-      errorLoggingToggle.checked = enabled;
-      updateOpenLogButtonState();
+      const config = await Utils.invokeWithTimeout("get_logging_config", {}, 5000);
+      permLoggingToggle.checked = config.permission_errors !== false;
+      internalLoggingToggle.checked = config.internal_errors !== false;
     } catch (err) {
-      console.error("Failed to load logging settings:", err);
+      console.error("Failed to load logging config:", err);
+      // Defaults: both enabled
+      permLoggingToggle.checked = true;
+      internalLoggingToggle.checked = true;
     }
 
     // Load log path
@@ -350,20 +354,32 @@ window.addEventListener("DOMContentLoaded", async () => {
     btn.classList.toggle('active');
   });
 
-  // Error logging toggle
-  if (errorLoggingToggle) {
-    errorLoggingToggle.addEventListener("change", async () => {
-      const enabled = errorLoggingToggle.checked;
-      try {
-        await Utils.invokeWithTimeout("set_error_logging_enabled", { enabled }, 5000);
-        const msg = enabled
-          ? I18n.getText("appSettings.logging.enabledToast") || "Logging enabled"
-          : I18n.getText("appSettings.logging.disabledToast") || "Logging disabled";
-        Utils.showToast(msg, "info");
-      } catch (err) {
-        Utils.showToast(I18n.getText("appSettings.logging.toggleFailed") || "Failed to save setting", "error");
-        errorLoggingToggle.checked = !enabled; // Revert on failure
-      }
+  // Save logging config helper
+  async function saveLoggingConfig() {
+    try {
+      await Utils.invokeWithTimeout("set_logging_config", {
+        config: {
+          permission_errors: permLoggingToggle.checked,
+          internal_errors: internalLoggingToggle.checked,
+        }
+      }, 5000);
+      Utils.showToast(I18n.getText("appSettings.logging.saved") || "Logging settings saved", "info");
+    } catch (err) {
+      Utils.showToast(I18n.getText("appSettings.logging.toggleFailed") || "Failed to save setting", "error");
+    }
+  }
+
+  // Permission logging toggle
+  if (permLoggingToggle) {
+    permLoggingToggle.addEventListener("change", async () => {
+      await saveLoggingConfig();
+    });
+  }
+
+  // Internal logging toggle
+  if (internalLoggingToggle) {
+    internalLoggingToggle.addEventListener("change", async () => {
+      await saveLoggingConfig();
     });
   }
 

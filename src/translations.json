@@ -15,11 +15,12 @@
         "close": "Zavrieť",
         "logging": {
           "title": "Logovanie",
-          "enableLogging": "Logovanie chýb do súboru",
-          "info": "Aplikácia ukladá chybové hlásenia do súboru error.log v priečinku s nastaveniami. Logovanie môžete kedykoľvek vypnúť.",
+          "permissionLabel": "Upozorniť na preskočené priečinky (prístup zamietnutý)",
+          "permissionInfo": "Pri skenovaní disku niektoré systémové priečinky nie sú prístupné (napr. C:\\$Recycle.Bin, C:\\System Volume Information). Táto voľba ich zapisuje do error.log pre prípadnú kontrolu. Nemá vplyv na toast hlásenie — to sa zobrazí vždy.",
+          "internalLabel": "Logovať chyby aplikácie (interné zlyhania)",
+          "internalInfo": "Technické chyby aplikácie: zlyhanie pri uzamykaní pamäte, chyby pri odosielaní udalostí, neočakávané stavy skenovania. Vyskytujú sa zriedkavo a slúžia na diagnostiku. Odporúčame nechať zapnuté.",
           "openLogButton": "📂 Otvoriť error log",
-          "enabledToast": "Logovanie chýb zapnuté",
-          "disabledToast": "Logovanie chýb vypnuté",
+          "saved": "Nastavenia logovania uložené",
           "toggleFailed": "Nepodarilo sa uložiť nastavenie",
           "openFailed": "Nepodarilo sa otvoriť error log"
         }
@@ -56,6 +57,7 @@
         "hoverPlaceholder": "Ukaž myšou na priečinok...",
         "cancelScan": "✖ Zrušiť skenovanie",
         "emptyFolder": "Tento priečinok je prázdny",
+        "accessDenied": "Skenovanie dokončené. {count} priečinkov bolo preskočených kvôli chýbajúcim oprávneniam.",
         "statsBar": {
           "direct": "📁 Tento priečinok: {files} súborov, {dirs} priečinkov, {size}",
           "total": "🔍 Celý podstrom: {files} súborov, {dirs} priečinkov, {size}"
@@ -257,11 +259,12 @@
         "close": "Close",
         "logging": {
           "title": "Logging",
-          "enableLogging": "Error logging to file",
-          "info": "The application saves error messages to an error.log file in the settings folder. You can disable logging at any time.",
+          "permissionLabel": "Log skipped folders (access denied)",
+          "permissionInfo": "When scanning a disk, some system folders are not accessible (e.g. C:\\$Recycle.Bin, C:\\System Volume Information). This option writes them to error.log for review. Does not affect the toast notification — it always shows.",
+          "internalLabel": "Log application errors (internal failures)",
+          "internalInfo": "Technical application errors: memory lock failures, event emission errors, unexpected scan states. These are rare and useful for diagnostics. We recommend leaving this on.",
           "openLogButton": "📂 Open error log",
-          "enabledToast": "Error logging enabled",
-          "disabledToast": "Error logging disabled",
+          "saved": "Logging settings saved",
           "toggleFailed": "Failed to save setting",
           "openFailed": "Failed to open error log"
         }
@@ -298,6 +301,7 @@
         "hoverPlaceholder": "Hover over a folder to inspect it...",
         "cancelScan": "✖ Cancel scan",
         "emptyFolder": "This folder is empty",
+        "accessDenied": "Scan complete. {count} folder(s) skipped due to permission denied.",
         "statsBar": {
           "direct": "📁 This folder: {files} files, {dirs} folders, {size}",
           "total": "🔍 Entire subtree: {files} files, {dirs} folders, {size}"

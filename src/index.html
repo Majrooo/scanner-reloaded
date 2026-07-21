@@ -139,12 +139,20 @@
           <h3 data-i18n="appSettings.logging.title">Logovanie</h3>
           <div class="setting-row">
             <div class="setting-label-group">
-              <label for="error-logging-toggle" data-i18n="appSettings.logging.enableLogging">Logovanie chýb do súboru</label>
-              <button type="button" class="info-toggle-btn" data-info-id="info-error-logging" aria-label="Info">ⓘ</button>
+              <label for="perm-logging-toggle" data-i18n="appSettings.logging.permissionLabel">Upozorniť na preskočené priečinky (prístup zamietnutý)</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-perm-logging" aria-label="Info">ⓘ</button>
             </div>
-            <input type="checkbox" id="error-logging-toggle" class="settings-toggle">
+            <input type="checkbox" id="perm-logging-toggle" class="settings-toggle" checked>
           </div>
-          <div id="info-error-logging" class="setting-info-card hidden" data-i18n="appSettings.logging.info"></div>
+          <div id="info-perm-logging" class="setting-info-card hidden" data-i18n="appSettings.logging.permissionInfo"></div>
+          <div class="setting-row">
+            <div class="setting-label-group">
+              <label for="internal-logging-toggle" data-i18n="appSettings.logging.internalLabel">Logovať chyby aplikácie (interné zlyhania)</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-internal-logging" aria-label="Info">ⓘ</button>
+            </div>
+            <input type="checkbox" id="internal-logging-toggle" class="settings-toggle" checked>
+          </div>
+          <div id="info-internal-logging" class="setting-info-card hidden" data-i18n="appSettings.logging.internalInfo"></div>
           <div class="setting-info-row" id="log-path-row">
             <span class="log-path-icon">📄</span>
             <code id="log-path-display"></code>

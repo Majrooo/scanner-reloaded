@@ -16,6 +16,7 @@ use flate2::read::GzEncoder;
 use flate2::Compression;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use std::collections::HashSet;
 
 // Global flag to cancel a scan.
 static SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -100,6 +101,49 @@ struct LivePayload {
     size: u64,
 }
 
+#[derive(Serialize, Clone)]
+struct AccessDeniedPayload {
+    paths: Vec<String>,
+}
+
+// ─── Logging Categories ─────────────────────────────────────────────────────
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LogCategory {
+    Permission, // access denied, metadata errors — may be verbose on system disks
+    Internal,   // mutex lock fail, emit fail, scan state errors — rare but critical
+}
+
+impl LogCategory {
+    fn as_str(&self) -> &'static str {
+        match self {
+            LogCategory::Permission => "PERM",
+            LogCategory::Internal => "INTERNAL",
+        }
+    }
+}
+
+// ─── Logging Config ─────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+struct LoggingConfig {
+    #[serde(default = "default_true")]
+    permission_errors: bool,
+    #[serde(default = "default_true")]
+    internal_errors: bool,
+}
+
+fn default_true() -> bool { true }
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            permission_errors: true,
+            internal_errors: true,
+        }
+    }
+}
+
 // ─── Total Commander Config ──────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -107,7 +151,7 @@ struct AppConfig {
     total_commander_path: Option<String>,
     backend_merge_threshold_kb: Option<u64>,
     #[serde(default)]
-    error_logging_enabled: Option<bool>,
+    logging: Option<LoggingConfig>,
 }
 
 impl Default for AppConfig {
@@ -115,7 +159,7 @@ impl Default for AppConfig {
         Self {
             total_commander_path: None,
             backend_merge_threshold_kb: None,
-            error_logging_enabled: Some(true),
+            logging: Some(LoggingConfig::default()),
         }
     }
 }
@@ -157,11 +201,16 @@ fn resolve_error_log_path() -> Option<PathBuf> {
 }
 
 /// Logs an error message to the error log file with an ISO 8601 timestamp.
-/// Respects the `error_logging_enabled` config flag.
+/// Respects the per-category logging config flags.
 /// Automatically rotates the log if it exceeds 1 MB.
-fn log_error(msg: &str) {
+fn log_error(category: LogCategory, msg: &str) {
     let cfg = load_config();
-    if !cfg.error_logging_enabled.unwrap_or(true) {
+    let logging = cfg.logging.as_ref().map(|l| l.clone()).unwrap_or_default();
+    let enabled = match category {
+        LogCategory::Permission => logging.permission_errors,
+        LogCategory::Internal => logging.internal_errors,
+    };
+    if !enabled {
         return;
     }
 
@@ -424,6 +473,7 @@ fn scan_directory(
     app_handle: &AppHandle,
     last_emit: &mut Instant,
     running_total: &mut u64,
+    denied_paths: &mut HashSet<String>,
 ) -> Option<FileNode> {
     // In-place tree building using WalkDir::contents_first(true) + DFS stack.
     // contents_first(true) yields children BEFORE their parent directory,
@@ -436,18 +486,36 @@ fn scan_directory(
     let walker = WalkDir::new(root_path)
         .contents_first(true)
         .follow_links(false)
-        .into_iter()
-        .filter_map(|e| e.ok());
+        .into_iter();
 
-    for entry in walker {
+    for entry_result in walker {
         if SCAN_CANCELLED.load(Ordering::Relaxed) {
             return None;
         }
 
+        let entry = match entry_result {
+            Ok(e) => e,
+            Err(err) => {
+                if let Some(path) = err.path() {
+                    let path_str = path.to_string_lossy().to_string();
+                    denied_paths.insert(path_str.clone());
+                    let msg = format!("WalkDir: permission denied or other error: {} — {}", err, path_str);
+                    log_error(LogCategory::Permission, &msg);
+                }
+                continue;
+            }
+        };
+
         let path = entry.path().to_path_buf();
         let metadata = match entry.metadata() {
             Ok(m) => m,
-            Err(_) => continue,
+            Err(err) => {
+                let path_str = path.to_string_lossy().to_string();
+                denied_paths.insert(path_str.clone());
+                let msg = format!("metadata() error for {}: {}", path_str, err);
+                log_error(LogCategory::Permission, &msg);
+                continue;
+            }
         };
 
         let parent = path.parent().unwrap_or(&root_path_buf).to_path_buf();
@@ -503,7 +571,7 @@ fn scan_directory(
             let live_path_str = path.to_string_lossy().to_string();
 
             let Some(top) = stack.last_mut() else {
-                log_error("DFS stack empty when processing file entry");
+                log_error(LogCategory::Internal, "DFS stack empty when processing file entry");
                 continue;
             };
             top.1.push(FileNode {
@@ -621,10 +689,11 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
 
         let mut last_emit = Instant::now();
         let mut running_total: u64 = 0;
+        let mut denied_paths: HashSet<String> = HashSet::new();
 
         // Call the modified scan_directory function, which traverses the disk linearly using WalkDir.
         if let Some(mut full_tree) =
-            scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total)
+            scan_directory(target_path, &app_handle, &mut last_emit, &mut running_total, &mut denied_paths)
         {
             // Normalize paths to forward slashes so the frontend can easily compare them.
             normalize_paths(&mut full_tree);
@@ -645,7 +714,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
             if let Ok(mut guard) = state.current_tree.lock() {
                 *guard = Some(full_tree);
             } else {
-                log_error("Failed to lock scan state for saving");
+                log_error(LogCategory::Internal, "Failed to lock scan state for saving");
                 let _ = app_handle.emit(
                     "scan-failed",
                     "Failed to save scan state".to_string(),
@@ -653,12 +722,23 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                 return;
             }
 
+            // Notify the frontend about any access-denied paths encountered during scanning
+            if !denied_paths.is_empty() {
+                let paths: Vec<String> = denied_paths.into_iter().collect();
+                let _ = app_handle.emit(
+                    "scan-access-denied",
+                    AccessDeniedPayload {
+                        paths: paths.clone(),
+                    },
+                );
+            }
+
             // Send only a signal to the frontend that the scan finished successfully (without data).
             let _ = app_handle
                 .emit("scan-finished", ())
                 .map_err(|e| {
                     let msg = format!("Failed to emit scan-finished: {}", e);
-                    log_error(&msg);
+                    log_error(LogCategory::Internal, &msg);
                     eprintln!("{}", msg);
                 });
         } else {
@@ -669,7 +749,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                     "Scan was cancelled by user".to_string(),
                 );
             } else {
-                log_error("Scan directory returned None (not cancelled)");
+                log_error(LogCategory::Internal, "Scan directory returned None (not cancelled)");
                 let _ = app_handle.emit("scan-failed", "Failed to load disk".to_string());
             }
         }
@@ -1093,18 +1173,18 @@ fn validate_directory(path: String) -> Result<bool, String> {
 
 // ─── Error Logging Commands ───────────────────────────────────────────────────
 
-/// Returns whether error logging to file is enabled (default: true)
+/// Returns the current logging configuration
 #[tauri::command]
-fn get_error_logging_enabled() -> bool {
+fn get_logging_config() -> LoggingConfig {
     let cfg = load_config();
-    cfg.error_logging_enabled.unwrap_or(true)
+    cfg.logging.unwrap_or_default()
 }
 
-/// Enable or disable error logging to file
+/// Saves the logging configuration
 #[tauri::command]
-fn set_error_logging_enabled(enabled: bool) -> Result<(), String> {
+fn set_logging_config(config: LoggingConfig) -> Result<(), String> {
     let mut cfg = load_config();
-    cfg.error_logging_enabled = Some(enabled);
+    cfg.logging = Some(config);
     save_config(&cfg)
 }
 
@@ -1197,8 +1277,8 @@ pub fn main() {
       get_backend_merge_threshold,
       set_backend_merge_threshold,
       validate_directory,
-      get_error_logging_enabled,
-      set_error_logging_enabled,
+      get_logging_config,
+      set_logging_config,
       get_error_log_path,
       open_error_log,
       #[cfg(target_os = "windows")]
