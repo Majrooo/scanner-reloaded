@@ -3,12 +3,24 @@
  * Formátovanie veľkostí, HTML escape, truncácia ciest, toast notifikácie.
  */
 
+/**
+ * Format byte count to human-readable string with intelligent decimal places.
+ * Examples: 0 B, 523 GB, 12.3 GB, 1 GB, 1.53 GB, 856 KB
+ * Supports up to petabytes (PB).
+ */
 function formatBytes(bytes) {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return '0 B';
+  if (!isFinite(bytes) || bytes < 0) return '\u2014'; // em dash
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), units.length - 1);
+  const value = bytes / Math.pow(k, i);
+
+  // Always use 2 decimal places, then parseFloat to strip trailing zeros.
+  // e.g. 12.50 → "12.5", 1.53 → "1.53", 523.00 → "523"
+  const formatted = parseFloat(value.toFixed(2)).toString();
+
+  return formatted + ' ' + units[i];
 }
 
 /**

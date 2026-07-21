@@ -114,14 +114,6 @@ enum LogCategory {
     Internal,   // mutex lock fail, emit fail, scan state errors — rare but critical
 }
 
-impl LogCategory {
-    fn as_str(&self) -> &'static str {
-        match self {
-            LogCategory::Permission => "PERM",
-            LogCategory::Internal => "INTERNAL",
-        }
-    }
-}
 
 // ─── Logging Config ─────────────────────────────────────────────────────────
 
@@ -585,7 +577,7 @@ fn scan_directory(
             });
 
             // Periodically send status to the frontend.
-            if last_emit.elapsed().as_millis() >= 50 {
+            if last_emit.elapsed().as_millis() >= 100 {
                 let _ = app_handle.emit(
                     "scan-live-folder",
                     LivePayload {
@@ -717,7 +709,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                 log_error(LogCategory::Internal, "Failed to lock scan state for saving");
                 let _ = app_handle.emit(
                     "scan-failed",
-                    "Failed to save scan state".to_string(),
+                    format!("Nepodarilo sa uložiť výsledky skenovania pre: {}", path),
                 );
                 return;
             }
@@ -750,7 +742,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                 );
             } else {
                 log_error(LogCategory::Internal, "Scan directory returned None (not cancelled)");
-                let _ = app_handle.emit("scan-failed", "Failed to load disk".to_string());
+                let _ = app_handle.emit("scan-failed", format!("Nepodarilo sa načítať disk: {}", path));
             }
         }
     });
@@ -792,7 +784,7 @@ fn get_binary_tree(
     let guard = state
         .current_tree
         .lock()
-        .map_err(|_| "Failed to get access to scan state".to_string())?;
+        .map_err(|_| "Nepodarilo sa získať prístup k údajom skenu".to_string())?;
 
     let root = guard
         .as_ref()
@@ -805,7 +797,7 @@ fn get_binary_tree(
     let mut encoder = GzEncoder::new(buf.as_slice(), Compression::default());
     let mut compressed = Vec::new();
     encoder.read_to_end(&mut compressed)
-        .map_err(|e| format!("Compression failed: {}", e))?;
+        .map_err(|e| format!("Nepodarilo sa spracovať dáta skenu: {}", e))?;
 
     // Base64 encode the compressed data for safe IPC transfer
     let encoded = BASE64.encode(&compressed);
@@ -815,50 +807,44 @@ fn get_binary_tree(
 
 // ── Cross-platform: Show in File Manager ─────────────────────────────────────
 
+#[cfg(target_os = "windows")]
+fn platform_show_in_file_manager(path: &str, _target: &Path) -> Result<(), String> {
+    let windows_path = path.replace("/", "\\");
+    std::process::Command::new("explorer")
+        .arg("/select,")
+        .arg(&windows_path)
+        .spawn()
+        .map_err(|e| format!("Nepodarilo sa otvoriť Prieskumníka pre: {} ({})", path, e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn platform_show_in_file_manager(path: &str, _target: &Path) -> Result<(), String> {
+    Command::new("open")
+        .arg("-R")
+        .arg(path)
+        .spawn()
+        .map_err(|e| format!("Nepodarilo sa otvoriť Finder pre: {} ({})", path, e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn platform_show_in_file_manager(_path: &str, target: &Path) -> Result<(), String> {
+    let dir = if target.is_dir() { target.to_path_buf() } else { target.parent().unwrap_or(target).to_path_buf() };
+    Command::new("xdg-open")
+        .arg(dir.to_string_lossy().as_ref())
+        .spawn()
+        .map_err(|e| format!("Nepodarilo sa otvoriť súborový manažér: {}", e))?;
+    Ok(())
+}
+
 #[tauri::command]
 fn show_in_file_manager(path: String) -> Result<(), String> {
     let target = Path::new(&path);
     if !target.exists() {
         return Err(format!("Cesta neexistuje: {}", path));
     }
-
-    #[cfg(target_os = "windows")]
-    {
-        // Convert separators to Windows format (\).
-        let windows_path = path.replace("/", "\\");
-
-        std::process::Command::new("explorer")
-            // Split arguments. Rust will correctly quote them if necessary.
-            .arg("/select,")
-            .arg(windows_path)
-            .spawn()
-            .map_err(|e| format!("Nepodarilo sa otvoriť Prieskumníka: {}", e))?;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            .arg("-R")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| format!("Nepodarilo sa otvoriť Finder: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        // Try to open the parent directory with xdg-open
-        let dir = if target.is_dir() {
-            target.to_path_buf()
-        } else {
-            target.parent().unwrap_or(target).to_path_buf()
-        };
-        Command::new("xdg-open")
-            .arg(dir.to_string_lossy().as_ref())
-            .spawn()
-            .map_err(|e| format!("Nepodarilo sa otvoriť súborový manažér: {}", e))?;
-    }
-
-    Ok(())
+    platform_show_in_file_manager(&path, target)
 }
 
 // ── Total Commander ──────────────────────────────────────────────────────────
@@ -938,163 +924,119 @@ fn set_backend_merge_threshold(threshold_kb: u64) -> Result<(), String> {
 
 // ── Cross-platform: Show File Properties ─────────────────────────────────────
 
+#[cfg(target_os = "windows")]
+fn platform_show_file_properties(path: &str) -> Result<(), String> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::Shell::{
+        SEE_MASK_INVOKEIDLIST, SHELLEXECUTEINFOW, ShellExecuteExW,
+    };
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOW;
+
+    let windows_path = path.replace("/", "\\");
+    let wide_path: Vec<u16> = OsStr::new(&windows_path).encode_wide().chain(std::iter::once(0)).collect();
+    let wide_verb: Vec<u16> = OsStr::new("properties").encode_wide().chain(std::iter::once(0)).collect();
+
+    unsafe {
+        let mut info: SHELLEXECUTEINFOW = std::mem::zeroed();
+        info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+        info.fMask = SEE_MASK_INVOKEIDLIST;
+        info.lpVerb = wide_verb.as_ptr();
+        info.lpFile = wide_path.as_ptr();
+        info.nShow = SW_SHOW;
+        if ShellExecuteExW(&mut info) == 0 {
+            return Err(format!("Nepodarilo sa zobraziť vlastnosti súboru: {}", path));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn platform_show_file_properties(path: &str) -> Result<(), String> {
+    let script = format!(r#"tell application "Finder" to get information of (POSIX file "{}" as alias)"#, path);
+    Command::new("osascript").arg("-e").arg(&script).spawn()
+        .map_err(|e| format!("Nepodarilo sa zobraziť vlastnosti: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn platform_show_file_properties(path: &str, target: &Path) -> Result<(), String> {
+    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    let size = if metadata.is_dir() { "Priečinok".to_string() } else { format!("{} bytes", metadata.len()) };
+    let info = format!("Názov: {}\nCesta: {}\nVeľkosť: {}", target.file_name().unwrap_or_default().to_string_lossy(), path, size);
+    let _ = Command::new("zenity").args(["--info", "--title=Vlastnosti", &format!("--text={}", info)]).spawn();
+    Ok(())
+}
+
 #[tauri::command]
 fn show_file_properties(path: String) -> Result<(), String> {
     let target = Path::new(&path);
     if !target.exists() {
         return Err(format!("Cesta neexistuje: {}", path));
     }
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::ffi::OsStr;
-        use std::os::windows::ffi::OsStrExt;
-        use windows_sys::Win32::UI::Shell::{
-            SEE_MASK_INVOKEIDLIST, SHELLEXECUTEINFOW, ShellExecuteExW,
-        };
-        use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOW;
-
-        let windows_path = path.replace("/", "\\");
-
-        let wide_path: Vec<u16> = OsStr::new(&windows_path)
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-
-        let wide_verb: Vec<u16> = OsStr::new("properties")
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-
-        unsafe {
-            let mut info: SHELLEXECUTEINFOW = std::mem::zeroed();
-            info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
-            info.fMask = SEE_MASK_INVOKEIDLIST;
-            info.lpVerb = wide_verb.as_ptr();
-            info.lpFile = wide_path.as_ptr();
-            info.nShow = SW_SHOW;
-
-            let result = ShellExecuteExW(&mut info);
-            if result == 0 {
-                return Err("Failed to open Windows properties window.".to_string());
-            }
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        // Use AppleScript to show Get Info window
-        let script = format!(
-            r#"tell application "Finder" to get information of (POSIX file "{}" as alias)"#,
-            path
-        );
-        Command::new("osascript")
-            .arg("-e")
-            .arg(&script)
-            .spawn()
-            .map_err(|e| format!("Nepodarilo sa zobraziť vlastnosti: {}", e))?;
-    }
-
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    { return platform_show_file_properties(&path); }
     #[cfg(target_os = "linux")]
-    {
-        // Try zenity as a simple properties dialog, fallback to xdg-open parent
-        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?; // B3: Correctly handles metadata errors.
-        let size = if metadata.is_dir() {
-            "Priečinok".to_string()
-        } else {
-            format!("{} bytes", metadata.len())
-        };
-        let info = format!(
-            "Názov: {}\nCesta: {}\nVeľkosť: {}",
-            target.file_name().unwrap_or_default().to_string_lossy(),
-            path,
-            size
-        );
-        let _ = Command::new("zenity")
-            .args(["--info", "--title=Vlastnosti", &format!("--text={}", info)])
-            .spawn();
-    }
-
-    Ok(())
+    { return platform_show_file_properties(&path, target); }
+    #[allow(unreachable_code)] Ok(())
 }
 
 // ── Cross-platform: Move to Trash ────────────────────────────────────────────
 
+#[cfg(target_os = "windows")]
+fn platform_move_to_trash(path: &str) -> Result<(), String> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::UI::Shell::{
+        FO_DELETE, FOF_ALLOWUNDO, FOF_WANTNUKEWARNING, SHFILEOPSTRUCTW, SHFileOperationW,
+    };
+
+    let windows_path = path.replace("/", "\\");
+    let mut wide_path: Vec<u16> = OsStr::new(&windows_path).encode_wide().collect();
+    wide_path.push(0);
+    wide_path.push(0);
+
+    unsafe {
+        let mut file_op: SHFILEOPSTRUCTW = std::mem::zeroed();
+        file_op.wFunc = FO_DELETE;
+        file_op.pFrom = wide_path.as_ptr();
+        file_op.fFlags = (FOF_ALLOWUNDO | FOF_WANTNUKEWARNING) as u16;
+        let result = SHFileOperationW(&mut file_op);
+        if file_op.fAnyOperationsAborted != 0 {
+            return Err("Operácia bola zrušená používateľom.".to_string());
+        }
+        if result != 0 {
+            return Err(format!("Windows systémová chyba pri presune do koša: Kód {}", result));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn platform_move_to_trash(path: &str) -> Result<(), String> {
+    let script = format!(r#"tell application "Finder" to delete (POSIX file "{}" as alias)"#, path);
+    Command::new("osascript").arg("-e").arg(&script).output()
+        .map_err(|e| format!("Nepodarilo sa presunúť do koša: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn platform_move_to_trash(path: &str) -> Result<(), String> {
+    let result = Command::new("gio").args(["trash", path]).output();
+    match result {
+        Ok(output) if output.status.success() => Ok(()),
+        _ => Command::new("trash-put").arg(path).output()
+            .map_err(|e| format!("Nepodarilo sa presunúť do koša (skús nainštalovať trash-cli): {}", e))
+            .map(|_| ()),
+    }
+}
+
 #[tauri::command]
 fn move_to_trash(path: String) -> Result<(), String> {
-    let target = Path::new(&path);
-    if !target.exists() {
+    if !Path::new(&path).exists() {
         return Err(format!("Cesta neexistuje: {}", path));
     }
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::ffi::OsStr;
-        use std::os::windows::ffi::OsStrExt;
-        use windows_sys::Win32::UI::Shell::{
-            FO_DELETE, FOF_ALLOWUNDO, FOF_WANTNUKEWARNING, SHFILEOPSTRUCTW, SHFileOperationW,
-        };
-
-        let windows_path = path.replace("/", "\\");
-
-        let mut wide_path: Vec<u16> = OsStr::new(&windows_path).encode_wide().collect();
-        wide_path.push(0);
-        wide_path.push(0);
-
-        unsafe {
-            let mut file_op: SHFILEOPSTRUCTW = std::mem::zeroed();
-            file_op.wFunc = FO_DELETE;
-            file_op.pFrom = wide_path.as_ptr();
-            file_op.fFlags = (FOF_ALLOWUNDO | FOF_WANTNUKEWARNING) as u16;
-
-            let result = SHFileOperationW(&mut file_op);
-
-            if file_op.fAnyOperationsAborted != 0 {
-                return Err("Operation was aborted by the user.".to_string());
-            }
-
-            if result != 0 {
-                return Err(format!(
-                    "Windows system error while moving to trash: Code {}",
-                    result
-                ));
-            }
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let script = format!(
-            r#"tell application "Finder" to delete (POSIX file "{}" as alias)"#,
-            path
-        );
-        Command::new("osascript")
-            .arg("-e")
-            .arg(&script)
-            .output() // B6: Correctly uses `output()` to wait for completion.
-            .map_err(|e| format!("Nepodarilo sa presunúť do koša: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        // Try gio trash first, then trash-cli
-        let result = Command::new("gio").args(["trash", &path]).output();
-
-        match result {
-            Ok(output) if output.status.success() => {}
-            _ => {
-                // Fallback to trash-cli
-                Command::new("trash-put").arg(&path).output().map_err(|e| {
-                    format!(
-                        "Failed to move to trash (try installing trash-cli): {}",
-                        e
-                    )
-                })?;
-            }
-        }
-    }
-
-    Ok(())
+    platform_move_to_trash(&path)
 }
 
 // ── Permanent Delete with validation ─────────────────────────────────────────
