@@ -78,7 +78,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Release ${{ github.ref_name }}'
           releaseBody: ${{ steps.extract_notes.outputs.notes }}
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
 
