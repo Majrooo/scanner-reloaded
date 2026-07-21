@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Granular Error Logging
+- **`LogCategory` enum**: `Permission` (WalkDir/metadata errors) and `Internal` (stack, lock, emit failures)
+- **`LoggingConfig` struct** with per-category boolean flags (both default `true`), persisted in Rust config
+- **`log_error()`** function respects per-category settings; uses ISO 8601 timestamps, 1 MB log rotation
+- **App Settings modal** (⚙️ on menu screen): two checkboxes instead of single toggle, each with ⓘ info tooltip
+- New Tauri commands `get_logging_config` / `set_logging_config` replacing the old single toggle
+- 5 new translation keys for SK + EN
+
+#### Permission / Access Denied Handling
+- Replaced `WalkDir::into_iter().filter_map(\|e\| e.ok())` — errors (including `AccessDenied`) are no longer silently skipped
+- `HashSet<String>` collects unique denied paths during scanning
+- WalkDir `Err` and `entry.metadata()` `Err` paths logged via `log_error()` and added to `denied_paths`
+- New `AccessDeniedPayload` struct and `scan-access-denied` event emitted before `scan-finished`
+- Frontend listener in `scanner.js` shows localized toast with count of skipped folders
+- New translation keys `scanScreen.accessDenied` for SK + EN
+- `unlistenAccessDenied` added to all cleanup paths (`scan-finished`, `scan-failed`, `goBackToMenu`)
+- `scan_directory()` signature extended with `denied_paths: &mut HashSet<String>`
+
+#### IPC Timeout Wrapper
+- **`invokeWithTimeout(command, args, timeoutMs)`** in `utils.js` — `Promise.race` with `setTimeout`
+- New translation key `toast.ipcTimeout` (SK + EN)
+- **scanner.js**: 9 invocations replaced (cancel, clear, thresholds, file ops)
+- **menu.js**: 7 invocations replaced (disks, directory validation, system utilities, config)
+- Timeouts: 5s (config/settings), 10s (file operations), 15s (trash/delete)
+- Explicitly excluded: `get_binary_tree` and `start_async_scan` (event-driven)
+
+#### Central Error Handler
+- Global `window.onerror` and `unhandledrejection` handler in `src/main.js`
+- Handler shows localized toast via `Utils.showToast()` + `I18n.getText()`
+- `isHandlingError` guard prevents recursive error handling loops
+- `main.js` loaded in both `index.html` and `scanner.html`
+- New translation key `errors.unexpected` (SK + EN)
+
+#### Consistent Toast Messages
+- All `showToast()` calls unified to use localized keys via `getText()`
+- Added `extractErrorMessage()` helper in `utils.js` — extracts human-readable error from various types (string, Error, Tauri error)
+- 5 new translation keys: `folderNotFound`, `treeLoadFailed`, `tcLaunchFailed`, `trashFailed`, `deleteFailed` (SK + EN)
+- Replaced 6 hardcoded strings/raw error objects in `scanner.js`
+
 #### Filter Disable Warning
 - **`countNodesWithoutFilter(p)`** function in `scanner.js` — counts visible descendant nodes without the performance filter
 - When disabling the filter and node count exceeds `filterDisableWarningThreshold` (default 2000), shows a `showConfirm` warning before potential freezing
@@ -29,10 +68,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+#### Rust Backend — `unwrap()` Removal
+- 8× `unwrap()` in `scan_directory()` DFS stack logic replaced with `let-else`
+- All `let-else` branches use graceful degradation (`break` / `continue`) instead of panicking
+- Added `chrono` dependency for ISO 8601 timestamps in error logging
+
+#### File Size Formatting (Human-Readable)
+- `formatBytes()` in `src/lib/utils.js`: intelligent decimal places, `'Bytes'` → `'B'`, added `PB` support, protection against `NaN`/`Infinity`/negative values
+- Removed duplicate `formatBytes()` from `src/scanner.js` — all calls now use `Utils.formatBytes`
+- Always uses 2 decimal places with `parseFloat` stripping trailing zeros (e.g. `"1.53 GB"`, `"12.5 GB"`, `"523.39 GB"`)
+
+#### IPC Event Throttling
+- Backend `scan-live-folder` emit throttle increased from 50ms to 100ms — max 10 events/sec instead of 20
+- Matched with frontend UI throttle (100ms) — fewer JSON serializations and IPC transfers
+
+#### Descriptive Error Messages
+- 7 backend error messages unified to Slovak (matching UI language) with added context (path)
+- Examples: `"Failed to save scan state"` → `"Nepodarilo sa uložiť výsledky skenovania pre: C:\..."`
+
+#### Platform-Specific Code Abstraction
+- 3 Tauri commands refactored into `platform_*` helper functions:
+  - `show_in_file_manager` → `platform_show_in_file_manager()` (win/mac/linux)
+  - `show_file_properties` → `platform_show_file_properties()` (win/mac/linux)
+  - `move_to_trash` → `platform_move_to_trash()` (win/mac/linux)
+- Command handlers now thin wrappers with path validation + platform dispatch
+
 #### Header Layout
 - `?` and `⚙️` buttons wrapped in `.header-right-actions` container for proper grid alignment (3-column header grid preserved)
 - **Removed redundant `cancel-scan-btn`** (HTML, JS, CSS) — `back-btn` already serves as cancel button during scans
 - Unified button dimensions: `#back-to-disks-btn` padding `8px` → `10px`, `.icon-btn` added `min-width: 44px`, `text-align: center`, `line-height: 1.2`
+
+### Removed
+
+- Dead code `as_str()` method from `LogCategory` enum
 
 ### Fixed
 
