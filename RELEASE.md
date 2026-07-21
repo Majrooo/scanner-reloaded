@@ -42,8 +42,8 @@ npm run bump major   # 0.1.0 → 1.0.0 (breaking changes)
 ```
 
 This command:
-- Bumps version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`
-- Creates a git commit: `chore: bump version to 0.3.0`
+- Bumps version in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.lock`
+- Creates a git commit: `chore: bump version to 0.3.0` (includes all 4 files + `CHANGELOG.md`)
 - Creates a git tag: `v0.3.0`
 
 ### 3. Push changes

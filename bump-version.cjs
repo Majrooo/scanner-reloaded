@@ -16,6 +16,7 @@ const paths = {
   packageJson: path.join(__dirname, 'package.json'),
   tauriConf: path.join(__dirname, 'src-tauri', 'tauri.conf.json'),
   cargoToml: path.join(__dirname, 'src-tauri', 'Cargo.toml'),
+  cargoLock: path.join(__dirname, 'src-tauri', 'Cargo.lock'),
 };
 
 try {
@@ -66,11 +67,23 @@ try {
   fs.writeFileSync(paths.cargoToml, cargo);
   console.log(`  ✓ Cargo.toml → ${newVersion}`);
 
+  // ─── 4. Aktualizácia Cargo.lock ─────────────────────────────────────────
+  let cargoLock = fs.readFileSync(paths.cargoLock, 'utf8');
+  const lockRegex = new RegExp(`(name = "scanner-reloaded"\\nversion = )"${currentVersion.replace(/\./g, '\\.')}"`, 'm');
+  if (lockRegex.test(cargoLock)) {
+    cargoLock = cargoLock.replace(lockRegex, `$1"${newVersion}"`);
+    fs.writeFileSync(paths.cargoLock, cargoLock);
+    console.log(`  ✓ Cargo.lock → ${newVersion}`);
+  } else {
+    console.warn(`  ⚠ Cargo.lock: pattern not found (may already be up-to-date)`);
+  }
+
   // ─── Git commit a tag ──────────────────────────────────────────────────
   const filesToAdd = [
     'package.json',
     'src-tauri/tauri.conf.json',
     'src-tauri/Cargo.toml',
+    'src-tauri/Cargo.lock',
     'CHANGELOG.md',
   ];
 
