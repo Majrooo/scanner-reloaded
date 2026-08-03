@@ -370,8 +370,12 @@ fn resolve_tc_path() -> Result<String, String> {
 fn is_protected_path(path: &Path) -> bool {
     let normalized = path.to_string_lossy().replace('/', "\\");
     let normalized_lower = normalized.to_lowercase();
+    // Trim trailing backslashes so "C:\" becomes "C:" while "C:\Windows" stays as-is.
     let trimmed = normalized_lower.trim_end_matches('\\');
 
+    // All paths are compared against the normalized (backslash, lowercase) form.
+    // Root paths appear in both forms ("C:\" and "C:", "/" normalized to "\")
+    // so they match regardless of whether a trailing separator is present.
     let protected = [
         r"c:\windows",
         r"c:\program files",
@@ -379,24 +383,25 @@ fn is_protected_path(path: &Path) -> bool {
         r"c:\programdata",
         r"c:\users",
         r"c:\",
-        // Linux/macOS
-        "/",
-        "/bin",
-        "/boot",
-        "/dev",
-        "/etc",
-        "/home",
-        "/lib",
-        "/lib64",
-        "/proc",
-        "/root",
-        "/sbin",
-        "/sys",
-        "/usr",
-        "/var",
+        r"c:",
+        // Linux/macOS (normalized "/" → "\")
+        r"\",
+        r"\bin",
+        r"\boot",
+        r"\dev",
+        r"\etc",
+        r"\home",
+        r"\lib",
+        r"\lib64",
+        r"\proc",
+        r"\root",
+        r"\sbin",
+        r"\sys",
+        r"\usr",
+        r"\var",
     ];
 
-    protected.iter().any(|p| trimmed == *p)
+    protected.iter().any(|p| trimmed == *p || normalized_lower == *p)
 }
 
 // ─── Tauri Commands ──────────────────────────────────────────────────────────
@@ -1229,3 +1234,9 @@ pub fn main() {
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
+
+// ─── Unit Tests ──────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
