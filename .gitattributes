@@ -1,0 +1,6 @@
+# Auto-detect text vs binary files; normalize text to LF in the repository.
+# Checkouts will use CRLF on Windows and LF on Linux/macOS.
+* text=auto
+
+# Normalize Cargo.lock explicitly (binary-ish generated file that should stay LF)
+src-tauri/Cargo.lock text eol=lf

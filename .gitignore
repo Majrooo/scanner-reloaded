@@ -45,6 +45,10 @@ servers/
 
 # AI Agent (Cline / Roo Code) Memory Banks
 .cline/
+.clinerules/
 clinerules-data/
 *.clinedata
 memory-bank/
+
+# Súkromné dokumenty (nie sú určené na commit)
+docs_private/
