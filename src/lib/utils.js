@@ -115,6 +115,13 @@ function showToast(message, type = "info", duration = 4000) {
   }, duration);
 }
 
+// Legacy global aliases so direct calls (e.g. from scanner.js) keep working
+// without duplicating the implementations in each module.
+window.formatBytes = formatBytes;
+window.escapeHtml = escapeHtml;
+window.middleTruncatePath = middleTruncatePath;
+window.showToast = showToast;
+
 // Export for use in other modules
 window.Utils = {
   formatBytes,

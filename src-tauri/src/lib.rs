@@ -676,11 +676,11 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
     thread::spawn(move || {
         let target_path = Path::new(&path);
         if !target_path.exists() {
-            let _ = app_handle.emit("scan-failed", format!("Cesta neexistuje: {}", path));
+            let _ = app_handle.emit("scan-failed", format!("Path does not exist: {}", path));
             return;
         }
         if !target_path.is_dir() {
-            let _ = app_handle.emit("scan-failed", format!("Nie je priečinok: {}", path));
+            let _ = app_handle.emit("scan-failed", format!("Not a directory: {}", path));
             return;
         }
 
@@ -714,7 +714,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                 log_error(LogCategory::Internal, "Failed to lock scan state for saving");
                 let _ = app_handle.emit(
                     "scan-failed",
-                    format!("Nepodarilo sa uložiť výsledky skenovania pre: {}", path),
+                    format!("Failed to save scanning results for: {}", path),
                 );
                 return;
             }
@@ -736,7 +736,6 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                 .map_err(|e| {
                     let msg = format!("Failed to emit scan-finished: {}", e);
                     log_error(LogCategory::Internal, &msg);
-                    eprintln!("{}", msg);
                 });
         } else {
             // A8: Ak bolo skenovanie zrušené, pošleme scan-failed so správou o zrušení
@@ -747,7 +746,7 @@ fn start_async_scan(path: String, app_handle: AppHandle) {
                 );
             } else {
                 log_error(LogCategory::Internal, "Scan directory returned None (not cancelled)");
-                let _ = app_handle.emit("scan-failed", format!("Nepodarilo sa načítať disk: {}", path));
+                let _ = app_handle.emit("scan-failed", format!("Failed to scan disk: {}", path));
             }
         }
     });
@@ -789,7 +788,7 @@ fn get_binary_tree(
     let guard = state
         .current_tree
         .lock()
-        .map_err(|_| "Nepodarilo sa získať prístup k údajom skenu".to_string())?;
+        .map_err(|_| "Failed to access scan data".to_string())?;
 
     let root = guard
         .as_ref()
@@ -802,7 +801,7 @@ fn get_binary_tree(
     let mut encoder = GzEncoder::new(buf.as_slice(), Compression::default());
     let mut compressed = Vec::new();
     encoder.read_to_end(&mut compressed)
-        .map_err(|e| format!("Nepodarilo sa spracovať dáta skenu: {}", e))?;
+        .map_err(|e| format!("Failed to process scan data: {}", e))?;
 
     // Base64 encode the compressed data for safe IPC transfer
     let encoded = BASE64.encode(&compressed);
@@ -819,7 +818,7 @@ fn platform_show_in_file_manager(path: &str, _target: &Path) -> Result<(), Strin
         .arg("/select,")
         .arg(&windows_path)
         .spawn()
-        .map_err(|e| format!("Nepodarilo sa otvoriť Prieskumníka pre: {} ({})", path, e))?;
+        .map_err(|e| format!("Failed to open File Explorer for: {} ({})", path, e))?;
     Ok(())
 }
 
@@ -829,7 +828,7 @@ fn platform_show_in_file_manager(path: &str, _target: &Path) -> Result<(), Strin
         .arg("-R")
         .arg(path)
         .spawn()
-        .map_err(|e| format!("Nepodarilo sa otvoriť Finder pre: {} ({})", path, e))?;
+        .map_err(|e| format!("Failed to open Finder for: {} ({})", path, e))?;
     Ok(())
 }
 
@@ -839,7 +838,7 @@ fn platform_show_in_file_manager(_path: &str, target: &Path) -> Result<(), Strin
     Command::new("xdg-open")
         .arg(dir.to_string_lossy().as_ref())
         .spawn()
-        .map_err(|e| format!("Nepodarilo sa otvoriť súborový manažér: {}", e))?;
+        .map_err(|e| format!("Failed to open file manager: {}", e))?;
     Ok(())
 }
 
@@ -847,7 +846,7 @@ fn platform_show_in_file_manager(_path: &str, target: &Path) -> Result<(), Strin
 fn show_in_file_manager(path: String) -> Result<(), String> {
     let target = Path::new(&path);
     if !target.exists() {
-        return Err(format!("Cesta neexistuje: {}", path));
+        return Err(format!("Path does not exist: {}", path));
     }
     platform_show_in_file_manager(&path, target)
 }
@@ -950,7 +949,7 @@ fn platform_show_file_properties(path: &str) -> Result<(), String> {
         info.lpFile = wide_path.as_ptr();
         info.nShow = SW_SHOW;
         if ShellExecuteExW(&mut info) == 0 {
-            return Err(format!("Nepodarilo sa zobraziť vlastnosti súboru: {}", path));
+            return Err(format!("Failed to show file properties: {}", path));
         }
     }
     Ok(())
@@ -960,16 +959,16 @@ fn platform_show_file_properties(path: &str) -> Result<(), String> {
 fn platform_show_file_properties(path: &str) -> Result<(), String> {
     let script = format!(r#"tell application "Finder" to get information of (POSIX file "{}" as alias)"#, path);
     Command::new("osascript").arg("-e").arg(&script).spawn()
-        .map_err(|e| format!("Nepodarilo sa zobraziť vlastnosti: {}", e))?;
+        .map_err(|e| format!("Failed to show properties: {}", e))?;
     Ok(())
 }
 
 #[cfg(target_os = "linux")]
 fn platform_show_file_properties(path: &str, target: &Path) -> Result<(), String> {
     let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
-    let size = if metadata.is_dir() { "Priečinok".to_string() } else { format!("{} bytes", metadata.len()) };
-    let info = format!("Názov: {}\nCesta: {}\nVeľkosť: {}", target.file_name().unwrap_or_default().to_string_lossy(), path, size);
-    let _ = Command::new("zenity").args(["--info", "--title=Vlastnosti", &format!("--text={}", info)]).spawn();
+    let size = if metadata.is_dir() { "Directory".to_string() } else { format!("{} bytes", metadata.len()) };
+    let info = format!("Name: {}\nPath: {}\nSize: {}", target.file_name().unwrap_or_default().to_string_lossy(), path, size);
+    let _ = Command::new("zenity").args(["--info", "--title=Properties", &format!("--text={}", info)]).spawn();
     Ok(())
 }
 
@@ -977,7 +976,7 @@ fn platform_show_file_properties(path: &str, target: &Path) -> Result<(), String
 fn show_file_properties(path: String) -> Result<(), String> {
     let target = Path::new(&path);
     if !target.exists() {
-        return Err(format!("Cesta neexistuje: {}", path));
+        return Err(format!("Path does not exist: {}", path));
     }
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     { return platform_show_file_properties(&path); }
@@ -1008,10 +1007,10 @@ fn platform_move_to_trash(path: &str) -> Result<(), String> {
         file_op.fFlags = (FOF_ALLOWUNDO | FOF_WANTNUKEWARNING) as u16;
         let result = SHFileOperationW(&mut file_op);
         if file_op.fAnyOperationsAborted != 0 {
-            return Err("Operácia bola zrušená používateľom.".to_string());
+            return Err("Operation was cancelled by the user.".to_string());
         }
         if result != 0 {
-            return Err(format!("Windows systémová chyba pri presune do koša: Kód {}", result));
+            return Err(format!("Windows system error while moving to trash: Code {}", result));
         }
     }
     Ok(())
@@ -1021,7 +1020,7 @@ fn platform_move_to_trash(path: &str) -> Result<(), String> {
 fn platform_move_to_trash(path: &str) -> Result<(), String> {
     let script = format!(r#"tell application "Finder" to delete (POSIX file "{}" as alias)"#, path);
     Command::new("osascript").arg("-e").arg(&script).output()
-        .map_err(|e| format!("Nepodarilo sa presunúť do koša: {}", e))?;
+        .map_err(|e| format!("Failed to move to trash: {}", e))?;
     Ok(())
 }
 
@@ -1031,7 +1030,7 @@ fn platform_move_to_trash(path: &str) -> Result<(), String> {
     match result {
         Ok(output) if output.status.success() => Ok(()),
         _ => Command::new("trash-put").arg(path).output()
-            .map_err(|e| format!("Nepodarilo sa presunúť do koša (skús nainštalovať trash-cli): {}", e))
+            .map_err(|e| format!("Failed to move to trash (try installing trash-cli): {}", e))
             .map(|_| ()),
     }
 }
@@ -1039,7 +1038,7 @@ fn platform_move_to_trash(path: &str) -> Result<(), String> {
 #[tauri::command]
 fn move_to_trash(path: String) -> Result<(), String> {
     if !Path::new(&path).exists() {
-        return Err(format!("Cesta neexistuje: {}", path));
+        return Err(format!("Path does not exist: {}", path));
     }
     platform_move_to_trash(&path)
 }
@@ -1050,7 +1049,7 @@ fn move_to_trash(path: String) -> Result<(), String> {
 fn permanent_delete(path: String) -> Result<(), String> {
     let target = Path::new(&path);
     if !target.exists() {
-        return Err(format!("Cesta neexistuje: {}", path));
+        return Err(format!("Path does not exist: {}", path));
     }
 
     // Safety: refuse to delete protected system paths
@@ -1065,7 +1064,7 @@ fn permanent_delete(path: String) -> Result<(), String> {
     let path_str = path.trim_end_matches(|c| c == '/' || c == '\\');
     if path_str.len() <= 3 { // B7: Correctly checks for short paths.
         return Err(format!(
-            "Odmietnuté: Cesta '{}' je príliš krátka a môže byť koreňový disk.",
+            "Denied: Path '{}' is too short and may be a root disk.",
             path
         ));
     }

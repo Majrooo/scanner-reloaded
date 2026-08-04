@@ -204,87 +204,39 @@ function scheduleChartResize() {
   });
 }
 
-let translationsData = null;
-let currentLanguage = "sk";
-
-function getNestedValue(obj, path) {
-  return path.split(".").reduce((current, key) => current?.[key], obj);
-}
-
-function interpolate(template, replacements = {}) {
-  if (typeof template !== "string") return template;
-  return template.replace(/\{(\w+)\}/g, (_, key) => replacements[key] ?? "");
-}
-
-function getText(key, replacements = {}) {
-  if (!translationsData) return key;
-  const currentTranslations = translationsData.languages?.[currentLanguage];
-  const fallbackTranslations = translationsData.languages?.[translationsData.defaultLanguage] || {};
-  const value = getNestedValue(currentTranslations, key) ?? getNestedValue(fallbackTranslations, key) ?? key;
-  return interpolate(value, replacements);
-}
-
-function applyTranslations() {
-  if (!translationsData) return;
-  document.documentElement.lang = currentLanguage;
-  document.title = getText("appTitle");
-  document.querySelectorAll("[data-i18n]").forEach((element) => {
-    const key = element.getAttribute("data-i18n");
-    if (key) element.textContent = getText(key);
-  });
-  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
-    const key = element.getAttribute("data-i18n-title");
-    if (key) element.setAttribute("aria-label", getText(key));
-  });
-}
-
-async function loadTranslations() {
-  try {
-    const response = await fetch("./translations.json");
-    if (!response.ok) throw new Error("Failed to load translations");
-    translationsData = await response.json();
-    const languages = Object.keys(translationsData.languages || {});
-    const storedLanguage = localStorage.getItem("disk-scanner-language");
-    const browserLanguage = navigator.language?.split("-")[0];
-    const preferredLanguage = storedLanguage || (languages.includes(browserLanguage) ? browserLanguage : translationsData.defaultLanguage || languages[0]);
-    currentLanguage = languages.includes(preferredLanguage) ? preferredLanguage : translationsData.defaultLanguage || languages[0];
-    applyTranslations();
-  } catch (error) {
-    console.error(error);
-    showToast(getText("toast.translationsLoadFailed"), "error", 5000);
-  }
-}
-
 async function loadSettings() {
   try {
     const savedSettings = localStorage.getItem("scanner_settings");
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings);
-      Object.assign(APP_CONFIG, parsed);
+      if (parsed && parsed.schemaVersion === APP_CONFIG.schemaVersion) {
+        Object.assign(APP_CONFIG, parsed);
+      }
+      // Stale/unknown schema → fall back to defaults (discard old settings).
     }
   } catch (error) {
     console.error("Failed to load settings from localStorage", error);
-    showToast(getText("toast.settingsLoadFailed"), "error", 5000);
+    showToast(I18n.getText("toast.settingsLoadFailed"), "error", 5000);
   }
 }
 
 async function saveSettings() {
   try {
     localStorage.setItem("scanner_settings", JSON.stringify(APP_CONFIG));
-    showToast(getText("toast.success", { message: "Nastavenia uložené." }), "success");
+    showToast(I18n.getText("toast.success", { message: "Settings saved." }), "success");
   } catch (error) {
     console.error("Failed to save settings to localStorage", error);
-    showToast(getText("toast.error", { message: "Nepodarilo sa uložiť nastavenia." }), "error");
+    showToast(I18n.getText("toast.error", { message: "Failed to save settings." }), "error");
   }
 }
 
 const APP_CONFIG = {
+  schemaVersion: 1,
   usePerformanceFilter: true,
   autoTogglePerformanceFilter: true,
   performanceThreshold: 500,
   minSizeToRender: 1 * 1024 * 1024,
   minAngleToRender: 0.01,
-  totalCommanderPath: "",
   useInteractiveAnimations: true,
   introAnimationType: "sweep",
   transitionDuration: 450,
@@ -318,63 +270,6 @@ function syncChartColorsFromTheme() {
   APP_CONFIG.colors.superSmall = colors.superSmall;
 }
 
-/**
- * Middle-truncate a file path: keep the beginning (drive/root) and end (filename),
- * replace the middle with a highlighted "...".
- * Returns an HTML string. If the path is not truncated, returns plain text (safe for textContent).
- */
-function middleTruncatePath(path, maxLen = 80) {
-  if (!path || path.length <= maxLen) return path;
-  const separator = path.includes('\\') ? '\\' : '/';
-  const parts = path.split(separator);
-  if (parts.length <= 2) {
-    return escapeHtml(path.slice(0, Math.max(20, maxLen - 3))) + '<span class="truncation-marker">...</span>';
-  }
-  const first = parts[0];
-  const last = parts[parts.length - 1];
-  const availableForMiddle = maxLen - first.length - last.length - 5; // 5 = "..." + 2 separators
-  if (availableForMiddle <= 0) {
-    return escapeHtml(first) + '<span class="truncation-marker">...</span>' + escapeHtml(last);
-  }
-  let middleParts = [];
-  let middleLen = 0;
-  for (let i = 1; i < parts.length - 1; i++) {
-    const part = parts[i];
-    const extra = middleLen === 0 ? part.length : part.length + 1;
-    if (middleLen + extra <= availableForMiddle) {
-      middleParts.push(part);
-      middleLen += extra;
-    } else {
-      break;
-    }
-  }
-  if (middleParts.length === 0) {
-    return escapeHtml(first) + separator + '<span class="truncation-marker">...</span>' + separator + escapeHtml(last);
-  }
-  return escapeHtml(first) + separator + escapeHtml(middleParts.join(separator)) + separator + '<span class="truncation-marker">...</span>' + separator + escapeHtml(last);
-}
-
-/**
- * Simple HTML escape to prevent XSS in path strings.
- */
-function escapeHtml(str) {
-  if (typeof str !== 'string') return str;
-  var a = String.fromCharCode(38);
-  return str.replace(/&/g, a + 'amp;').replace(/</g, a + 'lt;').replace(/>/g, a + 'gt;').replace(/"/g, a + 'quot;');
-}
-
-function showToast(message, type = "info", duration = 4000) {
-  if (!toastContainer) return;
-  const toast = document.createElement("div");
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  toastContainer.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.add("toast-fading");
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
-}
-
 function showConfirm(message, isDanger = false) {
   return new Promise((resolve) => {
     if (!confirmModal || !confirmMessage) {
@@ -405,14 +300,14 @@ async function startDiskScan(path, totalSpace) {
   if (unlistenAccessDenied) unlistenAccessDenied();
   document.getElementById("scan-progress-content").classList.remove("hidden");
   document.getElementById("hover-details-content").classList.add("hidden");
-  liveTicker.textContent = getText("scanScreen.statuses.initializingScan");
+  liveTicker.textContent = I18n.getText("scanScreen.statuses.initializingScan");
   const breadcrumbsContainer = document.getElementById("current-folder-title");
   if (breadcrumbsContainer) {
     breadcrumbsContainer.innerHTML = `<span class="breadcrumb-item active">${path}</span>`;
   }
   document.getElementById("live-ticker-bar").style.width = "0%";
   isScanning = true;
-  backBtn.textContent = getText("scanScreen.cancelScan");
+  backBtn.textContent = I18n.getText("scanScreen.cancelScan");
   backBtn.classList.add("in-cancel-mode");
   const spinner = document.getElementById("scan-spinner");
   if (spinner) spinner.classList.remove("hidden");
@@ -438,22 +333,22 @@ async function startDiskScan(path, totalSpace) {
     const now = performance.now();
     if (now - lastUpdateTime >= 100) {
       lastUpdateTime = now;
-      liveTicker.textContent = getText("scanScreen.statuses.current", { path: currentPath });
+      liveTicker.textContent = I18n.getText("scanScreen.statuses.current", { path: currentPath });
       if (selectedDiskTotalSpace > 0) {
         const progressPct = Math.min(100, (totalScannedBytes / selectedDiskTotalSpace) * 100);
         document.getElementById("live-ticker-bar").style.width = `${progressPct}%`;
       }
-      updateCenterHUD("⏳", rootPath, formatBytes(totalScannedBytes));
+      updateCenterHUD("⏳", rootPath, Utils.formatBytes(totalScannedBytes));
     }
   });
   unlistenFinished = await listen("scan-finished", async () => {
     isScanning = false;
-    backBtn.textContent = getText("scanScreen.backButton");
+    backBtn.textContent = I18n.getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
     document.getElementById("live-ticker-bar").style.width = "100%";
-    showToast(getText("scanScreen.statuses.finished"), "success");
+    showToast(I18n.getText("scanScreen.statuses.finished"), "success");
     document.getElementById("scan-progress-content").classList.add("hidden");
     document.getElementById("hover-details-content").classList.remove("hidden");
     try {
@@ -465,8 +360,6 @@ async function startDiskScan(path, totalSpace) {
       // Build O(1) path index for fast node lookup
       pathIndex = new Map();
       buildPathIndex(memoryTree, pathIndex);
-      // Log file size statistics to console (F12 → Console)
-      logFileSizeStats(memoryTree);
       // Clear any previous cache (new scan = stale data)
       collapsedViewCache.clear();
       isChartInitializing = true;
@@ -482,24 +375,24 @@ async function startDiskScan(path, totalSpace) {
         const directEl = document.getElementById("stats-bar-direct");
         const totalEl = document.getElementById("stats-bar-total");
         if (directEl) {
-          directEl.textContent = getText("scanScreen.statsBar.direct", {
+          directEl.textContent = I18n.getText("scanScreen.statsBar.direct", {
             files: direct.files,
             dirs: direct.dirs,
-            size: formatBytes(direct.size)
+            size: Utils.formatBytes(direct.size)
           });
         }
         if (totalEl) {
-          totalEl.textContent = getText("scanScreen.statsBar.total", {
+          totalEl.textContent = I18n.getText("scanScreen.statsBar.total", {
             files: memoryTree.file_count || 0,
             dirs: memoryTree.dir_count || 0,
-            size: formatBytes(memoryTree.size || 0)
+            size: Utils.formatBytes(memoryTree.size || 0)
           });
         }
         statsBar.classList.remove("hidden");
       }
     } catch (err) {
       console.error("Failed to fetch binary tree:", err);
-      showToast(getText("toast.treeLoadFailed", { message: Utils.extractErrorMessage(err) }), "error");
+      showToast(I18n.getText("toast.treeLoadFailed", { message: Utils.extractErrorMessage(err) }), "error");
     }
     if (unlistenProgress) unlistenProgress();
     if (unlistenFinished) unlistenFinished();
@@ -509,16 +402,16 @@ async function startDiskScan(path, totalSpace) {
   unlistenAccessDenied = await listen("scan-access-denied", (event) => {
     const paths = event.payload?.paths || [];
     if (paths.length > 0) {
-      showToast(getText("scanScreen.accessDenied", { count: paths.length }), "warning", 6000);
+      showToast(I18n.getText("scanScreen.accessDenied", { count: paths.length }), "warning", 6000);
     }
   });
   unlistenFailed = await listen("scan-failed", (event) => {
     isScanning = false;
-    backBtn.textContent = getText("scanScreen.backButton");
+    backBtn.textContent = I18n.getText("scanScreen.backButton");
     backBtn.classList.remove("in-cancel-mode");
     const spinner = document.getElementById("scan-spinner");
     if (spinner) spinner.classList.add("hidden");
-    liveTicker.textContent = getText("scanScreen.statuses.error", { message: event.payload });
+    liveTicker.textContent = I18n.getText("scanScreen.statuses.error", { message: event.payload });
     document.getElementById("live-ticker-bar").style.width = "0%";
     if (unlistenProgress) unlistenProgress();
     if (unlistenFailed) unlistenFailed();
@@ -624,7 +517,7 @@ function navigateToPath(targetPath) {
   if (!targetPath) return;
   const found = findNodeByPath(memoryTree, targetPath);
   if (!found) {
-    showToast(getText("toast.folderNotFound", { path: targetPath }), "error");
+    showToast(I18n.getText("toast.folderNotFound", { path: targetPath }), "error");
     return;
   }
   const entry = getOrCreateCollapsedView(found, targetPath);
@@ -636,7 +529,7 @@ function updateSunburstForFolder(folderPath) {
   if (!folderPath) return;
   const found = findNodeByPath(memoryTree, folderPath);
   if (!found) {
-    showToast(getText("toast.folderNotFound", { path: folderPath }), "error");
+    showToast(I18n.getText("toast.folderNotFound", { path: folderPath }), "error");
     return;
   }
   const entry = getOrCreateCollapsedView(found, folderPath);
@@ -655,54 +548,6 @@ function countFileNodes(node) {
     count += countFileNodes(child);
   }
   return count;
-}
-
-function logFileSizeStats(node) {
-  let totalFiles = 0;
-  let lt32k = 0, lt64k = 0, lt128k = 0, lt256k = 0;
-  let fileNodeCount = 0;
-
-  function walk(n) {
-    if (!n.is_dir) {
-      fileNodeCount++;
-      // __super_small_files__ nodes contain multiple files merged by the backend.
-      // Use file_count to account for all real files, and aggregate size thresholds.
-      if (n.name === '__super_small_files__') {
-        totalFiles += n.file_count || 1;
-        // The size of the merged node is the total size of all merged files.
-        // We apply the same logic: count this merged chunk toward each threshold
-        // if the individual files would meet it. Since we don't know individual sizes,
-        // and all files in this chunk are guaranteed to be below the backend threshold,
-        // we count the chunk's file_count toward every threshold above it.
-        if (n.size < 32 * 1024) lt32k += n.file_count;
-        else if (n.size < 64 * 1024) lt64k += n.file_count;
-        else if (n.size < 128 * 1024) lt128k += n.file_count;
-        else if (n.size < 256 * 1024) lt256k += n.file_count;
-        // Files >= 256KB would not have been merged, so they're regular file nodes.
-        return;
-      }
-      totalFiles++;
-      if (n.size < 32 * 1024) lt32k++;
-      else if (n.size < 64 * 1024) lt64k++;
-      else if (n.size < 128 * 1024) lt128k++;
-      else if (n.size < 256 * 1024) lt256k++;
-      // Files >= 256KB not counted in any threshold bucket
-    }
-    for (const child of (n.children || [])) {
-      walk(child);
-    }
-  }
-
-  walk(node);
-
-  console.log('=== File Size Statistics ===');
-  console.log(`Total files (on disk): ${totalFiles}`);
-  console.log(`FileNode objects: ${fileNodeCount}`);
-  console.log(`Files < 32KB: ${lt32k}`);
-  console.log(`Files < 64KB: ${lt64k}`);
-  console.log(`Files < 128KB: ${lt128k}`);
-  console.log(`Files < 256KB: ${lt256k}`);
-  console.log('============================');
 }
 
 function buildPathIndex(node, map) {
@@ -821,7 +666,7 @@ function drawSunburst(hierarchy, partition) {
   const emptyFolderMsg = document.getElementById("empty-folder-message");
   if (!data || !data.children || data.children.length === 0) {
     if (emptyFolderMsg) emptyFolderMsg.classList.remove("hidden");
-    updateCenterHUD("🤷", data ? data.name : "?", getText("scanScreen.emptyFolder"));
+    updateCenterHUD("🤷", data ? data.name : "?", I18n.getText("scanScreen.emptyFolder"));
     updateBreadcrumbs(data ? data.path : currentViewPath);
     return;
   }
@@ -885,24 +730,24 @@ function zoomTo(p) {
     d3Center.style("cursor", p.parent ? "pointer" : "default");
   }
   const hasParent = !!getParentPath(currentViewPath);
-  updateCenterHUD(hasParent ? getText("scanScreen.center.goUp") : "📁", p.data.name, formatBytes(p.value));
+  updateCenterHUD(hasParent ? I18n.getText("scanScreen.center.goUp") : "📁", p.data.name, Utils.formatBytes(p.value));
   const statsBar = document.getElementById("scan-stats-bar");
   if (statsBar && p.data) {
     const direct = getDirectStats(p.data);
     const directEl = document.getElementById("stats-bar-direct");
     const totalEl = document.getElementById("stats-bar-total");
     if (directEl) {
-      directEl.textContent = getText("scanScreen.statsBar.direct", {
+      directEl.textContent = I18n.getText("scanScreen.statsBar.direct", {
         files: direct.files,
         dirs: direct.dirs,
-        size: formatBytes(direct.size)
+        size: Utils.formatBytes(direct.size)
       });
     }
     if (totalEl) {
-      totalEl.textContent = getText("scanScreen.statsBar.total", {
+      totalEl.textContent = I18n.getText("scanScreen.statsBar.total", {
         files: p.data.file_count || 0,
         dirs: p.data.dir_count || 0,
-        size: formatBytes(p.value || 0)
+        size: Utils.formatBytes(p.value || 0)
       });
     }
     statsBar.classList.remove("hidden");
@@ -992,22 +837,22 @@ function zoomTo(p) {
       hoverPath.textContent = fullPath;
       // Then check if it overflows the container; if so, replace with truncated HTML
       if (hoverPath.scrollWidth > hoverPath.clientWidth) {
-        hoverPath.innerHTML = middleTruncatePath(fullPath);
+        hoverPath.innerHTML = Utils.middleTruncatePath(fullPath);
       }
-      hoverSize.textContent = formatBytes(d.value);
+      hoverSize.textContent = Utils.formatBytes(d.value);
       const dirCount = d.data.dir_count || 0;
       const fileCount = d.data.file_count || 0;
       hoverStats.textContent = d.data.is_dir
-        ? getText("scanScreen.stats.contains", { dirCount, fileCount })
-        : getText("scanScreen.stats.fileType");
+        ? I18n.getText("scanScreen.stats.contains", { dirCount, fileCount })
+        : I18n.getText("scanScreen.stats.fileType");
       if (d.data.name === "__super_small_files__") {
-        hoverStats.textContent = getText("scanScreen.stats.mergedFiles", {
+        hoverStats.textContent = I18n.getText("scanScreen.stats.mergedFiles", {
           count: fileCount,
           threshold: backendMergeThresholdKb + " KB"
         });
       }
       if (d.data.name === "__others__") {
-        hoverStats.textContent = getText("scanScreen.stats.otherFiles", { count: fileCount });
+        hoverStats.textContent = I18n.getText("scanScreen.stats.otherFiles", { count: fileCount });
       }
       const ancestors = d.ancestors();
       const ancestorPaths = new Set(ancestors.map(node => node.data.path));
@@ -1016,7 +861,7 @@ function zoomTo(p) {
         .classed("hover-active", node => node === d);
     })
       .on("mouseout", () => {
-        hoverPath.textContent = getText("scanScreen.hoverPlaceholder");
+        hoverPath.textContent = I18n.getText("scanScreen.hoverPlaceholder");
         hoverSize.textContent = "";
         hoverStats.textContent = "";
         d3.select("#sunburst-group").selectAll("path")
@@ -1056,7 +901,7 @@ function zoomTo(p) {
       .attr("fill", d => getFillColor(d))
       .style("cursor", "pointer")
       .each(function (d) {
-        // Uložíme aj aktuálne polomery, aby boli k dispozícii pre ďalší zoom
+        // Store current radii for the next zoom
         this.__arcData = {
           ...d,
           innerRadius: arc.innerRadius()(d),
@@ -1075,7 +920,7 @@ function zoomTo(p) {
           })
           .attr("fill", getFillColor(d));
       } else {
-        // Nové uzly: animujeme od nuly (x1 = x0, innerRadius = 0, outerRadius = 0)
+        // New nodes: animate from zero (x1 = x0, innerRadius = 0, outerRadius = 0)
         d3.select(el)
           .style("opacity", 0)
           .transition()
@@ -1092,8 +937,7 @@ function zoomTo(p) {
           });
       }
     });
-    // Po uplynutí trvania animácie (+ rezerva) uvoľníme flag,
-    // aby ResizeObserver mohol opäť fungovať.
+    // Release the flag after the animation duration (+ buffer)
     setTimeout(() => { isZoomAnimating = false; }, TRANSITION_DURATION + 50);
     attachPathEvents(paths);
   } else {
@@ -1133,7 +977,6 @@ function zoomTo(p) {
       if (activeAnimation === "staggered") {
         introTransition.delay(d => (d.depth - p.depth) * 100);
       }
-      const indexedDescendants = visibleDescendants.map((d, i) => ({ node: d, index: i }));
       const totalNodes = visibleDescendants.length;
       introTransition.attrTween("d", (d, i, nodes) => {
         if (activeAnimation === "grow") {
@@ -1173,7 +1016,7 @@ window.addEventListener("click", () => {
 
 window.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
-  await loadTranslations();
+  await I18n.loadTranslations();
 
   // ─── Theme system ─────────────────────────────────────────────────────
   await Themes.loadCustomThemeFiles(); // Load themes/*.json (best-effort)
@@ -1215,7 +1058,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     startDiskScan(pathToScan, parseInt(totalSpace, 10));
   } else {
     console.error("No path to scan provided in URL.");
-    liveTicker.textContent = getText("scanScreen.statuses.error", { message: "No path specified." });
+    liveTicker.textContent = I18n.getText("scanScreen.statuses.error", { message: "No path specified." });
   }
   if (filterToggle) {
     filterToggle.addEventListener("change", async (event) => {
@@ -1223,7 +1066,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (!event.target.checked && currentFocus) {
         const nodeCount = countNodesWithoutFilter(currentFocus);
         if (nodeCount >= APP_CONFIG.filterDisableWarningThreshold) {
-          const message = getText("scanScreen.filterWarning.message", { count: nodeCount.toLocaleString() });
+          const message = I18n.getText("scanScreen.filterWarning.message", { count: nodeCount.toLocaleString() });
           const confirmed = await showConfirm(message, true);
           if (!confirmed) {
             // User cancelled — revert the checkbox back to checked
@@ -1245,7 +1088,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error("Failed to load backend merge threshold:", err);
     backendMergeThresholdKb = 0;
-    showToast(getText("toast.mergeThresholdLoadFailed"), "error", 5000);
+    showToast(I18n.getText("toast.mergeThresholdLoadFailed"), "error", 5000);
   }
 
   // Initialize ResizeObserver for chart responsive sizing
@@ -1316,7 +1159,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   function updateBackendMergeLabel(value) {
     const numValue = parseInt(value, 10);
     if (numValue === 0) {
-      backendMergeValue.textContent = "0 KB (vypnuté)";
+      backendMergeValue.textContent = "0 KB (disabled)";
     } else {
       backendMergeValue.textContent = `${numValue} KB`;
     }
@@ -1345,8 +1188,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     updateMinAngleLabel(APP_CONFIG.minAngleToRender);
     relativeThresholdSlider.value = APP_CONFIG.relativeThreshold;
     updateRelativeThresholdLabel(APP_CONFIG.relativeThreshold);
-    tcPathInput.value = APP_CONFIG.totalCommanderPath || "";
     filterWarningThresholdInput.value = APP_CONFIG.filterDisableWarningThreshold;
+    // Load Total Commander path from backend config (single source of truth)
+    try {
+      const tcPath = await Utils.invokeWithTimeout("get_tc_path", {}, 5000);
+      tcPathInput.value = tcPath || "";
+    } catch (err) {
+      console.error("Failed to load TC path:", err);
+      tcPathInput.value = "";
+    }
     // Load backend merge threshold from Rust config
     try {
       const backendThreshold = await Utils.invokeWithTimeout("get_backend_merge_threshold", {}, 5000);
@@ -1355,7 +1205,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       console.error("Failed to load backend merge threshold:", err);
       backendMergeSlider.value = 0;
-      showToast(getText("toast.mergeThresholdLoadFailed"), "error", 5000);
+      showToast(I18n.getText("toast.mergeThresholdLoadFailed"), "error", 5000);
       updateBackendMergeLabel(0);
     }
     updateConditionalSettingsUI();
@@ -1391,7 +1241,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     tcPathInput.value = "";
     filterWarningThresholdInput.value = 2000;
     updateConditionalSettingsUI();
-    showToast(getText("settingsModal.reset.success"), "info");
+    showToast(I18n.getText("settingsModal.reset.success"), "info");
   }
 
   function closeSettingsModal() {
@@ -1411,8 +1261,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   function renderHelpScanModal() {
     if (!helpScanBody) return;
-    const items = translationsData?.languages?.[currentLanguage]?.helpModalScan?.items ||
-      translationsData?.languages?.[translationsData?.defaultLanguage]?.helpModalScan?.items || [];
+    const transData = I18n.getTranslationsData();
+    const items = transData?.languages?.[I18n.getCurrentLanguage()]?.helpModalScan?.items ||
+      transData?.languages?.[transData?.defaultLanguage]?.helpModalScan?.items || [];
     const c = APP_CONFIG.colors;
     helpScanBody.innerHTML = items.map(item => {
       if (Array.isArray(item.text)) {
@@ -1489,7 +1340,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   function updateMinAngleLabel(value) {
     const numValue = parseFloat(value);
     if (numValue === 0) {
-      minAngleValue.textContent = getText("settingsModal.performance.minAngleToRenderOff");
+      minAngleValue.textContent = I18n.getText("settingsModal.performance.minAngleToRenderOff");
     } else {
       minAngleValue.textContent = `${numValue.toFixed(3)} rad`;
     }
@@ -1497,7 +1348,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   function updateRelativeThresholdLabel(value) {
     if (parseFloat(value) === 0) {
-      relativeThresholdValue.textContent = getText("settingsModal.performance.relativeThresholdOff");
+      relativeThresholdValue.textContent = I18n.getText("settingsModal.performance.relativeThresholdOff");
     } else {
       relativeThresholdValue.textContent = `${(value * 100).toFixed(2)}%`;
     }
@@ -1532,7 +1383,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     APP_CONFIG.minSizeToRender = parseFloat(minSizeToRenderInput.value) * 1024 * 1024;
     APP_CONFIG.minAngleToRender = parseFloat(minAngleSlider.value);
     APP_CONFIG.relativeThreshold = parseFloat(relativeThresholdSlider.value);
-    APP_CONFIG.totalCommanderPath = tcPathInput.value;
     APP_CONFIG.filterDisableWarningThreshold = parseInt(filterWarningThresholdInput.value, 10) || 2000;
     await Utils.invokeWithTimeout("set_tc_path", { path: tcPathInput.value || "" }, 5000);
     // Save backend merge threshold to Rust config
@@ -1556,7 +1406,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         try {
           await Utils.invokeWithTimeout("show_in_file_manager", { path: menuTargetNode.data.path }, 10000);
         } catch (err) {
-          showToast(getText("toast.ipcTimeout", { command: Utils.extractErrorMessage(err) }), "error");
+          showToast(I18n.getText("toast.ipcTimeout", { command: Utils.extractErrorMessage(err) }), "error");
         }
       }
     };
@@ -1566,7 +1416,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     cmOpenTc.onclick = async () => {
       if (menuTargetNode) {
         try { await Utils.invokeWithTimeout("show_in_total_commander", { path: menuTargetNode.data.path }, 10000); }
-        catch (err) { showToast(getText("toast.tcLaunchFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
+        catch (err) { showToast(I18n.getText("toast.tcLaunchFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
       }
     };
   }
@@ -1577,7 +1427,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         try {
           await Utils.invokeWithTimeout("show_file_properties", { path: menuTargetNode.data.path }, 10000);
         } catch (err) {
-          showToast(getText("toast.ipcTimeout", { command: Utils.extractErrorMessage(err) }), "error");
+          showToast(I18n.getText("toast.ipcTimeout", { command: Utils.extractErrorMessage(err) }), "error");
         }
       }
     };
@@ -1586,8 +1436,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmCopyPath) {
     cmCopyPath.onclick = async () => {
       if (menuTargetNode) {
-        try { await navigator.clipboard.writeText(menuTargetNode.data.path); showToast(getText("toast.pathCopied"), "success"); }
-        catch (err) { showToast(getText("toast.copyFailed"), "error"); }
+        try { await navigator.clipboard.writeText(menuTargetNode.data.path); showToast(I18n.getText("toast.pathCopied"), "success"); }
+        catch (err) { showToast(I18n.getText("toast.copyFailed"), "error"); }
       }
     };
   }
@@ -1595,11 +1445,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmTrash) {
     cmTrash.onclick = async () => {
       if (menuTargetNode) {
-        const confirmed = await showConfirm(getText("confirmations.trash", { name: menuTargetNode.data.name }), false);
+        const confirmed = await showConfirm(I18n.getText("confirmations.trash", { name: menuTargetNode.data.name }), false);
         if (confirmed) {
           try {
             await Utils.invokeWithTimeout("move_to_trash", { path: menuTargetNode.data.path }, 15000);
-            showToast(getText("toast.trashed", { name: menuTargetNode.data.name }), "success");
+            showToast(I18n.getText("toast.trashed", { name: menuTargetNode.data.name }), "success");
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
               if (parentNode.data.children) {
@@ -1614,7 +1464,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             } else {
               goBackToMenu();
             }
-          } catch (err) { showToast(getText("toast.trashFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
+          } catch (err) { showToast(I18n.getText("toast.trashFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
         }
       }
     };
@@ -1623,11 +1473,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (cmDelete) {
     cmDelete.onclick = async () => {
       if (menuTargetNode) {
-        const confirmed = await showConfirm(getText("confirmations.delete", { name: menuTargetNode.data.name }), true);
+        const confirmed = await showConfirm(I18n.getText("confirmations.delete", { name: menuTargetNode.data.name }), true);
         if (confirmed) {
           try {
             await Utils.invokeWithTimeout("permanent_delete", { path: menuTargetNode.data.path }, 15000);
-            showToast(getText("toast.deleted", { name: menuTargetNode.data.name }), "success");
+            showToast(I18n.getText("toast.deleted", { name: menuTargetNode.data.name }), "success");
             if (menuTargetNode.parent) {
               const parentNode = menuTargetNode.parent;
               if (parentNode.data.children) {
@@ -1642,7 +1492,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             } else {
               goBackToMenu();
             }
-          } catch (err) { showToast(getText("toast.deleteFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
+          } catch (err) { showToast(I18n.getText("toast.deleteFailed", { message: Utils.extractErrorMessage(err) }), "error"); }
         }
       }
     };

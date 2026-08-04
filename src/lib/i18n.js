@@ -82,6 +82,10 @@ function getTranslationsData() {
   return translationsData;
 }
 
+// Legacy global alias so direct calls (e.g. from scanner.js) keep working
+// without duplicating the implementation in each module.
+window.getText = getText;
+
 // Export for use in other modules
 window.I18n = {
   getText,

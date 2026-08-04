@@ -176,9 +176,9 @@
 }
 
 #reset-settings-btn:hover {
-  border-color: #ff4d4d;
-  color: #ff4d4d;
-  background: rgba(255, 77, 77, 0.05);
+  border-color: var(--red);
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 5%, transparent);
 }
 
 .close-btn {
