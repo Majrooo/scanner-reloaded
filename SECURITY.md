@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 0.3.x   | ✅ Yes             |
-| < 0.3.0 | ❌ No              |
+| 0.4.x   | ✅ Yes             |
+| < 0.4.0 | ❌ No              |
 
 Only the latest release is actively supported. We recommend always using the newest version from the [Releases page](https://github.com/Majrooo/scanner-reloaded/releases).
 
