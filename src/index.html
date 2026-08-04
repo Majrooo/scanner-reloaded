@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
+  <link rel="stylesheet" href="themes.css" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="scanner-settings.css" />
   <title>Scanner Reloaded - Disks</title>
@@ -136,6 +137,19 @@
       <h2 data-i18n="appSettings.title">Nastavenia aplikácie</h2>
       <div class="modal-body">
         <div class="settings-section">
+          <h3 data-i18n="appSettings.theme.title">Vzhľad</h3>
+          <div class="setting-row">
+            <div class="setting-label-group">
+              <label for="theme-select" data-i18n="appSettings.theme.themeLabel">Téma</label>
+              <button type="button" class="info-toggle-btn" data-info-id="info-theme" aria-label="Info">ⓘ</button>
+            </div>
+            <select id="theme-select">
+              <option value="dark">Dark (Catppuccin)</option>
+            </select>
+          </div>
+          <div id="info-theme" class="setting-info-card hidden" data-i18n="appSettings.theme.themeInfo"></div>
+        </div>
+        <div class="settings-section">
           <h3 data-i18n="appSettings.logging.title">Logovanie</h3>
           <div class="setting-row">
             <div class="setting-label-group">
@@ -175,6 +189,7 @@
 
   <script src="lib/i18n.js"></script>
   <script src="lib/utils.js"></script>
+  <script src="themes.js"></script>
   <script src="main.js"></script>
   <script src="menu.js"></script>
 </body>

@@ -1,8 +1,10 @@
+/* Theme tokens live in themes.css (loaded first). This file only USES var(--...). */
+
 html, body {
   margin: 0;
   padding: 0;
-  background-color: #11111b;
-  color: #cdd6f4;
+  background-color: var(--bg);
+  color: var(--text);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow-y: auto;
   cursor: default;
@@ -14,7 +16,7 @@ html, body {
 
 /* Keyboard accessibility - focus visible indicator */
 :focus-visible {
-  outline: 2px solid #89b4fa;
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 
@@ -45,20 +47,20 @@ a:focus:not(:focus-visible) {
 }
 
 .language-label {
-  color: #cdd6f4;
+  color: var(--text);
   font-size: 14px;
 }
 
 #language-select {
-  background: #1e1e2e;
-  color: #cdd6f4;
-  border: 1px solid #313244;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 10px;
 }
 
 h1, h2 {
-  color: #cba6f7;
+  color: var(--purple);
   text-align: center; /* C1: Correctly centered. */
 }
 
@@ -74,8 +76,8 @@ h1, h2 {
 }
 
 .refresh-btn {
-  background: #313244;
-  color: #cdd6f4;
+  background: var(--surface-hover);
+  color: var(--text);
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
@@ -85,14 +87,14 @@ h1, h2 {
 }
 
 .refresh-btn:hover {
-  background: #45475a;
+  background: var(--border-strong);
   transform: rotate(180deg);
 }
 
 /* A7: Skenovať priečinok button */
 .scan-folder-btn {
-  background: #313244;
-  color: #cdd6f4;
+  background: var(--surface-hover);
+  color: var(--text);
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
@@ -102,7 +104,7 @@ h1, h2 {
 }
 
 .scan-folder-btn:hover {
-  background: #45475a;
+  background: var(--border-strong);
 }
 
 /* C2: Drag & drop overlay */
@@ -112,7 +114,7 @@ h1, h2 {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(17, 17, 27, 0.85);
+  background: rgb(17, 17, 27, 0.85);
   z-index: 9998;
   display: flex;
   justify-content: center;
@@ -126,23 +128,23 @@ h1, h2 {
 
 /* Drag-over state for when user drags over the window */
 .drag-drop-overlay.drag-over {
-  background: rgba(17, 17, 27, 0.95);
+  background: rgb(17, 17, 27, 0.95);
 }
 
 .drag-drop-content {
   font-size: 28px;
   font-weight: bold;
-  color: #a6e3a1;
+  color: var(--accent);
   padding: 60px 80px;
-  border: 4px dashed #a6e3a1;
+  border: 4px dashed var(--accent);
   border-radius: 20px;
   text-align: center;
   animation: pulse-border 1.5s ease infinite;
 }
 
 @keyframes pulse-border {
-  0%, 100% { border-color: #a6e3a1; }
-  50% { border-color: #94d68b; }
+  0%, 100% { border-color: var(--accent); }
+  50% { border-color: var(--accent-hover); }
 }
 
 #disk-list {
@@ -153,8 +155,8 @@ h1, h2 {
 }
 
 .disk-card {
-  background-color: #1e1e2e;
-  border: 2px solid #313244;
+  background-color: var(--surface);
+  border: 2px solid var(--border);
   border-radius: 12px;
   padding: 20px;
   cursor: pointer;
@@ -162,20 +164,20 @@ h1, h2 {
 }
 
 .disk-card:hover {
-  border-color: #a6e3a1;
+  border-color: var(--accent);
   transform: translateY(-2px);
 }
 
 .disk-name { 
   font-size: 20px; 
   font-weight: bold; 
-  color: #a6e3a1; 
+  color: var(--accent); 
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.disk-bar-bg { background: #313244; height: 8px; border-radius: 4px; margin: 10px 0; overflow: hidden; }
-.disk-bar-fill { background: #f38ba8; height: 100%; }
+.disk-bar-bg { background: var(--border); height: 8px; border-radius: 4px; margin: 10px 0; overflow: hidden; }
+.disk-bar-fill { background: var(--red); height: 100%; }
 
 /* B4: Ikona typu disku */
 .disk-type-icon {
@@ -188,7 +190,7 @@ h1, h2 {
 /* B5: Empty state */
 .empty-state {
   text-align: center;
-  color: #7f849c;
+  color: var(--text-dim);
   font-size: 18px;
   padding: 60px 20px;
   font-style: italic;
@@ -198,7 +200,7 @@ h1, h2 {
 #system-utilities-section {
   margin-top: 40px;
   padding-top: 20px;
-  border-top: 1px solid #313244;
+  border-top: 1px solid var(--border);
 }
 
 .utilities-list {
@@ -212,9 +214,9 @@ h1, h2 {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background-color: #1e1e2e;
-  color: #a6adc8;
-  border: 1px solid #45475a;
+  background-color: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
   padding: 10px 20px;
   border-radius: 8px;
   cursor: pointer;
@@ -225,8 +227,8 @@ h1, h2 {
 }
 
 .util-btn:hover {
-  border-color: #cba6f7;
-  color: #cba6f7;
+  border-color: var(--purple);
+  color: var(--purple);
   transform: translateY(-2px);
 }
 
@@ -242,8 +244,8 @@ h1, h2 {
   top: 0;
   width: 18px;
   height: 18px;
-  border: 2px solid #45475a;
-  border-top-color: #f38ba8;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--red);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -258,13 +260,13 @@ h1, h2 {
 
 /* B9: Stats bar */
 .scan-stats-bar {
-  background: #181825;
-  border: 1px solid #313244;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 16px;
   margin-bottom: 15px;
   font-size: 14px;
-  color: #a6adc8;
+  color: var(--text-muted);
   text-align: center;
   font-weight: 500;
   display: flex;
@@ -308,23 +310,23 @@ h1, h2 {
   margin-top: 20px;
   min-height: auto;
 }
-#back-to-disks-btn { background: #313244; color: #cdd6f4; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; line-height: 1.2; }
-#back-to-disks-btn:hover { background: #45475a; }
+#back-to-disks-btn { background: var(--surface-hover); color: var(--text); border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; line-height: 1.2; }
+#back-to-disks-btn:hover { background: var(--border-strong); }
 
 /* New style for the button in cancel mode */
 #back-to-disks-btn.in-cancel-mode {
-  background: #f38ba8;
-  color: #11111b;
+  background: var(--red);
+  color: var(--bg);
   font-weight: bold;
 }
 
 #back-to-disks-btn.in-cancel-mode:hover {
-  background: #eb6f92;
+  background: var(--red-hover);
 }
 
 .icon-btn {
-  background: #313244;
-  color: #cdd6f4;
+  background: var(--surface-hover);
+  color: var(--text);
   border: none;
   padding: 10px 15px;
   border-radius: 6px;
@@ -335,7 +337,7 @@ h1, h2 {
   text-align: center;
 }
 .icon-btn:hover {
-  background: #45475a;
+  background: var(--border-strong);
 }
 
 /* Header right-side action buttons container */
@@ -404,15 +406,15 @@ h1, h2 {
   cursor: pointer;
 }
 #d3-center-click-zone:hover {
-  fill: #2a2a3e;
+  fill: var(--center-hover);
 }
 #center-icon { font-size: clamp(20px, 4vh, 28px); }
 #center-name { font-size: 1.8vh; font-weight: bold; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#center-size { font-size: 1.8vh; color: #f9e2af; margin-top: 2px; }
+#center-size { font-size: 1.8vh; color: var(--yellow); margin-top: 2px; }
 
 #hover-stats {
   font-size: 13px;
-  color: #a6e3a1;
+  color: var(--accent);
   margin-top: 5px;
 }
 
@@ -420,13 +422,13 @@ h1, h2 {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto 15px;
-  background: #1e1e2e;
+  background: var(--surface);
   padding: 15px;
   border-radius: 8px;
   text-align: center;
   box-sizing: border-box;
   height: 85px; /* Pevná výška — zabraňuje posunu grafu */
-  border: 1px solid #313244;
+  border: 1px solid var(--border);
   overflow: hidden; /* Dôležité, aby progress bar nepretekal cez zaoblené rohy */
   flex-shrink: 0;
   display: flex;
@@ -442,7 +444,7 @@ h1, h2 {
   bottom: 0;
   left: 0;
   height: 4px; /* Tenká, elegantná progress linka */
-  background: #f38ba8;
+  background: var(--red);
   width: 0%;
   transition: width 0.1s linear;
 }
@@ -465,7 +467,7 @@ h1, h2 {
 #live-ticker {
   font-size: 13px;
   font-weight: bold;
-  color: #cdd6f4;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -473,16 +475,16 @@ h1, h2 {
   flex: 1;
 }
 
-#hover-path { color: #bac2de; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.truncation-marker { color: #f9e2af; font-weight: bold; }
-#hover-size { color: #f9e2af; font-weight: bold; margin-top: 5px; }
+#hover-path { color: var(--text); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.truncation-marker { color: var(--yellow); font-weight: bold; }
+#hover-size { color: var(--yellow); font-weight: bold; margin-top: 5px; }
 
 path { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1.0px; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
 
 /* Hover highlight pre sunburst segmenty */
 path.hover-active { /* C4: Correctly defined hover style. */
   opacity: 1 !important;
-  stroke: #cdd6f4;
+  stroke: var(--text);
   stroke-width: 2.0px;
 }
 
@@ -497,10 +499,10 @@ path.hover-dimmed {
   justify-content: center;
   gap: 12px;
   margin-bottom: 20px;
-  background: #1e1e2e;
+  background: var(--surface);
   padding: 10px 20px;
   border-radius: 8px;
-  border: 1px solid #313244;
+  border: 1px solid var(--border);
   width: fit-content;
   margin-left: auto;
   margin-right: auto;
@@ -508,7 +510,7 @@ path.hover-dimmed {
 
 .filter-label-text {
   font-size: 14px;
-  color: #cdd6f4;
+  color: var(--text);
   user-select: none;
 }
 
@@ -530,7 +532,7 @@ path.hover-dimmed {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #45475a;
+  background-color: var(--border-strong);
   transition: .3s;
   border-radius: 24px;
 }
@@ -542,14 +544,14 @@ path.hover-dimmed {
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background-color: #11111b;
+  background-color: var(--bg);
   transition: .3s;
   border-radius: 50%;
 }
 
 /* When the filter is on, color it Windows yellow/green */
 input:checked + .slider {
-  background-color: #a6e3a1;
+  background-color: var(--accent);
 }
 
 input:checked + .slider:before {
@@ -560,7 +562,7 @@ input:checked + .slider:before {
 .filter-separator {
   width: 1px;
   height: 24px;
-  background: #45475a;
+  background: var(--border-strong);
   margin: 0 8px;
   display: inline-block;
   vertical-align: middle;
@@ -568,7 +570,7 @@ input:checked + .slider:before {
 
 /* Animated switch - purple color */
 #animation-toggle:checked + .slider {
-  background-color: #cba6f7;
+  background-color: var(--purple);
 }
 
 /* Container for breadcrumbs */
@@ -581,13 +583,13 @@ input:checked + .slider:before {
   font-size: 20px;
   font-family: sans-serif;
   font-weight: bold;
-  color: #cdd6f4;
+  color: var(--text);
   min-width: 0; /* Fix for flexbox and wrapping */
 }
 
 /* The clickable folders themselves */
 .breadcrumb-item {
-  color: #6c7086; /* Neutral grey for parent folders */
+  color: var(--text-faint); /* Neutral grey for parent folders */
   cursor: pointer;
   transition: color 0.2s;
   user-select: none;
@@ -597,12 +599,12 @@ input:checked + .slider:before {
 
 .breadcrumb-item:hover {
   text-decoration: underline;
-  color: #a6adc8; /* Lighter grey on hover */
+  color: var(--text-muted); /* Lighter grey on hover */
 }
 
 /* Style for the static last (current) directory */
 .breadcrumb-item.active {
-  color: #cdd6f4;
+  color: var(--text);
   font-weight: bold;
   cursor: default;
   text-decoration: none;
@@ -610,7 +612,7 @@ input:checked + .slider:before {
 
 /* Separator between folders (arrow) */
 .breadcrumb-separator {
-  color: #6c7086;
+  color: var(--text-faint);
   user-select: none;
 }
 
@@ -623,23 +625,23 @@ dialog.modal {
 }
 
 dialog.modal::backdrop {
-  background-color: rgba(17, 17, 27, 0.65);
+  background-color: rgb(17, 17, 27, 0.65);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
 
 /* Base modal content styling */
 dialog.modal .modal-content {
-  background-color: #1e1e2e;
-  color: #cdd6f4;
+  background-color: var(--surface);
+  color: var(--text);
   padding: 24px;
   border-radius: 12px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--border-strong);
   position: relative;
 }
 
 #github-link {
-  color: #89b4fa;
+  color: var(--blue);
   text-decoration: none;
 }
 
@@ -654,13 +656,13 @@ dialog.modal .modal-content {
   top: 10px;
   font-size: 24px;
   cursor: pointer;
-  color: #a6adc8;
+  color: var(--text-muted);
   background: none;
   border: none;
 }
 
 .close-btn:hover {
-  color: #f38ba8;
+  color: var(--red);
 }
 
 /* Modal content header */
@@ -668,8 +670,8 @@ dialog.modal .modal-content {
   padding: 16px 24px;
   margin: 0;
   font-size: 18px;
-  color: #cba6f7;
-  border-bottom: 1px solid #313244;
+  color: var(--purple);
+  border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
@@ -695,7 +697,7 @@ dialog.modal .modal-content {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(17, 17, 27, 0.65);
+  background: rgb(17, 17, 27, 0.65);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -712,8 +714,8 @@ dialog.modal .modal-content {
 
 .context-menu {
   position: absolute;
-  background: #1e1e2e;
-  border: 1px solid #45475a;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   border-radius: 8px;
   padding: 6px 0;
@@ -721,7 +723,7 @@ dialog.modal .modal-content {
   min-width: 220px;
   font-family: sans-serif;
   font-size: 14px;
-  color: #cdd6f4;
+  color: var(--text);
 }
 .context-menu.hidden {
   display: none;
@@ -734,15 +736,15 @@ dialog.modal .modal-content {
   transition: background 0.2s;
 }
 .menu-item:hover {
-  background: #313244;
+  background: var(--surface-hover);
 }
 .divider {
   height: 1px;
-  background: #45475a;
+  background: var(--border-strong);
   margin: 6px 0;
 }
-.text-warning { color: #f9e2af; }
-.text-danger { color: #f38ba8; }
+.text-warning { color: var(--yellow); }
+.text-danger { color: var(--red); }
 
 /* Total Commander Path Modal */
 .tc-modal-content {
@@ -757,7 +759,7 @@ dialog.modal .modal-content {
 }
 
 .tc-modal-desc {
-  color: #a6adc8;
+  color: var(--text-muted);
   font-size: 13px;
   margin-bottom: 16px;
   text-align: center;
@@ -771,9 +773,9 @@ dialog.modal .modal-content {
 
 .tc-path-input {
   flex: 1;
-  background: #313244;
-  color: #cdd6f4;
-  border: 1px solid #45475a;
+  background: var(--surface-hover);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 13px;
@@ -782,12 +784,12 @@ dialog.modal .modal-content {
 
 .tc-path-input:focus {
   outline: none;
-  border-color: #89b4fa;
+  border-color: var(--blue);
 }
 
 .tc-browse-btn {
-  background: #45475a;
-  color: #cdd6f4;
+  background: var(--border-strong);
+  color: var(--text);
   border: none;
   border-radius: 6px;
   padding: 8px 14px;
@@ -797,12 +799,12 @@ dialog.modal .modal-content {
 }
 
 .tc-browse-btn:hover {
-  background: #585b70;
+  background: var(--surface-hover-strong);
 }
 
 .tc-current-path {
   font-size: 12px;
-  color: #6c7086;
+  color: var(--text-faint);
   margin-bottom: 16px;
   min-height: 18px;
 }
@@ -814,8 +816,8 @@ dialog.modal .modal-content {
 }
 
 .tc-save-btn {
-  background: #a6e3a1;
-  color: #11111b;
+  background: var(--accent);
+  color: var(--bg);
   border: none;
   border-radius: 6px;
   padding: 8px 18px;
@@ -825,12 +827,12 @@ dialog.modal .modal-content {
 }
 
 .tc-save-btn:hover {
-  background: #94d68b;
+  background: var(--accent-hover);
 }
 
 .tc-clear-btn {
-  background: #45475a;
-  color: #cdd6f4;
+  background: var(--border-strong);
+  color: var(--text);
   border: none;
   border-radius: 6px;
   padding: 8px 18px;
@@ -839,7 +841,7 @@ dialog.modal .modal-content {
 }
 
 .tc-clear-btn:hover {
-  background: #585b70;
+  background: var(--surface-hover-strong);
 }
 
 /* ── Toast notifikácie ────────────────────────────────────────────────────── */
@@ -856,9 +858,9 @@ dialog.modal .modal-content {
 }
 
 .toast {
-  background: #1e1e2e;
-  color: #cdd6f4;
-  border: 1px solid #45475a;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 14px 20px;
   font-size: 14px;
@@ -874,15 +876,15 @@ dialog.modal .modal-content {
 }
 
 .toast.toast-success {
-  border-left: 4px solid #a6e3a1;
+  border-left: 4px solid var(--accent);
 }
 
 .toast.toast-error {
-  border-left: 4px solid #f38ba8;
+  border-left: 4px solid var(--red);
 }
 
 .toast.toast-info {
-  border-left: 4px solid #89b4fa;
+  border-left: 4px solid var(--blue);
 }
 
 .toast.toast-fading {
@@ -1064,8 +1066,8 @@ dialog.modal .modal-content {
 }
 
 .disk-card-skeleton {
-  background-color: #1e1e2e;
-  border: 2px solid #313244;
+  background-color: var(--surface);
+  border: 2px solid var(--border);
   border-radius: 12px;
   padding: 20px;
   pointer-events: none;
@@ -1074,7 +1076,7 @@ dialog.modal .modal-content {
 .skeleton-icon {
   width: 28px;
   height: 28px;
-  background: #313244;
+  background: var(--border);
   border-radius: 50%;
   margin: 0 auto 8px;
   display: block;
@@ -1082,7 +1084,7 @@ dialog.modal .modal-content {
 
 .skeleton-name {
   height: 20px;
-  background: #313244;
+  background: var(--border);
   border-radius: 4px;
   margin-bottom: 10px;
   width: 60%;
@@ -1090,14 +1092,14 @@ dialog.modal .modal-content {
 
 .skeleton-bar {
   height: 8px;
-  background: #313244;
+  background: var(--border);
   border-radius: 4px;
   margin-bottom: 10px;
 }
 
 .skeleton-text {
   height: 14px;
-  background: #313244;
+  background: var(--border);
   border-radius: 4px;
   width: 40%;
   margin-bottom: 6px;
@@ -1148,7 +1150,7 @@ dialog.modal .modal-content {
 }
 
 #confirm-message {
-  color: #cdd6f4;
+  color: var(--text);
   font-size: 15px;
   line-height: 1.5;
   margin-bottom: 24px;
@@ -1162,8 +1164,8 @@ dialog.modal .modal-content {
 }
 
 .confirm-cancel-btn {
-  background: #45475a;
-  color: #cdd6f4;
+  background: var(--border-strong);
+  color: var(--text);
   border: none;
   border-radius: 6px;
   padding: 10px 24px;
@@ -1173,12 +1175,12 @@ dialog.modal .modal-content {
 }
 
 .confirm-cancel-btn:hover {
-  background: #585b70;
+  background: var(--surface-hover-strong);
 }
 
 .confirm-ok-btn {
-  background: #f38ba8;
-  color: #11111b;
+  background: var(--red);
+  color: var(--bg);
   border: none;
   border-radius: 6px;
   padding: 10px 24px;
@@ -1189,15 +1191,15 @@ dialog.modal .modal-content {
 }
 
 .confirm-ok-btn:hover {
-  background: #eb6f92;
+  background: var(--red-hover);
 }
 
 .confirm-ok-btn.danger {
-  background: #f38ba8;
+  background: var(--red);
 }
 
 .confirm-ok-btn.danger:hover {
-  background: #eb6f92;
+  background: var(--red-hover);
 }
 
 /* ── Help Modal Styles ─────────────────────────────────────────────────────── */
@@ -1216,7 +1218,7 @@ dialog.modal .modal-content {
 
 .help-item {
   padding: 12px 0;
-  border-bottom: 1px solid #313244;
+  border-bottom: 1px solid var(--border);
 }
 
 .help-item:last-child {
@@ -1225,13 +1227,13 @@ dialog.modal .modal-content {
 
 .help-item strong {
   display: block;
-  color: #cdd6f4;
+  color: var(--text);
   font-size: 15px;
   margin-bottom: 4px;
 }
 
 .help-item p {
-  color: #a6adc8;
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.6;
   margin: 0;
@@ -1253,7 +1255,7 @@ dialog.modal .modal-content {
   display: flex;
   align-items: center;
   padding: 4px 0;
-  color: #a6adc8;
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
 }

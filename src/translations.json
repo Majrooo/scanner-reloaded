@@ -13,6 +13,11 @@
       "appSettings": {
         "title": "Nastavenia aplikácie",
         "close": "Zavrieť",
+        "theme": {
+          "title": "Vzhľad",
+          "themeLabel": "Téma",
+          "themeInfo": "Vyberte farebnú tému. Vlastné témy vložte ako JSON súbory do priečinka themes/ vedľa spustiteľného súboru."
+        },
         "logging": {
           "title": "Logovanie",
           "permissionLabel": "Upozorniť na preskočené priečinky (prístup zamietnutý)",
@@ -147,6 +152,11 @@
       "settingsModal": {
         "title": "Nastavenia",
         "buttonTooltip": "Otvoriť nastavenia",
+        "theme": {
+          "title": "Vzhľad",
+          "themeLabel": "Téma",
+          "themeInfo": "Vyberte farebnú tému. Vlastné témy vložte ako JSON súbory do priečinka themes/ vedľa spustiteľného súboru."
+        },
         "animations": {
           "title": "Vizualizácia a Animácie",
           "useInteractiveAnimations": "Použiť interaktívne animácie (zoom)",
@@ -257,6 +267,11 @@
       "appSettings": {
         "title": "Application Settings",
         "close": "Close",
+        "theme": {
+          "title": "Appearance",
+          "themeLabel": "Theme",
+          "themeInfo": "Choose the app color theme. To add custom themes, drop JSON files into the themes/ folder next to the executable - they will appear here automatically."
+        },
         "logging": {
           "title": "Logging",
           "permissionLabel": "Log skipped folders (access denied)",
@@ -391,6 +406,11 @@
       "settingsModal": {
         "title": "Settings",
         "buttonTooltip": "Open settings",
+        "theme": {
+          "title": "Appearance",
+          "themeLabel": "Theme",
+          "themeInfo": "Choose the app color theme. To add custom themes, drop JSON files into the themes/ folder next to the executable - they will appear here automatically."
+        },
         "animations": {
           "title": "Visualization & Animations",
           "useInteractiveAnimations": "Use interactive animations (zoom)",

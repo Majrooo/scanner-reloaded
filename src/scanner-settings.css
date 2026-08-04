@@ -1,8 +1,11 @@
+/* CSS custom properties are defined in themes.css (loaded last) and on the
+   <html> element via data-theme. This file only USES var(--...). */
+
 .modal-content {
-  background-color: #1e1e2e;
-  color: #cdd6f4;
+  background-color: var(--surface);
+  color: var(--text);
   border-radius: 12px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--border-strong);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
@@ -19,8 +22,8 @@
   padding: 16px 24px;
   margin: 0;
   font-size: 18px;
-  color: #cba6f7;
-  border-bottom: 1px solid #313244;
+  color: var(--purple);
+  border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
@@ -38,7 +41,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid #313244;
+  border-top: 1px solid var(--border);
 }
 
 .footer-actions {
@@ -56,7 +59,7 @@
 }
 
 .settings-section h3 {
-  color: #cba6f7;
+  color: var(--purple);
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 8px;
@@ -78,7 +81,7 @@
 
 .setting-row label {
   font-size: 14px;
-  color: #a6adc8;
+  color: var(--text-muted);
   flex-shrink: 0; /* Zabraňuje zmenšovaniu labelu */
 }
 
@@ -98,9 +101,9 @@
 .setting-row select,
 .setting-row input[type="text"],
 .setting-row .settings-number-input {
-  background: #313244;
-  color: #cdd6f4;
-  border: 1px solid #45475a;
+  background: var(--surface-hover);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 14px;
@@ -132,12 +135,12 @@
 .slider-container input[type="range"] {
   flex-grow: 1;
   width: 180px;
-  accent-color: #89b4fa; /* Moderná farba pre slider */
+  accent-color: var(--blue); /* Moderná farba pre slider */
 }
 
 .slider-container span {
   font-size: 13px;
-  color: #f9e2af;
+  color: var(--yellow);
   min-width: 50px; /* Pevná minimálna šírka */
   text-align: right;
   font-family: 'Consolas', 'Courier New', monospace;
@@ -146,7 +149,7 @@
 .setting-row .settings-toggle {
   width: 44px; /* Rovnaká šírka ako .switch-container */
   height: 24px;
-  accent-color: #a6e3a1; /* Zelená pre toggle */
+  accent-color: var(--accent); /* Zelená pre toggle */
 }
 
 /* --- Tlačidlá --- */
@@ -160,10 +163,10 @@
   transition: background-color 0.2s ease;
 }
 
-.primary-btn { background: #a6e3a1; color: #11111b; }
-.primary-btn:hover { background: #94d68b; }
-.secondary-btn, .input-with-button button { background: #45475a; color: #cdd6f4; }
-.secondary-btn:hover, .input-with-button button:hover { background: #585b70; }
+.primary-btn { background: var(--accent); color: var(--bg); }
+.primary-btn:hover { background: var(--accent-hover); }
+.secondary-btn, .input-with-button button { background: var(--border-strong); color: var(--text); }
+.secondary-btn:hover, .input-with-button button:hover { background: var(--text-faint); }
 
 #reset-settings-btn {
   background: transparent;
@@ -184,13 +187,13 @@
   top: 10px;
   font-size: 24px;
   cursor: pointer;
-  color: #a6adc8;
+  color: var(--text-muted);
   background: none;
   border: none;
 }
 
 .close-btn:hover {
-  color: #f38ba8;
+  color: var(--red);
 }
 
 /* --- Info tlačidlo ⓘ --- */
@@ -198,7 +201,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #89b4fa;
+  color: var(--blue);
   font-size: 16px;
   padding: 0 4px;
   line-height: 1;
@@ -206,22 +209,22 @@
   flex-shrink: 0;
 }
 .info-toggle-btn:hover {
-  color: #b4d0fb;
+  color: var(--blue-hover);
   transform: scale(1.2);
 }
 .info-toggle-btn.active {
-  color: #f9e2af;
+  color: var(--yellow);
 }
 
 /* --- Info karta (vysvetlivka) --- */
 .setting-info-card {
-  background: #252538;
-  border: 1px solid #45475a;
+  background: var(--overlay-card);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 10px 14px;
   margin: 0 8px 8px 8px;
   font-size: 12px;
-  color: #a6adc8;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 .setting-info-card.hidden {
@@ -236,7 +239,7 @@
   padding: 6px 16px;
   margin: 0 8px 8px 8px;
   font-size: 13px;
-  color: #a6adc8;
+  color: var(--text-muted);
 }
 
 .setting-info-row .log-path-icon {
@@ -247,10 +250,10 @@
 .setting-info-row code {
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 12px;
-  background: #11111b;
+  background: var(--bg);
   padding: 4px 8px;
   border-radius: 4px;
-  color: #89b4fa;
+  color: var(--blue);
   word-break: break-all;
   flex: 1;
 }

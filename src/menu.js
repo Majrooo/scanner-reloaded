@@ -109,6 +109,32 @@ async function handleDragDrop(paths) {
 
 window.addEventListener("DOMContentLoaded", async () => {
   await I18n.loadTranslations();
+
+  // ─── Theme system ─────────────────────────────────────────────────────
+  await Themes.loadCustomThemeFiles(); // Load themes/*.json (best-effort)
+  Themes.initTheme(); // Apply persisted theme (or default) without FOUC
+
+  // Populate the theme selector in App Settings
+  const themeSelect = document.getElementById("theme-select");
+  function populateThemeSelect() {
+    if (!themeSelect) return;
+    themeSelect.innerHTML = "";
+    Themes.getAvailableThemeIds().forEach((id) => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = Themes.getThemeName(id);
+      themeSelect.appendChild(opt);
+    });
+    themeSelect.value = Themes.getActiveThemeId();
+  }
+  populateThemeSelect();
+  if (themeSelect) {
+    themeSelect.addEventListener("change", (e) => {
+      Themes.setTheme(e.target.value);
+      I18n.applyTranslations(); // Re-render localized names for theme names
+    });
+  }
+
   loadDisks();
 
   const refreshDisksBtn = document.getElementById("refresh-disks-btn");

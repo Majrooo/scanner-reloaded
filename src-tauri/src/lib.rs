@@ -1118,6 +1118,54 @@ fn validate_directory(path: String) -> Result<bool, String> {
     Ok(true)
 }
 
+/// Returns a list of custom themes loaded from the `themes/` folder
+/// located next to the application executable.
+#[tauri::command]
+fn list_themes() -> Vec<serde_json::Value> {
+    use std::fs;
+    let mut themes = Vec::new();
+
+    // Theme folder next to the executable (portable path).
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(dir) = exe_dir {
+        candidates.push(dir.join("themes"));
+    }
+
+    // Also check the current working directory (dev mode).
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("themes"));
+    }
+
+    for themes_dir in candidates {
+        let Ok(entries) = fs::read_dir(&themes_dir) else { continue; };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().map(|e| e == "json").unwrap_or(false) {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                        // Validate the shape: must be an object with at least a name or id.
+                        if json.is_object() && (json.get("name").is_some() || json.get("id").is_some()) {
+                            // Ensure an id exists (use file stem as fallback).
+                            let mut obj = json;
+                            if obj.get("id").is_none() {
+                                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                    obj["id"] = serde_json::Value::String(stem.to_string());
+                                }
+                            }
+                            themes.push(obj);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    themes
+}
+
 // ─── Error Logging Commands ───────────────────────────────────────────────────
 
 /// Returns the current logging configuration
@@ -1228,6 +1276,7 @@ pub fn main() {
       set_logging_config,
       get_error_log_path,
       open_error_log,
+      list_themes,
       #[cfg(target_os = "windows")]
       open_system_utility,
     ])

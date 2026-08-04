@@ -305,6 +305,20 @@ const APP_CONFIG = {
 };
 
 /**
+ * Synchronize APP_CONFIG.colors with the active theme so the sunburst chart,
+ * help color swatches and any cached render match the selected theme.
+ */
+function syncChartColorsFromTheme() {
+  if (typeof Themes === "undefined") return;
+  const colors = Themes.getChartColors();
+  APP_CONFIG.colors.dirShallow = colors.dirShallow;
+  APP_CONFIG.colors.dirDeep = colors.dirDeep;
+  APP_CONFIG.colors.file = colors.file;
+  APP_CONFIG.colors.others = colors.others;
+  APP_CONFIG.colors.superSmall = colors.superSmall;
+}
+
+/**
  * Middle-truncate a file path: keep the beginning (drive/root) and end (filename),
  * replace the middle with a highlighted "...".
  * Returns an HTML string. If the path is not truncated, returns plain text (safe for textContent).
@@ -836,7 +850,7 @@ function drawSunburst(hierarchy, partition) {
       .attr("transform", `translate(${baseSize / 2},${baseSize / 2})`)
       .append("circle")
       .attr("r", innerHoleRadius)
-      .attr("fill", "#1e1e2e")
+      .style("fill", "var(--surface)")
       .attr("id", "d3-center-click-zone")
       .style("cursor", "default")
       .on("click", () => {
@@ -1160,6 +1174,40 @@ window.addEventListener("click", () => {
 window.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
   await loadTranslations();
+
+  // ─── Theme system ─────────────────────────────────────────────────────
+  await Themes.loadCustomThemeFiles(); // Load themes/*.json (best-effort)
+  Themes.initTheme(); // Apply persisted theme (or default)
+  syncChartColorsFromTheme();
+
+  // Keep chart colors in sync when the theme changes (incl. system mode).
+  window.addEventListener("theme-changed", () => {
+    syncChartColorsFromTheme();
+    if (currentFocus) zoomTo(currentFocus);
+  });
+
+  // Populate the theme selector in the scan settings modal
+  const scanThemeSelect = document.getElementById("scan-theme-select");
+  function populateScanThemeSelect() {
+    if (!scanThemeSelect) return;
+    scanThemeSelect.innerHTML = "";
+    Themes.getAvailableThemeIds().forEach((id) => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = Themes.getThemeName(id);
+      scanThemeSelect.appendChild(opt);
+    });
+    scanThemeSelect.value = Themes.getActiveThemeId();
+  }
+  populateScanThemeSelect();
+  if (scanThemeSelect) {
+    scanThemeSelect.addEventListener("change", (e) => {
+      Themes.setTheme(e.target.value);
+      syncChartColorsFromTheme();
+      if (currentFocus) zoomTo(currentFocus);
+    });
+  }
+
   const urlParams = new URLSearchParams(window.location.search);
   const pathToScan = urlParams.get('path');
   const totalSpace = urlParams.get('totalSpace') || 0;

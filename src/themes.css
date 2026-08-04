@@ -1,0 +1,37 @@
+/* Theme tokens for Scanner Reloaded.
+ *
+ * Default values (dark) are declared here so the app renders correctly even
+ * before themes.js runs. themes.js overrides these on the <html> element via
+ * inline `style.setProperty(...)` based on the selected theme.
+ */
+
+:root {
+  --bg: #11111b;
+  --surface: #1e1e2e;
+  --surface-2: #181825;
+  --surface-hover: #313244;
+  --surface-hover-strong: #585b70;
+  --border: #313244;
+  --border-strong: #45475a;
+  --overlay-card: #252538;
+  --center-hover: #2a2a3e;
+  --text: #cdd6f4;
+  --text-muted: #a6adc8;
+  --text-faint: #6c7086;
+  --text-dim: #7f849c;
+  --accent: #a6e3a1;
+  --accent-hover: #94d68b;
+  --blue: #89b4fa;
+  --blue-hover: #b4d0fb;
+  --purple: #cba6f7;
+  --red: #f38ba8;
+  --red-hover: #eb6f92;
+  --danger: #f38ba8;
+  --danger-hover: #eb6f92;
+  --yellow: #f9e2af;
+  --chart-dir-shallow: #ffcc00;
+  --chart-dir-deep: #423500;
+  --chart-file: #89b4fa;
+  --chart-others: #585b70;
+  --chart-super-small: #b33a4d;
+}
