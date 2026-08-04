@@ -130,8 +130,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            src-tauri/target/release/*-portable.zip
-            src-tauri/target/release/*-portable.tar.gz
+            src-tauri/target/release/*_portable.zip
+            src-tauri/target/release/*_portable.tar.gz
           tag_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
