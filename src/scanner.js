@@ -69,6 +69,10 @@ async function decompressGzip(compressedBytes) {
   return result.buffer;
 }
 
+// Binary tree format header (must match the Rust backend in lib.rs).
+const BINARY_MAGIC = "SRBT";
+const BINARY_VERSION = 1;
+
 function deserializeBinaryTree(arrayBuffer) {
   // Handle production build where data may arrive as number[] or Uint8Array
   if (!(arrayBuffer instanceof ArrayBuffer)) {
@@ -83,6 +87,21 @@ function deserializeBinaryTree(arrayBuffer) {
   const view = new DataView(arrayBuffer);
   const decoder = new TextDecoder("utf-8");
   let offset = 0;
+
+  // Validate the format header (magic + version) so a backend format change
+  // fails loudly instead of silently mis-parsing the tree.
+  if (view.byteLength < 5) {
+    throw new Error("Binary tree data is too short (missing header)");
+  }
+  const magic = decoder.decode(new Uint8Array(arrayBuffer, 0, 4));
+  if (magic !== BINARY_MAGIC) {
+    throw new Error("Binary tree data has an invalid magic header");
+  }
+  const version = view.getUint8(4);
+  if (version !== BINARY_VERSION) {
+    throw new Error(`Binary tree format version mismatch (expected ${BINARY_VERSION}, got ${version})`);
+  }
+  offset = 5;
 
   function readNode() {
     const isDir = view.getUint8(offset++) === 1;

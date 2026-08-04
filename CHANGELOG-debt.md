@@ -23,32 +23,35 @@ This file is committed to the repository (team-visible) — unlike `memory-bank/
 ### §6 Crash reporting — Sentry/telemetry (medium)
 - **What:** Local `error.log` + rotation exists; no cloud crash reporting.
 - **Why:** Cannot see crashes from real users.
-- **When:** Optional Sentry integration (new dependency + DSN config). Local panic hook + `log_frontend_error` already implemented (see below).
+- **When:** Optional Sentry integration (new dependency + DSN config). Local panic hook + `log_frontend_error` already implemented.
 
 ### §13 Frontend e2e tests (medium)
 - **What:** Unit tests for pure frontend logic exist (Vitest); no e2e tests.
 - **Why:** Full user flows (scan → navigate → delete) not covered.
 - **When:** Consider Playwright/WebdriverIO against a Tauri dev build. Separate session.
 
-### §2 Binary format magic byte + version (small)
-- **What:** `serialize_to_binary` / `deserializeBinaryTree` have no magic byte/version.
-- **Why:** A Rust format change silently breaks the frontend.
-- **When:** Add magic byte + version on both sides. Small change.
-
-### §12 Accessibility (small)
-- **What:** Some interactive elements lack labels; contrast/touch targets not verified.
+### §12 Accessibility — contrast/touch targets (small)
+- **What:** Breadcrumb `aria-current` added; contrast and touch-target sizes not yet verified.
 - **Why:** Improve screen-reader and keyboard support.
-- **When:** Add `aria-label` to icon buttons, `aria-current` to breadcrumbs. Small change.
+- **When:** Verify contrast ratios and touch-target sizes. Small change.
 
-### §14 Duplicate `isWindows` detection (small)
-- **What:** `isWindows` duplicated in `menu.js` and `scanner.js`.
-- **Why:** Single source of truth.
-- **When:** Share from `lib/utils.js`. Small change.
+## Resolved debt
 
-### §5 Centralized timeouts (small)
-- **What:** `invokeWithTimeout(..., 5000/10000/15000)` scattered in `menu.js` / `scanner.js`.
-- **Why:** Consistent defaults, easier tuning.
-- **When:** Central constants in `lib/utils.js`. Small change.
+### §2 Binary format magic byte + version — DONE
+- **What:** `get_binary_tree` now writes a `SRBT` magic + version header; `deserializeBinaryTree` validates it and fails loudly on mismatch.
+- **When:** Resolved in this session.
+
+### §5 Centralized timeouts — DONE
+- **What:** `IPC_TIMEOUT_DEFAULT_MS` (10s) + `IPC_TIMEOUT_SCAN_MS` (60s) in `lib/utils.js`; `invokeWithTimeout` defaults to the central constant; remaining raw `invoke` calls converted.
+- **When:** Resolved in `42c4c45`.
+
+### §14 Duplicate `isWindows` detection — DONE
+- **What:** Shared `Utils.isWindows` in `lib/utils.js`; removed duplicates from `menu.js` and `scanner.js`.
+- **When:** Resolved in `42c4c45`.
+
+### §12 Accessibility — breadcrumb labels — DONE
+- **What:** `aria-current="page"` on the active breadcrumb item.
+- **When:** Resolved in `42c4c45`.
 
 ## Platform / release
 
@@ -65,6 +68,6 @@ This file is committed to the repository (team-visible) — unlike `memory-bank/
 ## Git state
 
 ### Unpushed commits on `main`
-- **What:** `4499340`, `b025e98`, `b1cce1d` are 3 commits ahead of `origin/main` (`fcdf320`).
+- **What:** `42c4c45` (debt round) is on top of `b1cce1d`, `4499340`, `b025e98` — 4 commits ahead of `origin/main` (`fcdf320`).
 - **Why:** Not yet pushed to GitHub.
-- **When:** Push after this debt session + release prep.
+- **When:** Push after the current session + release prep.

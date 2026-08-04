@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `invokeWithTimeout` now defaults to the central default timeout
 - Converted remaining raw `invoke` calls in `scanner.js` (`get_binary_tree`, `start_async_scan`) and `themes.js` (`list_themes`)
 
+#### Binary Format Versioning
+- `get_binary_tree` now writes a `SRBT` magic + version header; `deserializeBinaryTree` validates it and fails loudly on mismatch
+
 #### Accessibility
 - `aria-current="page"` on the active breadcrumb item
 

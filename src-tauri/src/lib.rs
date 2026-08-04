@@ -778,6 +778,12 @@ fn optimize_webview_memory(window: WebviewWindow) -> Result<(), String> {
 
 // ── Binary Data Transfer ─────────────────────────────────────────────────────
 
+/// Magic bytes identifying the Scanner Reloaded binary tree format.
+const BINARY_MAGIC: &[u8; 4] = b"SRBT";
+/// Version of the binary tree format. Bump when the wire format changes so the
+/// frontend can detect a mismatch instead of silently mis-parsing the tree.
+const BINARY_VERSION: u8 = 1;
+
 /// Returns the entire tree serialized into compact binary format,
 /// GZip compressed and base64-encoded for safe transfer through production IPC.
 /// The frontend deserializes and performs local collapse/navigation on the full tree.
@@ -795,6 +801,9 @@ fn get_binary_tree(
         .ok_or_else(|| "No scanned tree exists yet".to_string())?;
 
     let mut buf = Vec::with_capacity(10 * 1024 * 1024); // pre-allocate 10 MB
+    // Write the format header (magic + version) once, before the node data.
+    buf.extend_from_slice(BINARY_MAGIC);
+    buf.push(BINARY_VERSION);
     root.serialize_to_binary(&mut buf);
 
     // GZip compress the binary data
