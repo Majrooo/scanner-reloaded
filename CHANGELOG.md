@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - unreleased
+
+### Added
+
+#### Theme System
+- 5 built-in themes (Dark, Light, Ocean, Forest, Neon) + `system` option following OS preference
+- Custom JSON themes loaded from a `themes/` folder next to the executable (Rust `list_themes` command)
+- Theme switcher in settings on both menu and scan screens; preference persisted
+- Chart colors (`APP_CONFIG.colors`) synchronized with the active theme
+- README section + custom-theme how-to
+
+#### Frontend Testing (Vitest)
+- Added `vitest` (devDependency) + `npm test` script
+- ESM export + non-browser guard in `lib/utils.js`
+- `src/lib/utils.test.js`: 18 unit tests for `formatBytes`, `escapeHtml`, `middleTruncatePath`, `extractErrorMessage`, `invokeWithTimeout`
+
+#### Crash Reporting
+- Rust panic hook writes panics to `error.log`
+- New `log_frontend_error` Tauri command
+- Frontend `error` / `unhandledrejection` handlers now report to the backend error log (fire-and-forget)
+
+#### Centralized IPC Timeouts
+- Central `IPC_TIMEOUT_DEFAULT_MS` (10s) and `IPC_TIMEOUT_SCAN_MS` (60s) constants in `lib/utils.js`
+- `invokeWithTimeout` now defaults to the central default timeout
+- Converted remaining raw `invoke` calls in `scanner.js` (`get_binary_tree`, `start_async_scan`) and `themes.js` (`list_themes`)
+
+#### Accessibility
+- `aria-current="page"` on the active breadcrumb item
+
+#### Cleanup
+- Shared `Utils.isWindows` OS detection (removed duplicated `isWindows` from `menu.js` and `scanner.js`)
+- New committed `CHANGELOG-debt.md` decision log (audit follow-ups)
+
+### Changed
+- README and CHANGELOG updated for the 0.4.0 theme system and testing/crash improvements
+
 ## [0.3.0] - 2026-07-21
 
 ### Added

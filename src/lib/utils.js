@@ -84,6 +84,16 @@ function extractErrorMessage(err, fallbackKey) {
   return fallbackKey || 'Neznáma chyba';
 }
 
+// Centralized IPC timeout defaults (ms). Tune here instead of per call-site.
+const IPC_TIMEOUT_DEFAULT_MS = 10000; // generic commands
+const IPC_TIMEOUT_SCAN_MS = 60000;    // long-running scan / tree transfer
+
+// Single source of truth for OS detection (shared across modules).
+const isWindows =
+  (typeof navigator !== "undefined") &&
+  (navigator.platform?.toLowerCase().includes("win") ||
+    navigator.userAgent?.toLowerCase().includes("windows"));
+
 /**
  * Zavolá Tauri invoke s timeoutom. Ak operácia trvá dlhšie ako timeoutMs,
  * promise sa rejectne s chybou 'IPC_TIMEOUT:<nazov_komandy>'.
@@ -92,7 +102,7 @@ function extractErrorMessage(err, fallbackKey) {
  * @param {number} timeoutMs - timeout v milisekundách
  * @returns {Promise<any>}
  */
-function invokeWithTimeout(command, args = {}, timeoutMs) {
+function invokeWithTimeout(command, args = {}, timeoutMs = IPC_TIMEOUT_DEFAULT_MS) {
   const { invoke } = window.__TAURI__.core;
   return Promise.race([
     invoke(command, args),
@@ -117,17 +127,27 @@ function showToast(message, type = "info", duration = 4000) {
 
 // Legacy global aliases so direct calls (e.g. from scanner.js) keep working
 // without duplicating the implementations in each module.
-window.formatBytes = formatBytes;
-window.escapeHtml = escapeHtml;
-window.middleTruncatePath = middleTruncatePath;
-window.showToast = showToast;
+// Guarded so the module can also be imported in non-browser environments (Vitest).
+if (typeof window !== "undefined") {
+  window.formatBytes = formatBytes;
+  window.escapeHtml = escapeHtml;
+  window.middleTruncatePath = middleTruncatePath;
+  window.showToast = showToast;
 
-// Export for use in other modules
-window.Utils = {
-  formatBytes,
-  escapeHtml,
-  middleTruncatePath,
-  extractErrorMessage,
-  invokeWithTimeout,
-  showToast,
-};
+  // Export for use in other modules
+  window.Utils = {
+    formatBytes,
+    escapeHtml,
+    middleTruncatePath,
+    extractErrorMessage,
+    invokeWithTimeout,
+    showToast,
+    IPC_TIMEOUT_DEFAULT_MS,
+    IPC_TIMEOUT_SCAN_MS,
+    isWindows,
+  };
+}
+
+// NOTE: This module is loaded as a classic (non-module) script in index.html
+// and scanner.html, so it must NOT use ESM `export`. Tests access the
+// functions via `window.Utils` (see utils.test.js).

@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "bump": "node bump-version.cjs"
+    "bump": "node bump-version.cjs",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

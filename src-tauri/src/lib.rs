@@ -1233,9 +1233,28 @@ fn get_error_log_path_internal() -> Option<PathBuf> {
     dirs::config_dir().map(|p| p.join("scanner-reloaded").join("error.log"))
 }
 
+// ─── Frontend Error Logging ──────────────────────────────────────────────────
+
+/// Logs a frontend error (from `window.onerror` / `unhandledrejection`)
+/// to the error log so crashes in the webview are captured locally.
+#[tauri::command]
+fn log_frontend_error(message: String, stack: Option<String>) {
+    let detail = match stack {
+        Some(s) if !s.trim().is_empty() => format!("{} — {}", message, s),
+        _ => message,
+    };
+    log_error(LogCategory::Internal, &format!("[FRONTEND] {}", detail));
+}
+
 // ─── App Entry Point ─────────────────────────────────────────────────────────
 
 pub fn main() {
+  // Install a panic hook that writes Rust panics to the error log.
+  std::panic::set_hook(Box::new(|info| {
+      let msg = format!("PANIC: {}", info);
+      log_error(LogCategory::Internal, &msg);
+  }));
+
   tauri::Builder::default()
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_opener::init())
@@ -1276,6 +1295,7 @@ pub fn main() {
       get_error_log_path,
       open_error_log,
       list_themes,
+      log_frontend_error,
       #[cfg(target_os = "windows")]
       open_system_utility,
     ])

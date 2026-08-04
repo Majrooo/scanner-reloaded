@@ -58,6 +58,58 @@ Need help? Try the **Linux AppImage** or **macOS DMG** and report any issues →
 - **Modern UI**: A clean, responsive, and lightweight user interface made with vanilla HTML, CSS, and JavaScript.
 - **Performance Filtering**: Smooth 60 FPS rendering by automatically filtering out microscopic files during zoom.
 - **Internationalization (i18n)**: Supports multiple languages (English and Slovak) with settings persisted locally.
+- **Theme System**: 5 built-in themes (Dark, Light, Ocean, Forest, Neon) + custom JSON themes loaded from a `themes/` folder.
+- **Crash Reporting**: Frontend errors and Rust panics are logged to a local `error.log` (with rotation) for easier debugging.
+- **Frontend Tests**: Unit tests for the shared utility library run with Vitest (`npm test`).
+
+## Themes
+
+Scanner Reloaded ships with **5 built-in themes** (Dark, Light, Ocean, Forest, Neon) plus a **System** option that follows your OS light/dark preference. You can switch themes from the settings modal (⚙️) on either screen.
+
+### Custom themes
+
+You can add your own themes by dropping a JSON file into a `themes/` folder next to the application executable (or in the working directory during development). The app loads all `*.json` files from that folder at startup.
+
+A custom theme file looks like this:
+
+```json
+{
+  "id": "my-theme",
+  "name": "My Theme",
+  "bg": "#0f0f0f",
+  "surface": "#1a1a1a",
+  "surface2": "#141414",
+  "surfaceHover": "#2a2a2a",
+  "surfaceHoverStrong": "#3a3a3a",
+  "border": "#2a2a2a",
+  "borderStrong": "#3a3a3a",
+  "overlayCard": "#1a1a1a",
+  "centerHover": "#2a2a2a",
+  "text": "#e0e0e0",
+  "textMuted": "#9a9a9a",
+  "textFaint": "#6a6a6a",
+  "textDim": "#7a7a7a",
+  "accent": "#4caf50",
+  "accentHover": "#43a047",
+  "blue": "#42a5f5",
+  "blueHover": "#64b5f6",
+  "purple": "#ab47bc",
+  "red": "#ef5350",
+  "redHover": "#e53935",
+  "danger": "#ef5350",
+  "dangerHover": "#e53935",
+  "yellow": "#ffca28",
+  "chartDirShallow": "#ffcc00",
+  "chartDirDeep": "#423500",
+  "chartFile": "#89b4fa",
+  "chartOthers": "#585b70",
+  "chartSuperSmall": "#b33a4d"
+}
+```
+
+- `id` is used internally (fallback: the file name without extension).
+- `name` is shown in the theme selector.
+- All color values are hex strings. See the built-in themes in the `themes/` folder for reference.
 
 ## Tech Stack
 

@@ -1,4 +1,3 @@
-const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 const { open } = window.__TAURI__.dialog;
 
@@ -160,9 +159,6 @@ let isFirstRenderAfterScan = false;
 
 // Flag to prevent ResizeObserver from interrupting zoom transitions
 let isZoomAnimating = false;
-
-// OS detection
-const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
 
 // Backend merge threshold in KB (loaded from Rust config at startup)
 let backendMergeThresholdKb = 0;
@@ -353,7 +349,7 @@ async function startDiskScan(path, totalSpace) {
     document.getElementById("hover-details-content").classList.remove("hidden");
     try {
       // Fetch and decompress the tree: base64 -> GZip -> ArrayBuffer -> deserialize
-      const encoded = await invoke("get_binary_tree");
+      const encoded = await Utils.invokeWithTimeout("get_binary_tree", {}, Utils.IPC_TIMEOUT_SCAN_MS);
       const compressed = base64ToUint8Array(encoded);
       const binaryBuf = await decompressGzip(compressed);
       memoryTree = deserializeBinaryTree(binaryBuf);
@@ -417,7 +413,7 @@ async function startDiskScan(path, totalSpace) {
     if (unlistenFailed) unlistenFailed();
     if (unlistenAccessDenied) unlistenAccessDenied();
   });
-  invoke("start_async_scan", { path });
+  Utils.invokeWithTimeout("start_async_scan", { path }, Utils.IPC_TIMEOUT_SCAN_MS);
 }
 
 async function goBackToMenu() {
@@ -474,6 +470,9 @@ function updateBreadcrumbs(currentPath) {
     const isLast = index === segments.length - 1;
     const item = document.createElement("span");
     item.className = `breadcrumb-item ${isLast ? "active" : ""}`;
+    if (isLast) {
+      item.setAttribute("aria-current", "page");
+    }
     item.textContent = segment.endsWith(separator) ? segment.slice(0, -1) : segment;
     if (!isLast) {
       item.onclick = () => navigateToPath(pathForAction);
@@ -1497,7 +1496,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     };
   }
-  if (!isWindows) {
+  if (!Utils.isWindows) {
     const cmOpenTcItem = document.getElementById("cm-open-tc");
     if (cmOpenTcItem) cmOpenTcItem.style.display = "none";
   }

@@ -12,6 +12,7 @@
 *   **Frameworks/Libraries**:
     *   **Application Framework**: Tauri (for building cross-platform desktop applications)
     *   **Frontend Visualization**: Modular D3.js, primarily using `d3-hierarchy` for the sunburst chart layout.
+    *   **Frontend Testing**: Vitest (unit tests for `src/lib/utils.js` via `npm test`).
      *   **Tauri APIs/Plugins**:
         *   `@tauri-apps/api/core`: For Inter-Process Communication (IPC) between the frontend and backend, event listening, and invoking Rust commands.
         *   `@tauri-apps/plugin-dialog`: For native file open/save, message, and confirmation dialogs.

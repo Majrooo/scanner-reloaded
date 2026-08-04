@@ -19,12 +19,28 @@
     return null;
   }
 
+  /**
+   * Odošle chybu do backendu na zapísanie do error.log (fire-and-forget).
+   * Zlyhanie logovania nesmie spôsobiť ďalšiu chybu.
+   */
+  function reportToBackend(detail, stack) {
+    try {
+      if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+        window.__TAURI__.core.invoke('log_frontend_error', {
+          message: String(detail),
+          stack: stack ? String(stack) : null,
+        }).catch(function () { /* ignore logging failures */ });
+      }
+    } catch (_) { /* ignore */ }
+  }
+
   function handleGlobalError(message, source, line, col, error) {
     if (isHandlingError) return;
     isHandlingError = true;
     try {
       var detail = getErrorMessage(error) || message || 'Neznáma chyba';
       console.error('[GLOBAL ERROR]', detail, source ? '(' + source + ':' + line + ':' + col + ')' : '', error || '');
+      reportToBackend(detail, error && error.stack);
       if (typeof Utils !== 'undefined' && Utils.showToast) {
         var toastMsg = detail;
         // Skús lokalizáciu ak je I18n k dispozícii
@@ -47,6 +63,7 @@
       var reason = event.reason;
       var detail = getErrorMessage(reason) || 'Unhandled Promise rejection';
       console.error('[UNHANDLED REJECTION]', detail, reason || '');
+      reportToBackend(detail, reason && reason.stack);
       if (typeof Utils !== 'undefined' && Utils.showToast) {
         var toastMsg = detail;
         try {

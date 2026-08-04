@@ -21,9 +21,6 @@ const tcClearBtn = document.getElementById("tc-clear-btn");
 const tcCloseBtn = document.getElementById("close-tc-modal-btn");
 const tcCurrentPathInfo = document.getElementById("tc-current-path-info");
 
-// OS detection
-const isWindows = navigator.platform?.toLowerCase().includes("win") || navigator.userAgent?.toLowerCase().includes("windows");
-
 async function loadDisks() {
   const skeleton = document.getElementById("disk-list-skeleton");
   diskList.innerHTML = "";
@@ -162,7 +159,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   const systemUtilitiesSection = document.getElementById("system-utilities-section");
-  if (isWindows && systemUtilitiesSection) {
+  if (Utils.isWindows && systemUtilitiesSection) {
     systemUtilitiesSection.classList.remove("hidden");
 
     document.getElementById("util-disk-cleanup")?.addEventListener("click", () => Utils.invokeWithTimeout("open_system_utility", { utility: "disk-cleanup" }, 10000));
@@ -173,7 +170,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // TC Path section (Windows only)
   const tcPathSection = document.getElementById("tc-path-section");
-  if (isWindows && tcPathSection) {
+  if (Utils.isWindows && tcPathSection) {
     tcPathSection.classList.remove("hidden");
   }
 

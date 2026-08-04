@@ -313,7 +313,7 @@ function setCustomThemes(themes) {
 async function loadCustomThemeFiles() {
   try {
     if (!window.__TAURI__) return;
-    const result = await window.__TAURI__.core.invoke("list_themes");
+    const result = await Utils.invokeWithTimeout("list_themes", {}, Utils.IPC_TIMEOUT_DEFAULT_MS);
     if (Array.isArray(result)) {
       setCustomThemes(result);
       // Re-apply in case the persisted id is a custom theme.
