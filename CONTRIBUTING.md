@@ -58,7 +58,7 @@ cd src-tauri
 cargo test
 ```
 
-Runs the backend unit tests for the core functions (`serialize_to_binary`, `build_dir_node`, `merge_small_files`, `normalize_paths`, `is_protected_path`, config defaults).
+Runs the backend unit tests for the core functions (`serialize_to_binary`, `build_dir_node`, `merge_small_files`, `normalize_paths`, `scan_directory_core`, `is_protected_path`, config defaults).
 
 ### Build a release bundle
 

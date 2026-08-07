@@ -28,13 +28,13 @@ You can find more about the original author and his work here: [www.steffengerla
 
 ## Download
 
-Get the latest version (**v0.4.0**) for your platform from the [Releases page](https://github.com/Majrooo/scanner-reloaded/releases).
+Get the latest version (**v0.4.1**) for your platform from the [Releases page](https://github.com/Majrooo/scanner-reloaded/releases).
 
 | Platform | Installer | Portable |
 |----------|-----------|----------|
-| **Windows** ✅ | `Scanner.Reloaded_0.4.0_x64-setup.exe` (NSIS) or `Scanner.Reloaded_0.4.0_x64_en-US.msi` | `scanner-reloaded_0.4.0_x64_portable.zip` |
-| **macOS** ⚠️ | `Scanner.Reloaded_0.4.0_aarch64.dmg` (Apple Silicon) | `scanner-reloaded_0.4.0_aarch64_portable.zip` |
-| **Linux** ⚠️ | `Scanner.Reloaded_0.4.0_amd64.AppImage` (also `.deb`, `.rpm`) | `scanner-reloaded_0.4.0_x64_portable.tar.gz` |
+| **Windows** ✅ | `Scanner.Reloaded_0.4.1_x64-setup.exe` (NSIS) or `Scanner.Reloaded_0.4.1_x64_en-US.msi` | `scanner-reloaded_0.4.1_x64_portable.zip` |
+| **macOS** ⚠️ | `Scanner.Reloaded_0.4.1_aarch64.dmg` (Apple Silicon) | `scanner-reloaded_0.4.1_aarch64_portable.zip` |
+| **Linux** ⚠️ | `Scanner.Reloaded_0.4.1_amd64.AppImage` (also `.deb`, `.rpm`) | `scanner-reloaded_0.4.1_x64_portable.tar.gz` |
 
 > **Tip:** Portable version requires no installation — just extract and run.
 

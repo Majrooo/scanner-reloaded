@@ -16,7 +16,7 @@ This guide describes how to create a new release for **Scanner Reloaded** using 
 Add a new section at the top of `CHANGELOG.md` (English only):
 
 ```markdown
-## [0.3.0] - 2026-MM-DD
+## [0.4.1] - 2026-MM-DD
 
 ### Added
 - New feature 1
@@ -28,32 +28,32 @@ Add a new section at the top of `CHANGELOG.md` (English only):
 ### Changed
 - Change description 1
 
-[0.3.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.3.0
+[0.4.1]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.4.1
 ```
 
 ### 2. Bump version (automatic)
 
-Run the command that bumps the version in all 3 files, creates a commit and a tag:
+Run the command that bumps the version in all 4 files, creates a commit and a tag:
 
 ```bash
-npm run bump patch   # 0.1.0 → 0.1.1 (bug fixes)
-npm run bump minor   # 0.1.0 → 0.2.0 (new features)
-npm run bump major   # 0.1.0 → 1.0.0 (breaking changes)
+npm run bump patch   # 0.4.0 → 0.4.1 (bug fixes)
+npm run bump minor   # 0.4.0 → 0.5.0 (new features)
+npm run bump major   # 0.4.0 → 1.0.0 (breaking changes)
 ```
 
 This command:
 - Bumps version in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.lock`
-- Creates a git commit: `chore: bump version to 0.3.0` (includes all 4 files + `CHANGELOG.md`)
-- Creates a git tag: `v0.3.0`
+- Creates a git commit: `chore: bump version to 0.4.1` (includes all 4 files + `CHANGELOG.md`)
+- Creates a git tag: `v0.4.1`
 
 ### 3. Push changes
 
 ```bash
 # Windows (PowerShell) — use semicolon instead of &&
-git push origin main; git push origin v0.3.0
+git push origin main; git push origin v0.4.1
 
 # Linux / macOS
-git push origin main && git push origin v0.3.0
+git push origin main && git push origin v0.4.1
 ```
 
 ### 4. GitHub Actions runs the build automatically
@@ -63,20 +63,19 @@ After pushing the tag, the workflow `.github/workflows/release.yml` automaticall
 1. Builds the application on **Windows**, **macOS** and **Linux**
 2. Extracts release notes from `CHANGELOG.md` for the version
 3. Runs `cargo build --release` so portable packaging can find the binary
-4. Creates a **draft release** on GitHub
+4. Creates and **automatically publishes** the release (`releaseDraft: false` in the workflow)
 5. Attaches installer packages (MSI, NSIS, DMG, AppImage)
 6. Attaches **portable versions**:
-   - `scanner-reloaded_0.3.0_x64_portable.zip` (Windows)
-   - `scanner-reloaded_0.3.0_x64_portable.tar.gz` (Linux)
-   - `scanner-reloaded_0.3.0_x64_portable.zip` or `..._aarch64_portable.zip` (macOS)
+   - `scanner-reloaded_0.4.1_x64_portable.zip` (Windows)
+   - `scanner-reloaded_0.4.1_x64_portable.tar.gz` (Linux)
+   - `scanner-reloaded_0.4.1_x64_portable.zip` or `..._aarch64_portable.zip` (macOS)
 
-### 5. Review and publish the release
+### 5. Verify the published release
 
 1. Go to [github.com/Majrooo/scanner-reloaded/releases](https://github.com/Majrooo/scanner-reloaded/releases)
-2. Find the draft release with the name `Release v0.3.0`
-3. Review the release notes (automatically extracted from `CHANGELOG.md`)
-4. Check the attached files (installers + portable)
-5. Click **"Publish release"**
+2. Confirm the release `Release v0.4.1` is published as **Latest**
+3. Check the attached files (installers + portable, incl. `_portable` assets)
+4. If something is missing or broken, check the workflow run logs (see Troubleshooting)
 
 ## Quick summary
 
@@ -84,10 +83,10 @@ After pushing the tag, the workflow `.github/workflows/release.yml` automaticall
 # 1. Update CHANGELOG.md (manually, in English)
 
 # 2. Bump version, commit and tag (automatic)
-npm run bump minor
+npm run bump patch
 
 # 3. Push everything
-git push origin main; git push origin v0.3.0
+git push origin main; git push origin v0.4.1
 
 # 4. Done — GitHub Actions takes care of the rest
 ```
@@ -95,7 +94,7 @@ git push origin main; git push origin v0.3.0
 ## Troubleshooting
 
 ### Workflow didn't start
-- Check that the tag starts with `v` (e.g. `v0.3.0`, not `0.3.0`)
+- Check that the tag starts with `v` (e.g. `v0.4.1`, not `0.4.1`)
 - Check that `.github/workflows/release.yml` exists in the `main` branch
 
 ### Build failed

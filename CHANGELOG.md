@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Claudia color theme**: New built-in theme (`themes/claudia.json`) added to the theme system
+- **New custom theme examples**: `themes/claudia.json` (and other JSON themes) added to the repo — drop any `themes/*.json` file next to the executable to use it as an external custom theme
 
 ### Fixed
 
