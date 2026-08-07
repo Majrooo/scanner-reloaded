@@ -377,6 +377,171 @@ mod is_protected_path {
     }
 }
 
+// ─── is_protected_path_with_extra (home dir protection) ──────────────────────
+
+#[cfg(test)]
+mod is_protected_path_with_extra {
+    use super::*;
+    use std::path::Path;
+
+    fn extra_paths() -> Vec<PathBuf> {
+        // Hermetic mock "home" paths — not the CI runner's real home dir.
+        vec![
+            PathBuf::from(r"C:\Users\testuser"),
+            PathBuf::from(r"C:\Users\testuser\Desktop"),
+            PathBuf::from(r"C:\Users\testuser\Documents"),
+        ]
+    }
+
+    #[test]
+    fn protects_mocked_home_dir() {
+        let extra = extra_paths();
+        assert!(is_protected_path_with_extra(Path::new(r"C:\Users\testuser"), &extra));
+        assert!(is_protected_path_with_extra(Path::new(r"C:\Users\testuser\Desktop"), &extra));
+        assert!(is_protected_path_with_extra(Path::new(r"C:\Users\testuser\Documents"), &extra));
+    }
+
+    #[test]
+    fn protects_mocked_home_dir_case_insensitively_and_with_slashes() {
+        let extra = extra_paths();
+        assert!(is_protected_path_with_extra(Path::new(r"c:\USERS\TestUser"), &extra));
+        assert!(is_protected_path_with_extra(Path::new("C:/Users/testuser"), &extra));
+    }
+
+    #[test]
+    fn does_not_protect_unlisted_subfolders_of_mocked_home() {
+        let extra = extra_paths();
+        // Full equality only — subfolders of home are NOT protected unless listed,
+        // so the user can still delete e.g. C:\Users\testuser\Downloads.
+        assert!(!is_protected_path_with_extra(Path::new(r"C:\Users\testuser\Downloads"), &extra));
+    }
+
+    #[test]
+    fn still_protects_base_system_paths_without_extra() {
+        assert!(is_protected_path_with_extra(Path::new(r"C:\Windows"), &[]));
+        assert!(is_protected_path_with_extra(Path::new("/etc"), &[]));
+    }
+}
+
+// ─── scan_directory_core (DFS stack alignment) ───────────────────────────────
+
+#[cfg(test)]
+mod scan_directory_core {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    /// Isolated temp scan root with cleanup on drop.
+    struct TempScanDir(PathBuf);
+
+    impl TempScanDir {
+        fn new(stem: &str) -> Self {
+            let base = std::env::temp_dir();
+            // Unique dir per test run.
+            let unique = format!(
+                "scanner-core-test-{}-{}",
+                stem,
+                std::process::id()
+            );
+            let path = base.join(&unique);
+            let _ = fs::remove_dir_all(&path);
+            fs::create_dir_all(&path).expect("create temp scan root");
+            TempScanDir(path)
+        }
+
+        fn join(&self, p: &str) -> PathBuf {
+            self.0.join(p)
+        }
+    }
+
+    impl Drop for TempScanDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn scan(root: &PathBuf) -> Option<FileNode> {
+        let mut running_total: u64 = 0;
+        let mut denied_paths: HashSet<String> = HashSet::new();
+        let mut progress: Vec<(String, u64)> = Vec::new();
+        let tree = scan_directory_core(
+            root,
+            &mut running_total,
+            &mut denied_paths,
+            &mut |p: &str, sz: u64| progress.push((p.to_string(), sz)),
+        );
+        // Nothing to assert on progress here — just keep it alive and silent.
+        let _ = progress.len();
+        tree
+    }
+
+    #[test]
+    fn reconstructs_nested_empty_dir_hierarchy() {
+        let t = TempScanDir::new("empty-nested");
+        fs::create_dir_all(t.join("a/b/c")).expect("create nested empty dirs");
+
+        let tree = scan(&t.0).expect("scan should return a tree");
+        assert!(tree.is_dir);
+        assert_eq!(tree.dir_count, 4); // self + 3 nested dirs (a, b, c)
+        assert_eq!(tree.file_count, 0);
+
+        // Verify nesting: root -> a -> b -> c
+        assert_eq!(tree.children.len(), 1);
+        let a = &tree.children[0];
+        assert!(a.is_dir);
+        assert_eq!(a.dir_count, 3); // self + b + c
+        assert_eq!(a.file_count, 0);
+        assert_eq!(a.children.len(), 1);
+        let b = &a.children[0];
+        assert!(b.is_dir);
+        assert_eq!(b.dir_count, 2); // self + c
+        assert_eq!(b.children.len(), 1);
+        let c = &b.children[0];
+        assert!(c.is_dir);
+        assert_eq!(c.dir_count, 1); // self only (leaf empty dir)
+        assert!(c.children.is_empty());
+    }
+
+    #[test]
+    fn handles_dir_with_only_subdirs_no_direct_files() {
+        let t = TempScanDir::new("dirs-only");
+        fs::create_dir_all(t.join("sub1")).expect("create sub1");
+        fs::create_dir_all(t.join("sub2")).expect("create sub2");
+        fs::create_dir_all(t.join("sub1/deep")).expect("create sub1/deep");
+
+        let tree = scan(&t.0).expect("scan should return a tree");
+        assert!(tree.is_dir);
+        // dirs: self + sub1 + sub2 + sub1/deep = 4
+        assert_eq!(tree.dir_count, 4);
+        assert_eq!(tree.file_count, 0);
+        assert_eq!(tree.children.len(), 2);
+
+        let mut names: Vec<String> = tree.children.iter().map(|c| c.name.to_string()).collect();
+        names.sort();
+        assert_eq!(names, vec!["sub1", "sub2"]);
+
+        let sub1 = tree.children.iter().find(|c| c.name.as_ref() == "sub1").unwrap();
+        assert_eq!(sub1.dir_count, 2); // self + deep
+        assert_eq!(sub1.children.len(), 1);
+        assert_eq!(sub1.children[0].name.as_ref(), "deep");
+        assert_eq!(sub1.children[0].dir_count, 1);
+    }
+
+    #[test]
+    fn sums_file_counts_and_sizes_correctly() {
+        let t = TempScanDir::new("files-and-dirs");
+        fs::create_dir_all(t.join("sub")).expect("create sub");
+        fs::write(t.join("root.txt"), b"12345").expect("write root file");
+        fs::write(t.join("sub/inner.txt"), b"1234567890").expect("write inner file");
+
+        let tree = scan(&t.0).expect("scan should return a tree");
+        assert!(tree.is_dir);
+        assert_eq!(tree.dir_count, 2); // self + sub
+        assert_eq!(tree.file_count, 2);
+        assert_eq!(tree.size, 15);
+    }
+}
+
 // ─── config defaults ─────────────────────────────────────────────────────────
 
 #[cfg(test)]

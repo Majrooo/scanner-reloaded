@@ -48,9 +48,14 @@ async function loadDisks() {
 
     const card = document.createElement("div");
     card.className = "disk-card";
+    // Escape volume label + mount point — the user can set a volume label to
+    // arbitrary characters (quotes, "<", ...) which would break the title
+    // attribute or inject markup via innerHTML.
+    const safeName = Utils.escapeHtml(disk.name);
+    const safeMount = Utils.escapeHtml(disk.mount_point);
     card.innerHTML = `
       <div class="disk-type-icon">${typeIcon}</div>
-      <div class="disk-name" title="${disk.name} (${disk.mount_point})">${disk.name} (${disk.mount_point})</div>
+      <div class="disk-name" title="${safeName} (${safeMount})">${safeName} (${safeMount})</div>
       <div class="disk-bar-bg"><div class="disk-bar-fill" style="width: ${pct}%"></div></div>
       <div>${I18n.getText("diskScreen.used", { used: Utils.formatBytes(used), total: Utils.formatBytes(disk.total_space) })}</div>
     `;

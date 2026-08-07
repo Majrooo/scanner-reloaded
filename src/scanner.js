@@ -318,7 +318,11 @@ async function startDiskScan(path, totalSpace) {
   liveTicker.textContent = I18n.getText("scanScreen.statuses.initializingScan");
   const breadcrumbsContainer = document.getElementById("current-folder-title");
   if (breadcrumbsContainer) {
-    breadcrumbsContainer.innerHTML = `<span class="breadcrumb-item active">${path}</span>`;
+    breadcrumbsContainer.innerHTML = "";
+    const item = document.createElement("span");
+    item.className = "breadcrumb-item active";
+    item.textContent = path;
+    breadcrumbsContainer.appendChild(item);
   }
   document.getElementById("live-ticker-bar").style.width = "0%";
   isScanning = true;

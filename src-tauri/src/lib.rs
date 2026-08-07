@@ -286,7 +286,7 @@ fn find_tc_in_registry() -> Option<String> {
             let mut buf: Vec<u8> = vec![0; buf_len as usize];
             let mut value_type: u32 = 0;
 
-            let result = RegQueryValueExW(
+            let mut result = RegQueryValueExW(
                 h_key,
                 wide_value.as_ptr(),
                 std::ptr::null_mut(),
@@ -294,6 +294,21 @@ fn find_tc_in_registry() -> Option<String> {
                 buf.as_mut_ptr(),
                 &mut buf_len,
             );
+
+            // If the install path is longer than the initial buffer, Windows
+            // returns ERROR_MORE_DATA and reports the required size in buf_len.
+            // Retry once with a buffer sized to the reported value.
+            if result == windows_sys::Win32::Foundation::ERROR_MORE_DATA && buf_len > 1024 {
+                buf = vec![0; buf_len as usize];
+                result = RegQueryValueExW(
+                    h_key,
+                    wide_value.as_ptr(),
+                    std::ptr::null_mut(),
+                    &mut value_type,
+                    buf.as_mut_ptr(),
+                    &mut buf_len,
+                );
+            }
 
             RegCloseKey(h_key);
 
@@ -366,13 +381,9 @@ fn resolve_tc_path() -> Result<String, String> {
 
 // ─── Protected paths for permanent_delete ────────────────────────────────────
 
-/// Check if the path is a system/protected directory that should never be deleted.
-fn is_protected_path(path: &Path) -> bool {
-    let normalized = path.to_string_lossy().replace('/', "\\");
-    let normalized_lower = normalized.to_lowercase();
-    // Trim trailing backslashes so "C:\" becomes "C:" while "C:\Windows" stays as-is.
-    let trimmed = normalized_lower.trim_end_matches('\\');
-
+/// Static list of system/protected directories that should never be deleted.
+/// Paths are compared against the normalized (backslash, lowercase) form.
+fn is_base_protected(trimmed: &str, normalized_lower: &str) -> bool {
     // All paths are compared against the normalized (backslash, lowercase) form.
     // Root paths appear in both forms ("C:\" and "C:", "/" normalized to "\")
     // so they match regardless of whether a trailing separator is present.
@@ -402,6 +413,47 @@ fn is_protected_path(path: &Path) -> bool {
     ];
 
     protected.iter().any(|p| trimmed == *p || normalized_lower == *p)
+}
+
+/// Returns the current user's home directory plus high-value subfolders
+/// (Desktop, Documents) for best-effort protection — only those that exist.
+/// Not a `const` because the home directory is per-user.
+fn home_protected() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        paths.push(home.clone());
+        for sub in ["Desktop", "Documents"] {
+            let candidate = home.join(sub);
+            if candidate.exists() {
+                paths.push(candidate);
+            }
+        }
+    }
+    paths
+}
+
+/// Check if the path is a system/protected directory that should never be deleted.
+/// `extra` lets tests inject additional protected paths hermetically.
+fn is_protected_path_with_extra(path: &Path, extra: &[PathBuf]) -> bool {
+    let normalized = path.to_string_lossy().replace('/', "\\");
+    let normalized_lower = normalized.to_lowercase();
+    // Trim trailing backslashes so "C:\" becomes "C:" while "C:\Windows" stays as-is.
+    let trimmed = normalized_lower.trim_end_matches('\\');
+
+    if is_base_protected(trimmed, &normalized_lower) {
+        return true;
+    }
+
+    extra.iter().any(|p| {
+        let n = p.to_string_lossy().replace('/', "\\").to_lowercase();
+        let t = n.trim_end_matches('\\');
+        trimmed == t || normalized_lower == n
+    })
+}
+
+/// Check if the path is a system/protected directory that should never be deleted.
+fn is_protected_path(path: &Path) -> bool {
+    is_protected_path_with_extra(path, &home_protected())
 }
 
 // ─── Tauri Commands ──────────────────────────────────────────────────────────
@@ -459,6 +511,11 @@ fn build_dir_node(dir_path: PathBuf, children: Vec<FileNode>) -> FileNode {
         path: Arc::from(dir_path.to_string_lossy().as_ref()),
         size: total_size,
         is_dir: true,
+        // Self-inclusive convention: dir_count counts this directory itself, so
+        // a leaf empty directory reports dir_count = 1 (not 0). The frontend
+        // "direct" stats bar computes its own direct-child count separately via
+        // getDirectStats(); only the "total" bar displays this self-inclusive
+        // value. Do not change this without updating the frontend display logic.
         dir_count: total_dirs + 1,
         file_count: total_files,
         children,
@@ -471,6 +528,31 @@ fn scan_directory(
     last_emit: &mut Instant,
     running_total: &mut u64,
     denied_paths: &mut HashSet<String>,
+) -> Option<FileNode> {
+    // Throttled progress callback that emits scan status to the frontend.
+    let mut on_progress = |path: &str, size: u64| {
+        if last_emit.elapsed().as_millis() >= 100 {
+            let _ = app_handle.emit(
+                "scan-live-folder",
+                LivePayload {
+                    path: path.to_string(),
+                    size,
+                },
+            );
+            *last_emit = Instant::now();
+        }
+    };
+    scan_directory_core(root_path, running_total, denied_paths, &mut on_progress)
+}
+
+/// Core DFS tree reconstruction (WalkDir::contents_first(true) + manual stack).
+/// Separated from `scan_directory` so it can be unit-tested without a Tauri
+/// `AppHandle` — the progress callback is injected instead of emitting directly.
+fn scan_directory_core(
+    root_path: &Path,
+    running_total: &mut u64,
+    denied_paths: &mut HashSet<String>,
+    on_progress: &mut dyn FnMut(&str, u64),
 ) -> Option<FileNode> {
     // In-place tree building using WalkDir::contents_first(true) + DFS stack.
     // contents_first(true) yields children BEFORE their parent directory,
@@ -518,7 +600,11 @@ fn scan_directory(
         let parent = path.parent().unwrap_or(&root_path_buf).to_path_buf();
 
         // --- Step 1: Align stack so that top == parent ---
-        // Pop completed directories or push missing intermediate dirs
+        // Pop completed directories or push missing intermediate dirs.
+        // `closed` tracks the directory that was just popped & attached to its
+        // parent during THIS alignment. Its own dir entry follows immediately
+        // (contents_first), so Step 2 must not push it again.
+        let mut closed: Option<PathBuf> = None;
         while stack.last().map_or(false, |(p, _)| *p != parent) {
             let Some((top_path, _)) = stack.last() else { break; };
 
@@ -531,6 +617,9 @@ fn scan_directory(
             } else {
                 // Parent is outside top_path → pop completed directory
                 let Some((dir_path, children)) = stack.pop() else { break; };
+                // Remember this directory before `dir_path` is moved into
+                // `build_dir_node` — Step 2 must not re-push its own entry.
+                closed = Some(dir_path.clone());
                 let dir_node = build_dir_node(dir_path, children);
                 if stack.is_empty() {
                     // Root finished — return immediately
@@ -553,8 +642,14 @@ fn scan_directory(
                 }
                 let Some(top) = stack.last_mut() else { break; };
                 top.1.push(dir_node);
+            } else if closed.as_deref() != Some(path.as_path()) {
+                // Empty/leaf directory that was never pushed by a child.
+                // Push it now so it gets attached to its parent when the
+                // parent's own entry (or the root) arrives.
+                stack.push((path, Vec::new()));
             }
-            // Otherwise the while-loop already popped it — nothing to do.
+            // Otherwise this dir was already closed by the alignment loop —
+            // nothing to do.
         } else {
             // File: add to current directory's children
             let name: Arc<str> = path
@@ -581,29 +676,14 @@ fn scan_directory(
                 children: Vec::new(),
             });
 
-            // Periodically send status to the frontend.
-            if last_emit.elapsed().as_millis() >= 100 {
-                let _ = app_handle.emit(
-                    "scan-live-folder",
-                    LivePayload {
-                        path: live_path_str,
-                        size: *running_total,
-                    },
-                );
-                *last_emit = Instant::now();
-            }
+            // Periodically send status to the frontend (throttled in callback).
+            on_progress(&live_path_str, *running_total);
         }
     }
 
     // Fallback: root was the only entry or empty
-    // At the end, request the final state on the UI one more time.
-    let _ = app_handle.emit(
-        "scan-live-folder",
-        LivePayload {
-            path: root_path.to_string_lossy().into_owned(),
-            size: *running_total,
-        },
-    );
+    // At the end, request the final state on the UI one more time (best effort).
+    on_progress(&root_path.to_string_lossy().into_owned(), *running_total);
 
     // Build root from whatever is left on the stack
     if let Some((root_dir_path, root_children)) = stack.pop() {
