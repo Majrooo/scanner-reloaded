@@ -37,9 +37,6 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Forknutý repozitár pre PR do awesome-tauri
-awesome-tauri/
-
 # MCP servery
 servers/
 
