@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-08-07
+
+### Added
+
+- **Claudia color theme**: New built-in theme (`themes/claudia.json`) added to the theme system
+
+### Fixed
+
+- **XSS escaping**: User-controlled data (disk card name/mount point, scan breadcrumbs) is now HTML-escaped via `Utils.escapeHtml` / `textContent` before rendering
+- **DFS empty leaf directories**: `scan_directory_core` now preserves empty/leaf directories in the tree (regression where they were dropped)
+- **Home directory protection**: `permanent_delete` now also refuses to delete the user's home directory and its Desktop/Documents subfolders
+
 ## [0.4.0] - 2026-08-04
 
 ### Added
@@ -286,4 +298,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HTML escaping via `String.fromCharCode(38)` concatenation to prevent XSS in tooltips
 - Input validation for drag-and-drop directory paths
 
+[0.4.1]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.4.1
+[0.4.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.4.0
 [0.1.0]: https://github.com/Majrooo/scanner-reloaded/releases/tag/v0.1.0
